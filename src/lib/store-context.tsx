@@ -68,50 +68,62 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const [registeredUsers, setRegisteredUsers] = useState<UserAccount[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Load from LocalStorage on mount
+    // Initial Load from Supabase
     useEffect(() => {
-        const savedClients = localStorage.getItem("ias_clients");
-        const savedUser = localStorage.getItem("ias_user");
-        const savedUsersList = localStorage.getItem("ias_registered_users");
-
-        if (savedClients) {
-            try { setClients(JSON.parse(savedClients)); } catch (e) { console.error("Failed to parse clients", e); }
-        }
-
-        if (savedUser) {
-            try { setUser(JSON.parse(savedUser)); } catch (e) { console.error("Failed to parse user", e); }
-        }
-
-        if (savedUsersList) {
+        async function loadData() {
             try {
-                setRegisteredUsers(JSON.parse(savedUsersList));
-            } catch (e) { console.error("Failed to parse registered users", e); }
-        } else {
-            // First time load: Create Default Master User
-            setRegisteredUsers([{
-                email: MASTER_EMAIL,
-                password: MASTER_PASS,
-                role: "master",
-                name: "Admin"
-            }]);
-        }
+                // 1. Check if we have a session in localStorage for the CURRENT user object (not data)
+                const savedUser = localStorage.getItem("ias_user");
+                if (savedUser) {
+                    try { setUser(JSON.parse(savedUser)); } catch (e) { }
+                }
 
-        setIsLoaded(true);
+                // 2. Fetch Clients
+                const { data: clientsData, error: clientsError } = await supabase
+                    .from("clientes")
+                    .select("*")
+                    .order("name", { ascending: true });
+
+                if (clientsError) throw clientsError;
+
+                // Map snake_case from DB to camelCase in app
+                const formattedClients = (clientsData || []).map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    webhookUrl: c.webhook_url,
+                    webhookPostagens: c.webhook_postagens,
+                    columns: c.columns
+                }));
+                setClients(formattedClients);
+
+                // 3. Fetch Registered Users
+                const { data: usersData, error: usersError } = await supabase
+                    .from("usuarios")
+                    .select("*")
+                    .order("email", { ascending: true });
+
+                if (usersError) throw usersError;
+                setRegisteredUsers(usersData || []);
+
+            } catch (error) {
+                console.error("Error loading Supabase data:", error);
+            } finally {
+                setIsLoaded(true);
+            }
+        }
+        loadData();
     }, []);
 
-    // Persist Data
+    // Persist session only (not the whole DB)
     useEffect(() => {
         if (isLoaded) {
-            localStorage.setItem("ias_clients", JSON.stringify(clients));
-            localStorage.setItem("ias_registered_users", JSON.stringify(registeredUsers));
-
             if (user) {
                 localStorage.setItem("ias_user", JSON.stringify(user));
             } else {
                 localStorage.removeItem("ias_user");
             }
         }
-    }, [clients, registeredUsers, user, isLoaded]);
+    }, [user, isLoaded]);
 
     // Auth Actions
     const login = (email: string, pass: string) => {
@@ -130,34 +142,100 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
 
     // User Management Actions
-    const registerUser = (newUser: UserAccount) => {
+    const registerUser = async (newUser: UserAccount) => {
         if (registeredUsers.some(u => u.email.toLowerCase() === newUser.email.toLowerCase())) {
             alert("Email já cadastrado!");
             return;
         }
+
+        const { error } = await supabase
+            .from("usuarios")
+            .insert([newUser]);
+
+        if (error) {
+            alert("Erro ao cadastrar: " + error.message);
+            return;
+        }
+
         setRegisteredUsers(prev => [...prev, newUser]);
     };
 
-    const removeUser = (email: string) => {
+    const removeUser = async (email: string) => {
+        const { error } = await supabase
+            .from("usuarios")
+            .delete()
+            .eq("email", email);
+
+        if (error) {
+            alert("Erro ao remover: " + error.message);
+            return;
+        }
+
         setRegisteredUsers(prev => prev.filter(u => u.email !== email));
     };
 
     // Client Actions
-    const addClient = (data: Omit<Client, "id">) => {
+    const addClient = async (data: Omit<Client, "id">) => {
+        const { data: inserted, error } = await supabase
+            .from("clientes")
+            .insert([{
+                name: data.name,
+                webhook_url: data.webhookUrl,
+                webhook_postagens: data.webhookPostagens,
+                columns: data.columns
+            }])
+            .select();
+
+        if (error) {
+            alert("Erro ao adicionar cliente: " + error.message);
+            return;
+        }
+
         const newClient: Client = {
-            ...data,
-            id: crypto.randomUUID(),
+            id: inserted[0].id,
+            name: inserted[0].name,
+            webhookUrl: inserted[0].webhook_url,
+            webhookPostagens: inserted[0].webhook_postagens,
+            columns: inserted[0].columns
         };
+
         setClients((prev) => [...prev, newClient]);
     };
 
-    const updateClient = (id: string, updates: Partial<Client>) => {
+    const updateClient = async (id: string, updates: Partial<Client>) => {
+        // Map camelCase to snake_case for DB
+        const dbUpdates: any = {};
+        if (updates.name) dbUpdates.name = updates.name;
+        if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
+        if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
+        if (updates.columns) dbUpdates.columns = updates.columns;
+
+        const { error } = await supabase
+            .from("clientes")
+            .update(dbUpdates)
+            .eq("id", id);
+
+        if (error) {
+            alert("Erro ao atualizar cliente: " + error.message);
+            return;
+        }
+
         setClients((prev) =>
             prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
         );
     };
 
-    const deleteClient = (id: string) => {
+    const deleteClient = async (id: string) => {
+        const { error } = await supabase
+            .from("clientes")
+            .delete()
+            .eq("id", id);
+
+        if (error) {
+            alert("Erro ao deletar cliente: " + error.message);
+            return;
+        }
+
         setClients((prev) => prev.filter((c) => c.id !== id));
     };
 
