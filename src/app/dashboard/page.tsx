@@ -153,20 +153,20 @@ export default function DashboardPage() {
                 <div className="bg-white/5 p-1 rounded-lg border border-white/10 flex self-start md:self-auto space-x-1">
                     <button
                         onClick={() => setViewMode("generator")}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "generator" ? "bg-indigo-600 text-white shadow-lg" : "text-muted-foreground hover:text-white"}`}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "generator" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                     >
                         Operação
                     </button>
                     <button
                         onClick={() => setViewMode("scheduler")}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "scheduler" ? "bg-indigo-600 text-white shadow-lg" : "text-muted-foreground hover:text-white"}`}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "scheduler" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                     >
                         Agendar
                     </button>
                     {user.role === "master" && (
                         <button
                             onClick={() => setViewMode("admin")}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "admin" ? "bg-indigo-600 text-white shadow-lg" : "text-muted-foreground hover:text-white"}`}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "admin" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                         >
                             Configuração
                         </button>
@@ -273,7 +273,7 @@ export default function DashboardPage() {
                                     <Button
                                         onClick={handleGenerate}
                                         disabled={!activeClient || isSubmitting || tableData.length === 0}
-                                        className={`w-full md:w-auto shadow-lg transition-all ${submitStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                                        className={`w-full md:w-auto shadow-lg transition-all !text-slate-950 font-bold ${submitStatus === 'success' ? '!bg-green-400 hover:!bg-green-500' : '!bg-indigo-400 hover:!bg-indigo-500'}`}
                                     >
                                         {isSubmitting ? (
                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />

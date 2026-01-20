@@ -198,7 +198,7 @@ export function ClientManager() {
 
                     <div className="flex justify-end pt-4 space-x-3">
                         <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white">
+                        <Button onClick={handleSave} className="!bg-green-400 hover:!bg-green-500 !text-slate-950 font-bold">
                             <Save className="w-4 h-4 mr-2" /> Salvar Cliente
                         </Button>
                     </div>

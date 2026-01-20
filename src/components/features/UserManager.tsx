@@ -145,8 +145,8 @@ export function UserManager() {
 
                     <div className="flex justify-end pt-4 space-x-3">
                         <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleRegister} className="bg-purple-600 hover:bg-purple-700 text-white">
-                            <Plus className="w-4 h-4 mr-2" /> Cadastrar
+                        <Button onClick={handleRegister} className="!bg-purple-400 hover:!bg-purple-500 !text-slate-950 font-bold">
+                            <Plus className="w-4 h-4 mr-2" /> Cadastrar Usuário
                         </Button>
                     </div>
                 </div>
