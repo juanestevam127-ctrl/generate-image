@@ -148,7 +148,7 @@ export function PostScheduler({ client }: { client: Client }) {
                     <Button
                         disabled={selectedIds.length === 0}
                         onClick={handleOpenModal}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="!bg-green-400 hover:!bg-green-500 !text-slate-950 font-bold"
                     >
                         <Clock className="w-4 h-4 mr-2" />
                         Agendar Postagem
@@ -261,7 +261,7 @@ export function PostScheduler({ client }: { client: Client }) {
                         <Button
                             onClick={handleSchedule}
                             disabled={isScheduling}
-                            className="!bg-green-600 hover:!bg-green-700 !text-white font-bold"
+                            className="!bg-green-400 hover:!bg-green-500 !text-slate-950 font-bold"
                         >
                             {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                             Confirmar Agendamento
