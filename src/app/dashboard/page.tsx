@@ -107,11 +107,14 @@ export default function DashboardPage() {
 
             console.log("Sending payload to", activeClient.webhookUrl, payload);
 
-            // Execute request
-            const res = await fetch(activeClient.webhookUrl, {
+            // Execute request via proxy to avoid CORS
+            const res = await fetch("/api/proxy-webhook", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    url: activeClient.webhookUrl,
+                    payload: payload
+                })
             });
 
             if (res.ok) {

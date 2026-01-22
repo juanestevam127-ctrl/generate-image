@@ -99,11 +99,14 @@ export function PostScheduler({ client }: { client: Client }) {
                 is_carousel: selectedImages.length > 1
             };
 
-            // Send to Webhook
-            const res = await fetch(client.webhookPostagens, {
+            // Send to Webhook via proxy to avoid CORS
+            const res = await fetch("/api/proxy-webhook", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    url: client.webhookPostagens,
+                    payload: payload
+                })
             });
 
             if (!res.ok) throw new Error("Falha ao enviar para o webhook");
