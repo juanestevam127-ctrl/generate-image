@@ -8,7 +8,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
 
-        console.log(`[Proxy Webhook] Sending to: ${url}`);
+        console.log(`[Proxy Webhook] Target: ${url}`);
+        console.log(`[Proxy Webhook] Payload Size: ${JSON.stringify(payload).length} chars`);
+
+        // Add a timeout to avoid hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
         const response = await fetch(url, {
             method: "POST",
@@ -16,7 +21,10 @@ export async function POST(req: NextRequest) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(payload),
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         const status = response.status;
         const text = await response.text();

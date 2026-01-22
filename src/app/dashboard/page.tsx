@@ -72,8 +72,9 @@ export default function DashboardPage() {
         setSubmitStatus("idle");
 
         try {
+            console.log("1. Starting image processing...");
             // Process Uploads First
-            const processedData = await Promise.all(tableData.map(async (row) => {
+            const processedData = await Promise.all(tableData.map(async (row, idx) => {
                 const newRow = { ...row };
                 const columnIds = Object.keys(newRow);
 
@@ -81,18 +82,17 @@ export default function DashboardPage() {
                     const value = newRow[colId];
                     // Check if value is a Base64 Image string
                     if (typeof value === 'string' && value.startsWith("data:image")) {
+                        console.log(`- Uploading image for row ${idx}, col ${colId}...`);
                         // Dynamically import to avoid server-side issues if any
                         const { uploadImage } = await import("@/lib/supabase");
                         const publicUrl = await uploadImage(value, process.env.NEXT_PUBLIC_SUPABASE_BUCKET || 'images');
 
                         if (publicUrl) {
+                            console.log(`- Uploaded: ${publicUrl}`);
                             newRow[colId] = publicUrl;
                         } else {
                             console.error("Failed to upload image for col", colId);
-                            // Fallback? Keep base64 or fail? 
-                            // Keeping base64 might break webhook, but better than losing data?
-                            // Let's assume failure means we shouldn't send.
-                            throw new Error("Falha no upload da imagem. Verifique as credenciais.");
+                            throw new Error(`Falha no upload da imagem (Linha ${idx + 1}). Verifique se o bucket existe e as permissões.`);
                         }
                     }
                 }
@@ -105,17 +105,23 @@ export default function DashboardPage() {
                 timestamp: new Date().toISOString()
             };
 
-            console.log("Sending payload to", activeClient.webhookUrl, payload);
+            console.log("2. Sending to proxy API...", activeClient.webhookUrl);
 
             // Execute request via proxy to avoid CORS
-            const res = await fetch("/api/proxy-webhook", {
+            const proxyUrl = "/api/proxy-webhook";
+            const res = await fetch(proxyUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     url: activeClient.webhookUrl,
                     payload: payload
                 })
+            }).catch(fetchErr => {
+                console.error("Fetch API Error:", fetchErr);
+                throw new Error("Erro de Conexão com a API Interna: " + fetchErr.message);
             });
+
+            console.log("3. Proxy Response Status:", res.status);
 
             if (res.ok) {
                 setSubmitStatus("success");
@@ -123,13 +129,15 @@ export default function DashboardPage() {
                 setTableData([]);
                 setTimeout(() => setSubmitStatus("idle"), 3000);
             } else {
-                console.error("Webhook Error", res.status, await res.text());
+                const errorText = await res.text();
+                console.error("Webhook Error Status:", res.status, "Body:", errorText);
+                alert(`Erro no Webhook (Status ${res.status}): ${errorText}`);
                 setSubmitStatus("error");
             }
 
         } catch (e) {
-            console.error("Process Error", e);
-            alert("Erro: " + (e as Error).message);
+            console.error("DEBUG - Complete Error object:", e);
+            alert("Erro Detalhado: " + (e as Error).message);
             setSubmitStatus("error");
         } finally {
             setIsSubmitting(false);

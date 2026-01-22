@@ -7,10 +7,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function uploadImage(image: string, bucket: string = 'images'): Promise<string | null> {
     try {
-        // 1. Convert Base64 to Blob
-        const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-        const buffer = Buffer.from(base64Data, 'base64');
-        const blob = new Blob([buffer], { type: 'image/png' });
+        // 1. Convert Base64 (DataURL) to Blob - Browser safe
+        const res = await fetch(image);
+        const blob = await res.blob();
 
         // 2. Generate unique filename
         const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
