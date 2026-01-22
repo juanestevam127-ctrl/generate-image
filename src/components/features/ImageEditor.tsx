@@ -31,11 +31,10 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave }: ImageEditorPr
     const handleSave = () => {
         const cropper = cropperRef.current?.cropper;
         if (cropper) {
-            // Get canvas at specific resolution
+            // Get canvas at specific resolution - Removed fillColor to preserve transparency
             const canvas = cropper.getCroppedCanvas({
                 width: outputSize.w,
                 height: outputSize.h,
-                fillColor: '#fff',
                 imageSmoothingEnabled: true,
                 imageSmoothingQuality: 'high',
             });
@@ -177,7 +176,10 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave }: ImageEditorPr
 
                     {/* Actions Footer */}
                     <div className="mt-auto flex flex-col gap-3 pt-4">
-                        <Button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-6 shadow-xl shadow-indigo-900/20" onClick={handleSave}>
+                        <Button
+                            className="w-full !bg-white !text-slate-950 hover:!bg-white/90 font-bold py-6 shadow-xl shadow-indigo-900/20"
+                            onClick={handleSave}
+                        >
                             <Check className="mr-2 h-5 w-5" />
                             Confirmar & Salvar
                         </Button>
