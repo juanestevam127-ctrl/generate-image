@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash, Edit, Save, X, Type, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash, Edit, Save, X, Type, Image as ImageIcon, ArrowUp, ArrowDown } from "lucide-react";
 import { useStore, Client, ColumnDefinition, ColumnType } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,15 @@ export function ClientManager() {
 
     const removeColumn = (id: string) => {
         setColumns((prev) => prev.filter((c) => c.id !== id));
+    };
+
+    const moveColumn = (index: number, direction: "up" | "down") => {
+        const newColumns = [...columns];
+        const targetIndex = direction === "up" ? index - 1 : index + 1;
+        if (targetIndex >= 0 && targetIndex < newColumns.length) {
+            [newColumns[index], newColumns[targetIndex]] = [newColumns[targetIndex], newColumns[index]];
+            setColumns(newColumns);
+        }
     };
 
     return (
@@ -185,9 +194,29 @@ export function ClientManager() {
                                         className="h-9"
                                         placeholder="Nome da coluna"
                                     />
-                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-red-400" onClick={() => removeColumn(col.id)}>
-                                        <X size={16} />
-                                    </Button>
+                                    <div className="flex space-x-1 shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-indigo-400 disabled:opacity-30"
+                                            onClick={() => moveColumn(index, "up")}
+                                            disabled={index === 0}
+                                        >
+                                            <ArrowUp size={14} />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-indigo-400 disabled:opacity-30"
+                                            onClick={() => moveColumn(index, "down")}
+                                            disabled={index === columns.length - 1}
+                                        >
+                                            <ArrowDown size={14} />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-400" onClick={() => removeColumn(col.id)}>
+                                            <X size={16} />
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                             {columns.length === 0 && (
