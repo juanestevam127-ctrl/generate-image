@@ -7,7 +7,7 @@ const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Artes Design Online",
-  description: Gerenciamento de Artes - Auto Design Online",
+  description: "Gerenciamento de Artes - Auto Design Online",
 };
 
 export default function RootLayout({
