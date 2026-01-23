@@ -54,7 +54,7 @@ export default function DashboardLayout({
                             IA
                         </div>
                         <span className="self-center text-xl font-semibold whitespace-nowrap dark:text-white">
-                            SaaS Automation
+                            Artes Design Online
                         </span>
                     </div>
 
