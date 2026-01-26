@@ -18,12 +18,13 @@ interface UserAccount extends User {
     password: string;
 }
 
-export type ColumnType = "text" | "image";
+export type ColumnType = "text" | "image" | "checkbox";
 
 export interface ColumnDefinition {
     id: string;
     name: string;
     type: ColumnType;
+    options?: string[]; // For checkbox/select types
 }
 
 export interface Client {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash, Edit, Save, X, Type, Image as ImageIcon, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash, Edit, Save, X, Type, Image as ImageIcon, ArrowUp, ArrowDown, CheckSquare } from "lucide-react";
 import { useStore, Client, ColumnDefinition, ColumnType } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,7 +117,9 @@ export function ClientManager() {
                             <div className="flex flex-wrap gap-2">
                                 {client.columns.map((col) => (
                                     <span key={col.id} className="inline-flex items-center px-2 py-1 rounded-md bg-white/5 text-xs text-gray-300 border border-white/10">
-                                        {col.type === "image" ? <ImageIcon size={10} className="mr-1 text-purple-400" /> : <Type size={10} className="mr-1 text-blue-400" />}
+                                        {col.type === "image" ? <ImageIcon size={10} className="mr-1 text-purple-400" /> :
+                                            col.type === "checkbox" ? <CheckSquare size={10} className="mr-1 text-green-400" /> :
+                                                <Type size={10} className="mr-1 text-blue-400" />}
                                         {col.name}
                                     </span>
                                 ))}
@@ -177,6 +179,9 @@ export function ClientManager() {
                                 <Button size="sm" variant="outline" onClick={() => addColumn("image")}>
                                     <ImageIcon className="w-4 h-4 mr-2" /> + Imagem
                                 </Button>
+                                <Button size="sm" variant="outline" onClick={() => addColumn("checkbox")}>
+                                    <CheckSquare className="w-4 h-4 mr-2" /> + Checkbox
+                                </Button>
                             </div>
                         </div>
 
@@ -185,15 +190,27 @@ export function ClientManager() {
                                 <div key={col.id} className="flex items-center space-x-3 text-sm animate-in slide-in-from-left-5 duration-200">
                                     <span className="text-muted-foreground w-6 text-center">{index + 1}</span>
                                     <div className="flex items-center px-3 py-2 rounded bg-white/5 border border-white/10 text-xs font-mono uppercase w-24 justify-center">
-                                        {col.type === "image" ? <ImageIcon className="w-3 h-3 mr-2" /> : <Type className="w-3 h-3 mr-2" />}
+                                        {col.type === "image" ? <ImageIcon className="w-3 h-3 mr-2" /> :
+                                            col.type === "checkbox" ? <CheckSquare className="w-3 h-3 mr-2" /> :
+                                                <Type className="w-3 h-3 mr-2" />}
                                         {col.type}
                                     </div>
-                                    <Input
-                                        value={col.name}
-                                        onChange={(e) => updateColumn(col.id, { name: e.target.value })}
-                                        className="h-9"
-                                        placeholder="Nome da coluna"
-                                    />
+                                    <div className="flex-1 space-y-2">
+                                        <Input
+                                            value={col.name}
+                                            onChange={(e) => updateColumn(col.id, { name: e.target.value })}
+                                            className="h-9"
+                                            placeholder="Nome da coluna"
+                                        />
+                                        {col.type === "checkbox" && (
+                                            <Input
+                                                value={col.options?.join(", ") || ""}
+                                                onChange={(e) => updateColumn(col.id, { options: e.target.value.split(",").map(s => s.trim()).filter(s => s !== "") })}
+                                                className="h-7 text-[10px] bg-indigo-500/5 placeholder:text-indigo-400/50"
+                                                placeholder="Opções separadas por vírgula (ex: Stories, Feed)"
+                                            />
+                                        )}
+                                    </div>
                                     <div className="flex space-x-1 shrink-0">
                                         <Button
                                             variant="ghost"

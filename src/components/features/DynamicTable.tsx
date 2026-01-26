@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { Client } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash, Plus, Upload, Image as ImageIcon, Edit, X } from "lucide-react";
+import { Trash, Plus, Upload, Image as ImageIcon, Edit, X, Copy, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DynamicTableProps {
@@ -40,6 +40,14 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
         }
     };
 
+    const cloneRow = (index: number) => {
+        const rowToClone = data[index];
+        const clonedRow = { ...rowToClone, _id: crypto.randomUUID() };
+        const newData = [...data];
+        newData.splice(index + 1, 0, clonedRow);
+        onChange(newData);
+    };
+
     // Helper for file input references
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -60,6 +68,7 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                                 </th>
                             ))}
                             <th className="px-4 py-3 w-12 text-center"><Trash size={14} /></th>
+                            <th className="px-4 py-3 w-12 text-center"><Copy size={14} /></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,6 +84,38 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                                                 className="h-8 bg-transparent border-transparent hover:border-white/10 focus:border-indigo-500/50 transition-all"
                                                 placeholder="Digite..."
                                             />
+                                        ) : col.type === "checkbox" ? (
+                                            <div className="flex flex-wrap gap-2 py-1">
+                                                {col.options?.map((option) => {
+                                                    const isChecked = (row[col.id] || "").split(", ").includes(option);
+                                                    return (
+                                                        <label key={option} className="flex items-center gap-1.5 cursor-pointer group/cb">
+                                                            <div
+                                                                className={cn(
+                                                                    "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                                                    isChecked ? "bg-indigo-500 border-indigo-500" : "border-white/20 group-hover/cb:border-white/40 bg-white/5"
+                                                                )}
+                                                                onClick={() => {
+                                                                    const currentValues = (row[col.id] || "").split(", ").filter((v: string) => v !== "");
+                                                                    let newValues;
+                                                                    if (isChecked) {
+                                                                        newValues = currentValues.filter((v: string) => v !== option);
+                                                                    } else {
+                                                                        newValues = [...currentValues, option];
+                                                                    }
+                                                                    handleCellChange(rowIndex, col.id, newValues.join(", "));
+                                                                }}
+                                                            >
+                                                                {isChecked && <X size={10} className="text-white" />}
+                                                            </div>
+                                                            <span className={cn("text-xs transition-colors", isChecked ? "text-indigo-300" : "text-gray-400 group-hover/cb:text-gray-300")}>
+                                                                {option}
+                                                            </span>
+                                                        </label>
+                                                    );
+                                                })}
+                                                {!col.options?.length && <span className="text-[10px] text-muted-foreground italic">Sem opções</span>}
+                                            </div>
                                         ) : (
                                             <div className="flex items-center gap-2">
                                                 {row[col.id] ? (
@@ -86,7 +127,7 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                                                         </div>
 
                                                         {/* Actions Overlay */}
-                                                        <div className="absolute -right-20 top-0 hidden group-hover/image:flex gap-1 bg-black/80 rounded p-1 z-10">
+                                                        <div className="absolute -right-2 top-0 hidden group-hover/image:flex gap-1 bg-black/80 rounded p-1 z-10 border border-white/10">
                                                             <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-400" onClick={() => onEditImage(rowIndex, col.id, row[col.id])} title="Editar">
                                                                 <Edit size={12} />
                                                             </Button>
@@ -133,6 +174,16 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                                         onClick={() => removeRow(rowIndex)}
                                     >
                                         <Trash size={14} />
+                                    </Button>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-indigo-400"
+                                        onClick={() => cloneRow(rowIndex)}
+                                    >
+                                        <Copy size={14} />
                                     </Button>
                                 </td>
                             </tr>
