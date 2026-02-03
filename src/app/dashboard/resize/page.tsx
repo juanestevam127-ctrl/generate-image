@@ -142,7 +142,14 @@ export default function ResizePage() {
 
             let resultUrls: string[] = [];
             if (Array.isArray(resultData)) {
-                resultUrls = resultData.map((item: any) => typeof item === 'string' ? item : item.url || item.image || item.output);
+                // Check if it's an array of objects with 'imagem' property (n8n structure)
+                const firstItem = resultData[0];
+                if (firstItem && typeof firstItem === 'object' && 'imagem' in firstItem) {
+                    resultUrls = resultData.map((item: any) => item.imagem);
+                } else {
+                    // Fallback: mixed or plain strings
+                    resultUrls = resultData.map((item: any) => typeof item === 'string' ? item : item.url || item.image || item.output || item.imagem);
+                }
             } else if (resultData.images && Array.isArray(resultData.images)) {
                 resultUrls = resultData.images;
             } else if (resultData.output && Array.isArray(resultData.output)) {
@@ -256,8 +263,8 @@ export default function ResizePage() {
                                         <X className="w-4 h-4" />
                                     </Button>
                                 </div>
-                                {img.status === 'uploading' && (
-                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                {(img.status === 'uploading' || isProcessing) && (
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
                                         <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
                                     </div>
                                 )}
@@ -272,7 +279,7 @@ export default function ResizePage() {
                     <div className="flex justify-center pt-8">
                         <Button
                             size="lg"
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 h-12 text-lg shadow-indigo-500/20 shadow-lg"
+                            className="bg-white hover:bg-gray-100 text-slate-900 px-8 h-12 text-lg shadow-indigo-500/20 shadow-lg font-bold"
                             onClick={handleProcessImages}
                             disabled={isProcessing}
                         >
@@ -302,7 +309,7 @@ export default function ResizePage() {
                                 <p className="text-green-200/60 text-sm">Suas imagens foram redimensionadas com sucesso.</p>
                             </div>
                         </div>
-                        <Button onClick={downloadAll} className="bg-green-600 hover:bg-green-700 text-white">
+                        <Button onClick={downloadAll} className="bg-white hover:bg-gray-100 text-slate-900 font-bold">
                             <Download className="w-4 h-4 mr-2" /> Baixar Todas
                         </Button>
                     </div>
