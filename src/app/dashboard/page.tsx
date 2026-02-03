@@ -25,42 +25,82 @@ export default function DashboardPage() {
     const [editorState, setEditorState] = useState<{
         isOpen: boolean;
         imageUrl: string | null;
-        Target: { row: number; col: string } | null;
+        Target: { row: number; col: string; index: number } | null;
     }>({ isOpen: false, imageUrl: null, Target: null });
 
     if (!user) return null;
 
     const activeClient = clients.find((c) => c.id === selectedClientId);
 
-    const handleImageUpload = (row: number, col: string, file: File) => {
-        // Read file to dataURL
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            if (e.target?.result) {
-                setEditorState({
-                    isOpen: true,
-                    imageUrl: e.target.result as string,
-                    Target: { row, col },
-                });
-            }
-        };
-        reader.readAsDataURL(file);
+    const handleImageUpload = (row: number, col: string, files: File[]) => {
+        // Handle multiple files
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (e.target?.result) {
+                    const newUrl = e.target.result as string;
+                    setTableData(prev => {
+                        const newData = [...prev];
+                        const currentRow = { ...newData[row] };
+                        const currentVal = currentRow[col];
+                        const currentArray = Array.isArray(currentVal) ? currentVal : (currentVal ? [currentVal] : []);
+
+                        currentRow[col] = [...currentArray, newUrl];
+                        newData[row] = currentRow;
+                        return newData;
+                    });
+                }
+            };
+            reader.readAsDataURL(file);
+        });
     };
 
-    const handleEditImage = (row: number, col: string, url: string) => {
+    const handleEditImage = (row: number, col: string, url: string, index: number) => {
         setEditorState({
             isOpen: true,
             imageUrl: url,
-            Target: { row, col },
+            Target: { row, col, index },
+        });
+    };
+
+    const handleRemoveImage = (row: number, col: string, index: number) => {
+        setTableData(prev => {
+            const newData = [...prev];
+            const currentRow = { ...newData[row] };
+            const currentVal = currentRow[col];
+
+            if (Array.isArray(currentVal)) {
+                currentRow[col] = currentVal.filter((_, idx) => idx !== index);
+            } else {
+                currentRow[col] = ""; // Fallback for legacy single string
+            }
+
+            newData[row] = currentRow;
+            return newData;
         });
     };
 
     const handleEditorSave = (processedImage: string) => {
         if (editorState.Target) {
-            const { row, col } = editorState.Target;
-            const newData = [...tableData];
-            newData[row] = { ...newData[row], [col]: processedImage };
-            setTableData(newData);
+            const { row, col, index } = editorState.Target;
+            setTableData(prev => {
+                const newData = [...prev];
+                const currentRow = { ...newData[row] };
+                const currentVal = currentRow[col];
+
+                if (Array.isArray(currentVal)) {
+                    // Update specific index
+                    const newArray = [...currentVal];
+                    newArray[index] = processedImage;
+                    currentRow[col] = newArray;
+                } else {
+                    // Fallback (shouldn't happen if initialized properly, but just in case)
+                    currentRow[col] = processedImage;
+                }
+
+                newData[row] = currentRow;
+                return newData;
+            });
         }
     };
 
@@ -74,26 +114,34 @@ export default function DashboardPage() {
         try {
             console.log("1. Starting image processing...");
             // Process Uploads First
+            // Process Uploads First
             const processedData = await Promise.all(tableData.map(async (row, idx) => {
                 const newRow = { ...row };
                 const columnIds = Object.keys(newRow);
 
                 for (const colId of columnIds) {
                     const value = newRow[colId];
-                    // Check if value is a Base64 Image string
-                    if (typeof value === 'string' && value.startsWith("data:image")) {
-                        console.log(`- Uploading image for row ${idx}, col ${colId}...`);
-                        // Dynamically import to avoid server-side issues if any
-                        const { uploadImage } = await import("@/lib/supabase");
-                        const publicUrl = await uploadImage(value, process.env.NEXT_PUBLIC_SUPABASE_BUCKET || 'images');
+                    if (!value) continue;
 
-                        if (publicUrl) {
-                            console.log(`- Uploaded: ${publicUrl}`);
-                            newRow[colId] = publicUrl;
-                        } else {
-                            console.error("Failed to upload image for col", colId);
-                            throw new Error(`Falha no upload da imagem (Linha ${idx + 1}). Verifique se o bucket existe e as permissões.`);
+                    // Helper to upload single base64 string
+                    const processSingleImage = async (base64Str: string): Promise<string> => {
+                        if (typeof base64Str === 'string' && base64Str.startsWith("data:image")) {
+                            const { uploadImage } = await import("@/lib/supabase");
+                            const publicUrl = await uploadImage(base64Str, process.env.NEXT_PUBLIC_SUPABASE_BUCKET || 'images');
+                            if (!publicUrl) throw new Error(`Falha no upload.`);
+                            return publicUrl;
                         }
+                        return base64Str; // Return as is if already a URL
+                    };
+
+                    if (Array.isArray(value)) {
+                        console.log(`- Uploding array of images for row ${idx}, col ${colId}...`);
+                        const uploadedArray = await Promise.all(value.map(async (item) => await processSingleImage(item)));
+                        newRow[colId] = uploadedArray;
+                    } else if (typeof value === 'string' && value.startsWith("data:image")) {
+                        // Legacy single image match
+                        console.log(`- Uploading single image for row ${idx}, col ${colId}...`);
+                        newRow[colId] = await processSingleImage(value);
                     }
                 }
                 return newRow;
@@ -308,6 +356,7 @@ export default function DashboardPage() {
                                 onChange={setTableData}
                                 onImageUpload={handleImageUpload}
                                 onEditImage={handleEditImage}
+                                onRemoveImage={handleRemoveImage}
                             />
                         ) : (
                             <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">

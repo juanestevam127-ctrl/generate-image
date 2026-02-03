@@ -11,11 +11,12 @@ interface DynamicTableProps {
     client: Client;
     data: Record<string, any>[];
     onChange: (newData: Record<string, any>[]) => void;
-    onImageUpload: (rowIndex: number, colId: string, file: File) => void;
-    onEditImage: (rowIndex: number, colId: string, imageUrl: string) => void;
+    onImageUpload: (rowIndex: number, colId: string, files: File[]) => void;
+    onEditImage: (rowIndex: number, colId: string, imageUrl: string, imageIndex: number) => void;
+    onRemoveImage: (rowIndex: number, colId: string, imageIndex: number) => void;
 }
 
-export function DynamicTable({ client, data, onChange, onImageUpload, onEditImage }: DynamicTableProps) {
+export function DynamicTable({ client, data, onChange, onImageUpload, onEditImage, onRemoveImage }: DynamicTableProps) {
 
     const handleCellChange = (rowIndex: number, colId: string, value: any) => {
         const newData = [...data];
@@ -117,51 +118,71 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                                                 {!col.options?.length && <span className="text-[10px] text-muted-foreground italic">Sem opções</span>}
                                             </div>
                                         ) : (
-                                            <div className="flex items-center gap-2">
-                                                {row[col.id] ? (
-                                                    // Image Preview State
-                                                    <div className="relative group/image">
-                                                        {/* Simple Preview Thumbnail */}
-                                                        <div className="h-10 w-10 rounded overflow-hidden border border-white/20 bg-black/50">
-                                                            <img src={row[col.id]} alt="Preview" className="h-full w-full object-cover" />
-                                                        </div>
 
-                                                        {/* Actions Overlay */}
-                                                        <div className="absolute -right-2 top-0 hidden group-hover/image:flex gap-1 bg-black/80 rounded p-1 z-10 border border-white/10">
-                                                            <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-400" onClick={() => onEditImage(rowIndex, col.id, row[col.id])} title="Editar">
-                                                                <Edit size={12} />
-                                                            </Button>
-                                                            <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400" onClick={() => handleCellChange(rowIndex, col.id, "")} title="Remover">
-                                                                <X size={12} />
-                                                            </Button>
+                                            <div className="min-w-[120px]"> {/* Container for image cell */}
+                                                {/* Ensure value is treated as array */}
+                                                {(() => {
+                                                    const rawValue = row[col.id];
+                                                    const images = Array.isArray(rawValue) ? rawValue : (rawValue ? [rawValue] : []);
+
+                                                    return (
+                                                        <div className="flex flex-wrap gap-2 items-center">
+                                                            {images.map((imgUrl: string, imgIdx: number) => (
+                                                                <div key={imgIdx} className="relative group/image h-10 w-10 flex-shrink-0">
+                                                                    <div className="h-10 w-10 rounded overflow-hidden border border-white/20 bg-black/50">
+                                                                        <img src={imgUrl} alt={`Preview ${imgIdx}`} className="h-full w-full object-cover" />
+                                                                    </div>
+                                                                    {/* Actions Overlay */}
+                                                                    <div className="absolute -right-4 -top-4 hidden group-hover/image:flex gap-0.5 bg-black/90 rounded p-0.5 z-10 border border-white/10 shadow-xl scale-75 origin-bottom-left">
+                                                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-400 hover:text-blue-300" onClick={() => onEditImage(rowIndex, col.id, imgUrl, imgIdx)} title="Editar">
+                                                                            <Edit size={12} />
+                                                                        </Button>
+                                                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 hover:text-red-300" onClick={() => onRemoveImage(rowIndex, col.id, imgIdx)} title="Remover">
+                                                                            <X size={12} />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+
+                                                            {/* Upload Button (Small + or Big Upload) */}
+                                                            <div className="relative">
+                                                                <input
+                                                                    type="file"
+                                                                    className="hidden"
+                                                                    accept="image/*"
+                                                                    multiple // Allow multiple selection
+                                                                    ref={el => { fileInputRefs.current[`${rowIndex}-${col.id}`] = el }}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.files && e.target.files.length > 0) {
+                                                                            onImageUpload(rowIndex, col.id, Array.from(e.target.files));
+                                                                            e.target.value = "";
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                {images.length > 0 ? (
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="icon"
+                                                                        className="h-10 w-10 border-dashed border-white/20 text-muted-foreground hover:text-white hover:border-indigo-500/50 hover:bg-white/5"
+                                                                        onClick={() => fileInputRefs.current[`${rowIndex}-${col.id}`]?.click()}
+                                                                        title="Adicionar mais imagens"
+                                                                    >
+                                                                        <Plus size={16} />
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-8 w-full border-dashed border-white/20 text-muted-foreground hover:text-white hover:border-indigo-500/50 px-2"
+                                                                        onClick={() => fileInputRefs.current[`${rowIndex}-${col.id}`]?.click()}
+                                                                    >
+                                                                        <Upload size={14} className="mr-2" /> Upload
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ) : (
-                                                    // Empty State
-                                                    <>
-                                                        <input
-                                                            type="file"
-                                                            className="hidden"
-                                                            accept="image/*"
-                                                            ref={el => { fileInputRefs.current[`${rowIndex}-${col.id}`] = el }}
-                                                            onChange={(e) => {
-                                                                if (e.target.files?.[0]) {
-                                                                    onImageUpload(rowIndex, col.id, e.target.files[0]);
-                                                                    // Reset input value so same file can be selected again
-                                                                    e.target.value = "";
-                                                                }
-                                                            }}
-                                                        />
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-8 w-full border-dashed border-white/20 text-muted-foreground hover:text-white hover:border-indigo-500/50"
-                                                            onClick={() => fileInputRefs.current[`${rowIndex}-${col.id}`]?.click()}
-                                                        >
-                                                            <Upload size={14} className="mr-2" /> Upload
-                                                        </Button>
-                                                    </>
-                                                )}
+                                                    );
+                                                })()}
                                             </div>
                                         )}
                                     </td>
@@ -194,7 +215,7 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
             <Button variant="ghost" onClick={addRow} className="w-full border border-dashed border-white/10 hover:bg-white/5 py-4 text-muted-foreground hover:text-white">
                 <Plus size={16} className="mr-2" /> Adicionar Linha
             </Button>
-        </div>
+        </div >
     );
 }
 
