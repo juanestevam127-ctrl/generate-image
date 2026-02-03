@@ -8,7 +8,9 @@ import {
     Calendar,
     LogOut,
     User as UserIcon,
-    Settings
+    Settings,
+    Maximize,
+    Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ export default function DashboardLayout({
 
     const navItems = [
         { label: "Gerenciar Imagens", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },
     ];
 
     return (
