@@ -25,6 +25,7 @@ export default function ResizePage() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
     const [statusMessage, setStatusMessage] = useState("");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,6 +70,7 @@ export default function ResizePage() {
         if (images.length === 0) return;
         setIsProcessing(true);
         setStatusMessage("Enviando imagens para a nuvem...");
+        setErrorMessage(null);
         setProcessedImages([]); // Reset previous results
 
         try {
@@ -177,6 +179,10 @@ export default function ResizePage() {
         } catch (error) {
             console.error("Processing error:", error);
             setStatusMessage(`Erro: ${(error as Error).message}`);
+            // Do not disable processing state immediately if we want to show the error in the loading screen? 
+            // Better: Allow user to retry.
+            // Let's rely on a separate error state to show the alert in the input screen.
+            setErrorMessage((error as Error).message);
         } finally {
             setIsProcessing(false);
         }
@@ -252,6 +258,14 @@ export default function ResizePage() {
                             Limpar Tudo
                         </Button>
                     </div>
+
+                    {errorMessage && (
+                        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-lg flex items-center text-red-200">
+                            <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+                            <p className="text-sm">{errorMessage}</p>
+                            <Button variant="ghost" size="sm" onClick={() => setErrorMessage(null)} className="ml-auto hover:bg-red-500/10"><X size={14} /></Button>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         {images.map((img) => (

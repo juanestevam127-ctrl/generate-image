@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
         // Add a timeout to avoid hanging
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
 
         const response = await fetch(url, {
             method: "POST",
