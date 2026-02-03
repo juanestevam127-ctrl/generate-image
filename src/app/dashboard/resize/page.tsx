@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, X, Send, Loader2, Download, Maximize, AlertCircle, CheckCircle } from "lucide-react";
+import { Upload, X, Send, Loader2, Download, Maximize, AlertCircle, CheckCircle, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -244,7 +244,7 @@ export default function ResizePage() {
             )}
 
             {/* Preview Gallery - Input */}
-            {images.length > 0 && processedImages.length === 0 && (
+            {images.length > 0 && processedImages.length === 0 && !isProcessing && (
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
                         <h3 className="text-xl font-semibold text-white">Imagens Selecionadas ({images.length})</h3>
@@ -256,14 +256,13 @@ export default function ResizePage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         {images.map((img) => (
                             <div key={img.id} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10 bg-black/40">
-                                {/* The user asked for "imagens nitidas, nao tao pequenas" - Popup preview is requested but grid is fine for management */}
                                 <img src={img.preview} alt="preview" className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <Button variant="destructive" size="icon" onClick={() => removeImage(img.id)}>
                                         <X className="w-4 h-4" />
                                     </Button>
                                 </div>
-                                {(img.status === 'uploading' || isProcessing) && (
+                                {img.status === 'uploading' && (
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
                                         <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
                                     </div>
@@ -281,19 +280,25 @@ export default function ResizePage() {
                             size="lg"
                             className="bg-white hover:bg-gray-100 text-slate-900 px-8 h-12 text-lg shadow-indigo-500/20 shadow-lg font-bold"
                             onClick={handleProcessImages}
-                            disabled={isProcessing}
                         >
-                            {isProcessing ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 mr-3 animate-spin" />
-                                    {statusMessage}
-                                </>
-                            ) : (
-                                <>
-                                    Enviar Imagens <Send className="w-5 h-5 ml-3" />
-                                </>
-                            )}
+                            Enviar Imagens <Send className="w-5 h-5 ml-3" />
                         </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Processing State */}
+            {isProcessing && (
+                <div className="flex flex-col items-center justify-center py-20 space-y-6 animate-in fade-in duration-500">
+                    <div className="relative">
+                        <div className="w-24 h-24 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Sparkles className="w-8 h-8 text-indigo-400 animate-pulse" />
+                        </div>
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h3 className="text-2xl font-bold text-white">Processando Imagens...</h3>
+                        <p className="text-muted-foreground">{statusMessage}</p>
                     </div>
                 </div>
             )}
