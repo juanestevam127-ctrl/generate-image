@@ -31,7 +31,8 @@ export interface Client {
     id: string;
     name: string;
     webhookUrl: string;
-    webhookPostagens?: string; // New field for scheduling
+    webhookPostagens?: string;
+    prompt?: string; // New field for AI prompt
     columns: ColumnDefinition[];
 }
 
@@ -94,6 +95,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     name: c.name,
                     webhookUrl: c.webhook_url,
                     webhookPostagens: c.webhook_postagens,
+                    prompt: c.prompt, // Load prompt
                     columns: c.columns
                 }));
                 setClients(formattedClients);
@@ -184,6 +186,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 name: data.name,
                 webhook_url: data.webhookUrl,
                 webhook_postagens: data.webhookPostagens,
+                prompt: data.prompt, // Save prompt
                 columns: data.columns
             }])
             .select();
@@ -198,6 +201,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             name: inserted[0].name,
             webhookUrl: inserted[0].webhook_url,
             webhookPostagens: inserted[0].webhook_postagens,
+            prompt: inserted[0].prompt,
             columns: inserted[0].columns
         };
 
@@ -210,6 +214,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (updates.name) dbUpdates.name = updates.name;
         if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
         if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
+        if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt; // Save prompt update
         if (updates.columns) dbUpdates.columns = updates.columns;
 
         const { error } = await supabase

@@ -5,6 +5,7 @@ import { Upload, X, Send, Loader2, Download, Maximize, AlertCircle, CheckCircle,
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { useStore } from "@/lib/store-context";
 
 interface UploadedImage {
     id: string;
@@ -21,6 +22,8 @@ interface ProcessedImage {
 }
 
 export default function ResizePage() {
+    const { clients } = useStore();
+    const [selectedClientId, setSelectedClientId] = useState<string>("");
     const [images, setImages] = useState<UploadedImage[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
@@ -67,7 +70,18 @@ export default function ResizePage() {
     };
 
     const handleProcessImages = async () => {
+        if (!selectedClientId) {
+            setErrorMessage("Por favor, selecione um cliente.");
+            return;
+        }
         if (images.length === 0) return;
+
+        const selectedClient = clients.find(c => c.id === selectedClientId);
+        if (!selectedClient) {
+            setErrorMessage("Cliente inválido.");
+            return;
+        }
+
         setIsProcessing(true);
         setStatusMessage("Enviando imagens para a nuvem...");
         setErrorMessage(null);
@@ -123,6 +137,8 @@ export default function ResizePage() {
                     url: webhookUrl,
                     payload: {
                         images: uploadedUrls, // Sending the array of URLs
+                        client: selectedClient.name,
+                        prompt: selectedClient.prompt || "",
                         timestamp: new Date().toISOString()
                     }
                 })
@@ -226,6 +242,34 @@ export default function ResizePage() {
                         Faça upload de múltiplas imagens, processe com IA e baixe os resultados.
                     </p>
                 </div>
+            </div>
+
+            {/* Client Selector */}
+            <div className="bg-white/5 border border-white/10 p-6 rounded-xl">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Selecione o Cliente</label>
+                <div className="relative">
+                    <select
+                        value={selectedClientId}
+                        onChange={(e) => setSelectedClientId(e.target.value)}
+                        className="w-full md:w-1/2 p-3 bg-black/40 border border-white/20 rounded-lg text-white appearance-none focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer hover:bg-black/60"
+                    >
+                        <option value="" className="bg-slate-900 text-gray-400">Selecione um cliente para começar...</option>
+                        {clients.map(client => (
+                            <option key={client.id} value={client.id} className="bg-slate-900 text-white">
+                                {client.name}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="absolute inset-y-0 left-[calc(50%-2rem)] md:left-[calc(50%-2.5rem)] flex items-center pointer-events-none text-white/50">
+                        {/* Custom arrow if needed, but native is fine for now */}
+                    </div>
+                </div>
+                {selectedClientId && (
+                    <p className="mt-2 text-sm text-indigo-300 flex items-center animate-in fade-in">
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        Prompt configurado: {clients.find(c => c.id === selectedClientId)?.prompt ? "Sim" : "Não (Usará padrão)"}
+                    </p>
+                )}
             </div>
 
             {/* Upload Area */}

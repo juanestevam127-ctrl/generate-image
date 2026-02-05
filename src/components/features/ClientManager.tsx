@@ -18,6 +18,7 @@ export function ClientManager() {
     const [name, setName] = useState("");
     const [webhookUrl, setWebhookUrl] = useState("");
     const [webhookPostagens, setWebhookPostagens] = useState("");
+    const [prompt, setPrompt] = useState("");
     const [columns, setColumns] = useState<ColumnDefinition[]>([]);
 
     const openNewClientModal = () => {
@@ -25,6 +26,7 @@ export function ClientManager() {
         setName("");
         setWebhookUrl("");
         setWebhookPostagens("");
+        setPrompt("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
     };
@@ -34,6 +36,7 @@ export function ClientManager() {
         setName(client.name);
         setWebhookUrl(client.webhookUrl);
         setWebhookPostagens(client.webhookPostagens || "");
+        setPrompt(client.prompt || "");
         setColumns([...client.columns]);
         setIsModalOpen(true);
     };
@@ -45,6 +48,7 @@ export function ClientManager() {
             name,
             webhookUrl,
             webhookPostagens,
+            prompt,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
@@ -165,6 +169,15 @@ export function ClientManager() {
                                 value={webhookPostagens}
                                 onChange={(e) => setWebhookPostagens(e.target.value)}
                                 placeholder="https://hook.make.com/..."
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Prompt para IA (Opcional)</label>
+                            <textarea
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Escreva o prompt padrão para redimensionamento..."
                             />
                         </div>
                     </div>
