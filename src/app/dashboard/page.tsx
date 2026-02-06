@@ -47,6 +47,13 @@ export default function DashboardPage() {
                         newData[row] = currentRow;
                         return newData;
                     });
+
+                    // Auto-open Editor
+                    setEditorState({
+                        isOpen: true,
+                        imageUrl: newUrl,
+                        Target: { row, col, index: 0 }
+                    });
                 }
             };
             reader.readAsDataURL(file);
