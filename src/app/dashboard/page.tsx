@@ -33,8 +33,9 @@ export default function DashboardPage() {
     const activeClient = clients.find((c) => c.id === selectedClientId);
 
     const handleImageUpload = (row: number, col: string, files: File[]) => {
-        // Handle multiple files
-        files.forEach(file => {
+        // Handle single file (take the first one)
+        if (files.length > 0) {
+            const file = files[0];
             const reader = new FileReader();
             reader.onload = (e) => {
                 if (e.target?.result) {
@@ -42,17 +43,14 @@ export default function DashboardPage() {
                     setTableData(prev => {
                         const newData = [...prev];
                         const currentRow = { ...newData[row] };
-                        const currentVal = currentRow[col];
-                        const currentArray = Array.isArray(currentVal) ? currentVal : (currentVal ? [currentVal] : []);
-
-                        currentRow[col] = [...currentArray, newUrl];
+                        currentRow[col] = newUrl; // Replace with single URL
                         newData[row] = currentRow;
                         return newData;
                     });
                 }
             };
             reader.readAsDataURL(file);
-        });
+        }
     };
 
     const handleEditImage = (row: number, col: string, url: string, index: number) => {
@@ -67,14 +65,7 @@ export default function DashboardPage() {
         setTableData(prev => {
             const newData = [...prev];
             const currentRow = { ...newData[row] };
-            const currentVal = currentRow[col];
-
-            if (Array.isArray(currentVal)) {
-                currentRow[col] = currentVal.filter((_, idx) => idx !== index);
-            } else {
-                currentRow[col] = ""; // Fallback for legacy single string
-            }
-
+            currentRow[col] = ""; // Clear string
             newData[row] = currentRow;
             return newData;
         });
@@ -82,22 +73,11 @@ export default function DashboardPage() {
 
     const handleEditorSave = (processedImage: string) => {
         if (editorState.Target) {
-            const { row, col, index } = editorState.Target;
+            const { row, col } = editorState.Target;
             setTableData(prev => {
                 const newData = [...prev];
                 const currentRow = { ...newData[row] };
-                const currentVal = currentRow[col];
-
-                if (Array.isArray(currentVal)) {
-                    // Update specific index
-                    const newArray = [...currentVal];
-                    newArray[index] = processedImage;
-                    currentRow[col] = newArray;
-                } else {
-                    // Fallback (shouldn't happen if initialized properly, but just in case)
-                    currentRow[col] = processedImage;
-                }
-
+                currentRow[col] = processedImage; // Update single value
                 newData[row] = currentRow;
                 return newData;
             });
@@ -113,6 +93,7 @@ export default function DashboardPage() {
 
         try {
             console.log("1. Starting image processing...");
+            // Process Uploads First
             // Process Uploads First
             // Process Uploads First
             const processedData = await Promise.all(tableData.map(async (row, idx) => {
@@ -134,14 +115,20 @@ export default function DashboardPage() {
                         return base64Str; // Return as is if already a URL
                     };
 
-                    if (Array.isArray(value)) {
-                        console.log(`- Uploding array of images for row ${idx}, col ${colId}...`);
-                        const uploadedArray = await Promise.all(value.map(async (item) => await processSingleImage(item)));
-                        newRow[colId] = uploadedArray;
-                    } else if (typeof value === 'string' && value.startsWith("data:image")) {
-                        // Legacy single image match
+                    // Only handle single string (legacy logic restored)
+                    if (typeof value === 'string' && value.startsWith("data:image")) {
                         console.log(`- Uploading single image for row ${idx}, col ${colId}...`);
                         newRow[colId] = await processSingleImage(value);
+                    } else if (Array.isArray(value)) {
+                        // Safety: If by chance there's an array, take first or upload all but we want single. 
+                        // Let's force single first one if it exists? 
+                        // Or just clear it? User said "single image". 
+                        // Let's just process the first one if it is an array, to be safe against old state.
+                        if (value.length > 0) {
+                            newRow[colId] = await processSingleImage(value[0]);
+                        } else {
+                            newRow[colId] = "";
+                        }
                     }
                 }
                 return newRow;
