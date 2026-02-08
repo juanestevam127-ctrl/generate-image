@@ -32,28 +32,38 @@ export default function DashboardPage() {
 
     const activeClient = clients.find((c) => c.id === selectedClientId);
 
-    const handleImageUpload = (row: number, col: string, files: File[]) => {
+    const handleImageUpload = async (row: number, col: string, files: File[]) => {
         // Handle single file (take the first one)
         if (files.length > 0) {
             const file = files[0];
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 if (e.target?.result) {
-                    const newUrl = e.target.result as string;
-                    setTableData(prev => {
-                        const newData = [...prev];
-                        const currentRow = { ...newData[row] };
-                        currentRow[col] = newUrl; // Replace with single URL
-                        newData[row] = currentRow;
-                        return newData;
-                    });
+                    const base64Str = e.target.result as string;
 
-                    // Auto-open Editor
-                    setEditorState({
-                        isOpen: true,
-                        imageUrl: newUrl,
-                        Target: { row, col, index: 0 }
-                    });
+                    // Upload to 'temp-files' (root) immediately
+                    // Dynamic import to avoid SSR issues if any, though likely fine as static
+                    const { uploadImage } = await import("@/lib/supabase");
+                    const publicUrl = await uploadImage(base64Str, 'temp-files', '');
+
+                    if (publicUrl) {
+                        setTableData(prev => {
+                            const newData = [...prev];
+                            const currentRow = { ...newData[row] };
+                            currentRow[col] = publicUrl; // Update with Public URL
+                            newData[row] = currentRow;
+                            return newData;
+                        });
+
+                        // Auto-open Editor with the persistent URL
+                        setEditorState({
+                            isOpen: true,
+                            imageUrl: publicUrl,
+                            Target: { row, col, index: 0 }
+                        });
+                    } else {
+                        alert("Erro ao fazer upload da imagem.");
+                    }
                 }
             };
             reader.readAsDataURL(file);
@@ -78,16 +88,25 @@ export default function DashboardPage() {
         });
     };
 
-    const handleEditorSave = (processedImage: string) => {
+    const handleEditorSave = async (processedImage: string) => {
         if (editorState.Target) {
             const { row, col } = editorState.Target;
-            setTableData(prev => {
-                const newData = [...prev];
-                const currentRow = { ...newData[row] };
-                currentRow[col] = processedImage; // Update single value
-                newData[row] = currentRow;
-                return newData;
-            });
+
+            // Upload processed image to 'temp-files' bucket (root)
+            const { uploadImage } = await import("@/lib/supabase");
+            const publicUrl = await uploadImage(processedImage, 'temp-files', '');
+
+            if (publicUrl) {
+                setTableData(prev => {
+                    const newData = [...prev];
+                    const currentRow = { ...newData[row] };
+                    currentRow[col] = publicUrl; // Update with new AI URL
+                    newData[row] = currentRow;
+                    return newData;
+                });
+            } else {
+                alert("Erro ao salvar imagem processada.");
+            }
         }
     };
 
@@ -99,47 +118,11 @@ export default function DashboardPage() {
         setSubmitStatus("idle");
 
         try {
-            console.log("1. Starting image processing...");
-            // Process Uploads First
-            // Process Uploads First
-            // Process Uploads First
-            const processedData = await Promise.all(tableData.map(async (row, idx) => {
-                const newRow = { ...row };
-                const columnIds = Object.keys(newRow);
+            console.log("1. Starting processing...");
 
-                for (const colId of columnIds) {
-                    const value = newRow[colId];
-                    if (!value) continue;
-
-                    // Helper to upload single base64 string
-                    const processSingleImage = async (base64Str: string): Promise<string> => {
-                        if (typeof base64Str === 'string' && base64Str.startsWith("data:image")) {
-                            const { uploadImage } = await import("@/lib/supabase");
-                            const publicUrl = await uploadImage(base64Str, process.env.NEXT_PUBLIC_SUPABASE_BUCKET || 'images');
-                            if (!publicUrl) throw new Error(`Falha no upload.`);
-                            return publicUrl;
-                        }
-                        return base64Str; // Return as is if already a URL
-                    };
-
-                    // Only handle single string (legacy logic restored)
-                    if (typeof value === 'string' && value.startsWith("data:image")) {
-                        console.log(`- Uploading single image for row ${idx}, col ${colId}...`);
-                        newRow[colId] = await processSingleImage(value);
-                    } else if (Array.isArray(value)) {
-                        // Safety: If by chance there's an array, take first or upload all but we want single. 
-                        // Let's force single first one if it exists? 
-                        // Or just clear it? User said "single image". 
-                        // Let's just process the first one if it is an array, to be safe against old state.
-                        if (value.length > 0) {
-                            newRow[colId] = await processSingleImage(value[0]);
-                        } else {
-                            newRow[colId] = "";
-                        }
-                    }
-                }
-                return newRow;
-            }));
+            // Data is already uploaded, just pass it through
+            // We keep the map just to ensure structure consistency or if we need last minute checks
+            const processedData = tableData.map(row => ({ ...row }));
 
             const payload = {
                 client: activeClient.name,

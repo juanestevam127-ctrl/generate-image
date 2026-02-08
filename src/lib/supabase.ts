@@ -5,14 +5,18 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-export async function uploadImage(image: string, bucket: string = 'images'): Promise<string | null> {
+export async function uploadImage(image: string, bucket: string = 'images', folder: string = ''): Promise<string | null> {
     try {
         // 1. Convert Base64 (DataURL) to Blob - Browser safe
         const res = await fetch(image);
         const blob = await res.blob();
 
         // 2. Generate unique filename
-        const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(7);
+        // Ensure folder ends with / if provided and not empty
+        const folderPrefix = folder ? (folder.endsWith('/') ? folder : `${folder}/`) : '';
+        const filename = `${folderPrefix}${timestamp}-${randomStr}.png`;
 
         // 3. Upload
         const { data, error } = await supabase.storage
@@ -32,6 +36,7 @@ export async function uploadImage(image: string, bucket: string = 'images'): Pro
             .from(bucket)
             .getPublicUrl(filename);
 
+        console.log("Upload success:", publicUrl);
         return publicUrl;
     } catch (e) {
         console.error('Upload Logic Error:', e);
