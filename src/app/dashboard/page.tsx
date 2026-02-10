@@ -1,19 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useStore, Client } from "@/lib/store-context";
+import { useStore } from "@/lib/store-context";
 import { ClientManager } from "@/components/features/ClientManager";
 import { DynamicTable } from "@/components/features/DynamicTable";
 import { ImageEditor } from "@/components/features/ImageEditor";
 import { Button } from "@/components/ui/button";
-import { Settings, Send, Loader2, Sparkles, CheckCircle, AlertCircle } from "lucide-react";
+import { Settings, Send, Loader2, Sparkles, CheckCircle, AlertCircle, BarChart3 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { UserManager } from "@/components/features/UserManager";
 import { PostScheduler } from "@/components/features/PostScheduler";
+import AnalyticsView from "@/components/dashboard/AnalyticsView";
 
 export default function DashboardPage() {
     const { user, clients } = useStore();
-    const [viewMode, setViewMode] = useState<"generator" | "scheduler" | "admin">("generator");
+    const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin">("analytics");
 
     // Generator State
     const [selectedClientId, setSelectedClientId] = useState<string>("");
@@ -42,7 +43,6 @@ export default function DashboardPage() {
                     const base64Str = e.target.result as string;
 
                     // Upload to 'temp-files' (root) immediately
-                    // Dynamic import to avoid SSR issues if any, though likely fine as static
                     const { uploadImage } = await import("@/lib/supabase");
                     const publicUrl = await uploadImage(base64Str, 'temp-files', '');
 
@@ -120,8 +120,6 @@ export default function DashboardPage() {
         try {
             console.log("1. Starting processing...");
 
-            // Data is already uploaded, just pass it through
-            // We keep the map just to ensure structure consistency or if we need last minute checks
             const processedData = tableData.map(row => ({ ...row }));
 
             const payload = {
@@ -132,7 +130,6 @@ export default function DashboardPage() {
 
             console.log("2. Sending to proxy API...", activeClient.webhookUrl);
 
-            // Execute request via proxy to avoid CORS
             const proxyUrl = "/api/proxy-webhook";
             const res = await fetch(proxyUrl, {
                 method: "POST",
@@ -150,7 +147,6 @@ export default function DashboardPage() {
 
             if (res.ok) {
                 setSubmitStatus("success");
-                // Clear table
                 setTableData([]);
                 setTimeout(() => setSubmitStatus("idle"), 3000);
             } else {
@@ -174,23 +170,36 @@ export default function DashboardPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white mb-1 flex items-center">
-                        {viewMode === "admin" ? "Adminstração" : viewMode === "scheduler" ? "Agendar Postagens" : "Gerenciamento de Imagens"}
+                        {viewMode === "analytics" ? "Dashboard" :
+                            viewMode === "admin" ? "Adminstração" :
+                                viewMode === "scheduler" ? "Agendar Postagens" :
+                                    "Gerenciamento de Imagens"}
                         {viewMode === "generator" && <Sparkles className="ml-2 text-yellow-400 w-6 h-6 animate-pulse" />}
                     </h1>
                     <p className="text-muted-foreground">
-                        {viewMode === "admin"
-                            ? "Gerencie seus clientes e a estrutura de dados."
-                            : viewMode === "scheduler"
-                                ? "Organize e publique o conteúdo gerado."
-                                : "Automação e gestão completa de imagens."}
+                        {viewMode === "analytics"
+                            ? "Métricas e performance."
+                            : viewMode === "admin"
+                                ? "Gerencie seus clientes e a estrutura de dados."
+                                : viewMode === "scheduler"
+                                    ? "Organize e publique o conteúdo gerado."
+                                    : "Automação e gestão completa de imagens."}
                     </p>
                 </div>
 
-                <div className="bg-white/5 p-1 rounded-lg border border-white/10 flex self-start md:self-auto space-x-1">
+                <div className="bg-white/5 p-1 rounded-lg border border-white/10 flex self-start md:self-auto space-x-1 overflow-x-auto max-w-full">
+                    <button
+                        onClick={() => setViewMode("analytics")}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === "analytics" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        <BarChart3 className="w-4 h-4" />
+                        Dashboard
+                    </button>
                     <button
                         onClick={() => setViewMode("generator")}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "generator" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === "generator" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                     >
+                        <Sparkles className="w-4 h-4" />
                         Operação
                     </button>
                     <button
@@ -210,21 +219,17 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <div className="mt-8 animate-in fade-in duration-500">
-                {viewMode === "admin" ? (
-                    <div className="space-y-12">
+            <div className="mt-8">
+                {viewMode === "analytics" ? (
+                    <AnalyticsView />
+                ) : viewMode === "admin" ? (
+                    <div className="space-y-12 animate-in fade-in duration-500">
                         <ClientManager />
                         <div className="border-t border-white/10" />
                         <UserManager />
                     </div>
                 ) : viewMode === "scheduler" ? (
-                    <div className="space-y-6">
-                        {/* Simply reuse client selector logic or just show dropdown if needed, 
-                            but based on user request "a mesma coisa (lista de clientes)"
-                            so we'll reuse the selector UI or similar. 
-                            Let's wrap the selector in a component to reuse? 
-                            Or just duplicate the simple select for now to save time/complexity. 
-                        */}
+                    <div className="space-y-6 animate-in fade-in duration-500">
                         <Card className="p-6 bg-gradient-to-r from-purple-900/20 to-pink-900/20 border-purple-500/20">
                             <div className="flex flex-col md:flex-row gap-4 items-end">
                                 <div className="w-full md:w-1/3">
@@ -271,8 +276,8 @@ export default function DashboardPage() {
                         )}
                     </div>
                 ) : (
-                    <div className="space-y-6">
-                        {/* Client Selector */}
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        {/* Client Selector for Generator */}
                         <Card className="p-6 bg-gradient-to-r from-indigo-900/20 to-blue-900/20 border-indigo-500/20">
                             <div className="flex flex-col md:flex-row gap-4 items-end">
                                 <div className="w-full md:w-1/3">
