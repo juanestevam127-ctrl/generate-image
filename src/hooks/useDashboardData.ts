@@ -65,7 +65,13 @@ export function useDashboardData(filters: DashboardFilters) {
         weekly: weeklyQuery.data || [],
         tableData: tableQuery.data || [],
         vehicleData: vehicleQuery.data || {
-            summary: { total_veiculos: 0, mostImages: null, leastImages: null },
+            summary: {
+                total_veiculos: 0,
+                total_imagens: 0,
+                mostImages: null,
+                leastImages: null,
+                mostActiveClient: null
+            },
             stats: [],
             clientStats: []
         },
