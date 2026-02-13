@@ -195,3 +195,119 @@ export async function fetchDetailedTable(filters: DashboardFilters) {
 
     return data;
 }
+export interface VehicleStats {
+    veiculo_gerado: string;
+    total_imagens: number;
+    percentual: number;
+    top_empresa: string;
+}
+
+export interface VehicleClientStats {
+    nome_empresa: string;
+    total_veiculos: number;
+    total_imagens: number;
+}
+
+export interface VehicleSummary {
+    total_veiculos: number;
+    total_imagens: number;
+    mostImages: { name: string; count: number } | null;
+    leastImages: { name: string; count: number } | null;
+    mostActiveClient: { name: string; count: number } | null;
+}
+
+export async function fetchVehicleData(filters: DashboardFilters) {
+    let query = supabase
+        .from(TABLE_NAME)
+        .select('veiculo_gerado, nome_empresa');
+
+    // Apply date filter
+    query = query
+        .gte('created_at', filters.dateRange.from.toISOString())
+        .lte('created_at', filters.dateRange.to.toISOString())
+        .not('veiculo_gerado', 'is', null);
+
+    // Apply client filter
+    if (filters.selectedClient) {
+        query = query.eq('nome_empresa', filters.selectedClient);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+        return {
+            summary: {
+                total_veiculos: 0,
+                total_imagens: 0,
+                mostImages: null,
+                leastImages: null,
+                mostActiveClient: null
+            },
+            stats: [],
+            clientStats: []
+        };
+    }
+
+    // Process Summary & Stats
+    const vehicleCounts: Record<string, number> = {};
+    const vehicleClientCounts: Record<string, Record<string, number>> = {};
+    const clientTotalCounts: Record<string, number> = {};
+
+    data.forEach(item => {
+        const v = item.veiculo_gerado;
+        const c = item.nome_empresa || 'Sem Cliente';
+
+        vehicleCounts[v] = (vehicleCounts[v] || 0) + 1;
+        clientTotalCounts[c] = (clientTotalCounts[c] || 0) + 1;
+
+        if (!vehicleClientCounts[v]) vehicleClientCounts[v] = {};
+        vehicleClientCounts[v][c] = (vehicleClientCounts[v][c] || 0) + 1;
+    });
+
+    const vEntries = Object.entries(vehicleCounts);
+    const sortedByCount = [...vEntries].sort((a, b) => b[1] - a[1]);
+
+    const cEntries = Object.entries(clientTotalCounts);
+    const sortedClients = [...cEntries].sort((a, b) => b[1] - a[1]);
+
+    const totalImagens = data.length;
+
+    const stats: VehicleStats[] = sortedByCount.map(([name, count]) => {
+        // Find top client for this vehicle
+        const clientsForThisVehicle = vehicleClientCounts[name];
+        const topClient = Object.entries(clientsForThisVehicle)
+            .sort((a, b) => b[1] - a[1])[0][0];
+
+        return {
+            veiculo_gerado: name,
+            total_imagens: count,
+            percentual: parseFloat(((count * 100) / totalImagens).toFixed(1)),
+            top_empresa: topClient
+        };
+    });
+
+    const summary: VehicleSummary = {
+        total_veiculos: vEntries.length,
+        total_imagens: totalImagens,
+        mostImages: sortedByCount.length > 0 ? { name: sortedByCount[0][0], count: sortedByCount[0][1] } : null,
+        leastImages: sortedByCount.length > 0 ? { name: sortedByCount[sortedByCount.length - 1][0], count: sortedByCount[sortedByCount.length - 1][1] } : null,
+        mostActiveClient: sortedClients.length > 0 ? { name: sortedClients[0][0], count: sortedClients[0][1] } : null,
+    };
+
+    const clientStats: VehicleClientStats[] = sortedClients.map(([name, count]) => {
+        // Count unique vehicles for this client
+        const uniqueVehicles = new Set(
+            data.filter(item => (item.nome_empresa || 'Sem Cliente') === name)
+                .map(item => item.veiculo_gerado)
+        ).size;
+
+        return {
+            nome_empresa: name,
+            total_veiculos: uniqueVehicles,
+            total_imagens: count
+        };
+    });
+
+    return { summary, stats, clientStats };
+}

@@ -7,6 +7,7 @@ import {
     fetchHourlyData,
     fetchWeeklyData,
     fetchDetailedTable,
+    fetchVehicleData,
     DashboardFilters
 } from '@/lib/dashboardQueries';
 
@@ -50,6 +51,11 @@ export function useDashboardData(filters: DashboardFilters) {
         queryFn: () => fetchDetailedTable(filters),
     });
 
+    const vehicleQuery = useQuery({
+        queryKey: ['dashboard-vehicle', filters],
+        queryFn: () => fetchVehicleData(filters),
+    });
+
     return {
         clients: clientsQuery.data || [],
         metrics: metricsQuery.data,
@@ -58,9 +64,15 @@ export function useDashboardData(filters: DashboardFilters) {
         hourly: hourlyQuery.data || [],
         weekly: weeklyQuery.data || [],
         tableData: tableQuery.data || [],
+        vehicleData: vehicleQuery.data || {
+            summary: { total_veiculos: 0, mostImages: null, leastImages: null },
+            stats: [],
+            clientStats: []
+        },
         isLoading:
             metricsQuery.isLoading ||
             evolutionQuery.isLoading ||
+            vehicleQuery.isLoading ||
             (filters.selectedClient ? hourlyQuery.isLoading : rankingQuery.isLoading),
     };
 }

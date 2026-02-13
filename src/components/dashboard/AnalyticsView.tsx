@@ -14,6 +14,7 @@ import ClientRanking from '@/components/dashboard/ClientRanking';
 import HourlyDistribution from '@/components/dashboard/HourlyDistribution';
 import WeeklyTrend from '@/components/dashboard/WeeklyTrend';
 import DetailedTable from '@/components/dashboard/DetailedTable';
+import VehicleAnalysis from '@/components/dashboard/VehicleAnalysis';
 
 export default function AnalyticsView() {
     // 1. Get clients from global store
@@ -33,6 +34,7 @@ export default function AnalyticsView() {
         hourly,
         weekly,
         tableData,
+        vehicleData,
         isLoading
     } = useDashboardData({
         dateRange,
@@ -122,6 +124,12 @@ export default function AnalyticsView() {
                     selectedClient={selectedClient}
                 />
             </div>
+
+            {/* Vehicle Analysis Section */}
+            <VehicleAnalysis
+                data={vehicleData}
+                isLoading={isLoading}
+            />
         </div>
     );
 }
