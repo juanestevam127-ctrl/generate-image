@@ -32,8 +32,26 @@ export interface Client {
     name: string;
     webhookUrl: string;
     webhookPostagens?: string;
-    prompt?: string; // New field for AI prompt
+    prompt?: string;
     columns: ColumnDefinition[];
+}
+
+export interface LayoutClient {
+    id: string;
+    nome_cliente: string;
+    webhook_url: string;
+    texto?: string;
+    imagem_url?: string;
+    checkbox_ativo: boolean;
+    instagram_user_id?: string;
+    instagram_token?: string;
+    facebook_user_id?: string;
+    facebook_token?: string;
+    modelo_feed_id?: string;
+    modelo_stories_id?: string;
+    json_cliente: any;
+    created_at?: string;
+    updated_at?: string;
 }
 
 interface StoreContextType {
@@ -53,6 +71,12 @@ interface StoreContextType {
     updateClient: (id: string, updates: Partial<Client>) => void;
     deleteClient: (id: string) => void;
 
+    // Layout Clients
+    layoutClients: LayoutClient[];
+    addLayoutClient: (client: Omit<LayoutClient, "id">) => Promise<void>;
+    updateLayoutClient: (id: string, updates: Partial<LayoutClient>) => Promise<void>;
+    deleteLayoutClient: (id: string) => Promise<void>;
+
     // Loading state (for hydration)
     isLoaded: boolean;
 }
@@ -68,6 +92,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
+    const [layoutClients, setLayoutClients] = useState<LayoutClient[]>([]);
     const [registeredUsers, setRegisteredUsers] = useState<UserAccount[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -108,6 +133,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
                 if (usersError) throw usersError;
                 setRegisteredUsers(usersData || []);
+
+                // 4. Fetch Layout Clients
+                const { data: layoutData, error: layoutError } = await supabase
+                    .from("design_online_layouts_clientes")
+                    .select("*")
+                    .order("nome_cliente", { ascending: true });
+
+                if (!layoutError) {
+                    setLayoutClients(layoutData || []);
+                }
 
             } catch (error) {
                 console.error("Error loading Supabase data:", error);
@@ -246,6 +281,51 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setClients((prev) => prev.filter((c) => c.id !== id));
     };
 
+    // Layout Client Actions
+    const addLayoutClient = async (data: Omit<LayoutClient, "id">) => {
+        const { data: inserted, error } = await supabase
+            .from("design_online_layouts_clientes")
+            .insert([data])
+            .select();
+
+        if (error) {
+            alert("Erro ao adicionar cliente de layout: " + error.message);
+            return;
+        }
+
+        setLayoutClients((prev) => [...prev, inserted[0]]);
+    };
+
+    const updateLayoutClient = async (id: string, updates: Partial<LayoutClient>) => {
+        const { error } = await supabase
+            .from("design_online_layouts_clientes")
+            .update(updates)
+            .eq("id", id);
+
+        if (error) {
+            alert("Erro ao atualizar cliente de layout: " + error.message);
+            return;
+        }
+
+        setLayoutClients((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+        );
+    };
+
+    const deleteLayoutClient = async (id: string) => {
+        const { error } = await supabase
+            .from("design_online_layouts_clientes")
+            .delete()
+            .eq("id", id);
+
+        if (error) {
+            alert("Erro ao deletar cliente de layout: " + error.message);
+            return;
+        }
+
+        setLayoutClients((prev) => prev.filter((c) => c.id !== id));
+    };
+
     return (
         <StoreContext.Provider
             value={{
@@ -259,6 +339,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 addClient,
                 updateClient,
                 deleteClient,
+                layoutClients,
+                addLayoutClient,
+                updateLayoutClient,
+                deleteLayoutClient,
                 isLoaded,
             }}
         >

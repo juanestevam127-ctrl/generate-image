@@ -8,14 +8,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/layout/Sidebar";
 
-export default function DashboardLayout({
+export default function LayoutsVendidosLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const { user, isLoaded, logout } = useStore();
+    const { user, isLoaded } = useStore();
     const router = useRouter();
-    const pathname = usePathname();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
@@ -67,10 +66,10 @@ export default function DashboardLayout({
             {/* Main Content */}
             <main className={cn(
                 "flex-1 min-h-screen relative overflow-x-hidden transition-all duration-300",
-                "md:ml-64", // Always offset on desktop
-                "p-4 md:p-8" // Smaller padding on mobile
+                "md:ml-64",
+                "p-4 md:p-8"
             )}>
-                {/* Mobile Header / Menu Button */}
+                {/* Mobile Header */}
                 <div className="md:hidden mb-6 flex items-center justify-between">
                     <Button
                         variant="outline"
@@ -80,7 +79,7 @@ export default function DashboardLayout({
                     >
                         <Menu size={20} />
                     </Button>
-                    <span className="font-semibold text-sm text-muted-foreground">Artes Design Online</span>
+                    <span className="font-semibold text-sm text-muted-foreground">Layouts Vendidos</span>
                 </div>
 
                 {/* Top Gradient */}
