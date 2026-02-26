@@ -9,12 +9,9 @@ import {
     Maximize,
     X,
     Layout,
-    ChevronDown,
-    ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 
 interface SidebarProps {
     isMobile: boolean;
@@ -26,19 +23,13 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
     const { user, logout } = useStore();
     const router = useRouter();
     const pathname = usePathname();
-    const [isLayoutsOpen, setIsLayoutsOpen] = useState(pathname.startsWith("/layouts-vendidos"));
 
     if (!user) return null;
 
     const navItems = [
         { label: "Gerenciar Imagens", href: "/dashboard", icon: LayoutDashboard },
         { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },
-    ];
-
-    const layoutItems = [
-        { label: "Dashboard", href: "/layouts-vendidos/dashboard" },
-        { label: "Operação", href: "/layouts-vendidos/operacao" },
-        { label: "Configuração", href: "/layouts-vendidos/configuracao" },
+        { label: "Layouts Vendidos", href: "/layouts-vendidos", icon: Layout },
     ];
 
     return (
@@ -74,7 +65,7 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
                 <nav className="flex-1">
                     <ul className="space-y-2 font-medium">
                         {navItems.map((item) => {
-                            const isActive = pathname === item.href;
+                            const isActive = pathname === item.href || (item.href === "/layouts-vendidos" && pathname.startsWith("/layouts-vendidos"));
                             const Icon = item.icon;
                             return (
                                 <li key={item.label}>
@@ -94,43 +85,6 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
                                 </li>
                             );
                         })}
-
-                        <li>
-                            <button
-                                onClick={() => setIsLayoutsOpen(!isLayoutsOpen)}
-                                className={cn(
-                                    "flex items-center w-full p-3 rounded-lg group transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground",
-                                    pathname.startsWith("/layouts-vendidos") && "text-foreground"
-                                )}
-                            >
-                                <Layout className={cn("w-5 h-5 transition duration-75", pathname.startsWith("/layouts-vendidos") ? "text-primary" : "text-gray-400 group-hover:text-foreground")} />
-                                <span className="ms-3 flex-1 text-left whitespace-nowrap">Layouts Vendidos</span>
-                                {isLayoutsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                            </button>
-                            {isLayoutsOpen && (
-                                <ul className="py-2 space-y-1 ml-9">
-                                    {layoutItems.map((item) => {
-                                        const isActive = pathname === item.href;
-                                        return (
-                                            <li key={item.label}>
-                                                <a
-                                                    href={item.href}
-                                                    onClick={() => isMobile && setIsSidebarOpen(false)}
-                                                    className={cn(
-                                                        "flex items-center p-2 text-sm rounded-lg transition duration-75",
-                                                        isActive
-                                                            ? "text-primary font-medium"
-                                                            : "text-muted-foreground hover:text-foreground"
-                                                    )}
-                                                >
-                                                    {item.label}
-                                                </a>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                        </li>
                     </ul>
                 </nav>
 

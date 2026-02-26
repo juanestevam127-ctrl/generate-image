@@ -38,20 +38,18 @@ export interface Client {
 
 export interface LayoutClient {
     id: string;
-    nome_cliente: string;
-    webhook_url: string;
-    texto?: string;
-    imagem_url?: string;
-    checkbox_ativo: boolean;
-    instagram_user_id?: string;
-    instagram_token?: string;
-    facebook_user_id?: string;
-    facebook_token?: string;
-    modelo_feed_id?: string;
-    modelo_stories_id?: string;
-    json_cliente: any;
-    created_at?: string;
-    updated_at?: string;
+    name: string;
+    webhookUrl: string;
+    webhookPostagens?: string;
+    prompt?: string;
+    columns: ColumnDefinition[];
+    instagramUserId?: string;
+    instagramToken?: string;
+    facebookUserId?: string;
+    facebookToken?: string;
+    modeloFeedId?: string;
+    modeloStoriesId?: string;
+    jsonCliente: any;
 }
 
 interface StoreContextType {
@@ -141,7 +139,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     .order("nome_cliente", { ascending: true });
 
                 if (!layoutError) {
-                    setLayoutClients(layoutData || []);
+                    const formattedLayouts = (layoutData || []).map(l => ({
+                        id: l.id,
+                        name: l.nome_cliente,
+                        webhookUrl: l.webhook_url,
+                        webhookPostagens: l.webhook_postagens,
+                        prompt: l.prompt,
+                        columns: l.columns || [],
+                        instagramUserId: l.instagram_user_id,
+                        instagramToken: l.instagram_token,
+                        facebookUserId: l.facebook_user_id,
+                        facebookToken: l.facebook_token,
+                        modeloFeedId: l.modelo_feed_id,
+                        modeloStoriesId: l.modelo_stories_id,
+                        jsonCliente: l.json_cliente
+                    }));
+                    setLayoutClients(formattedLayouts);
                 }
 
             } catch (error) {
@@ -283,9 +296,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     // Layout Client Actions
     const addLayoutClient = async (data: Omit<LayoutClient, "id">) => {
+        const dbData = {
+            nome_cliente: data.name,
+            webhook_url: data.webhookUrl,
+            webhook_postagens: data.webhookPostagens,
+            prompt: data.prompt,
+            columns: data.columns,
+            instagram_user_id: data.instagramUserId,
+            instagram_token: data.instagramToken,
+            facebook_user_id: data.facebookUserId,
+            facebook_token: data.facebookToken,
+            modelo_feed_id: data.modeloFeedId,
+            modelo_stories_id: data.modeloStoriesId,
+            json_cliente: data.jsonCliente
+        };
+
         const { data: inserted, error } = await supabase
             .from("design_online_layouts_clientes")
-            .insert([data])
+            .insert([dbData])
             .select();
 
         if (error) {
@@ -293,13 +321,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        setLayoutClients((prev) => [...prev, inserted[0]]);
+        const newClient: LayoutClient = {
+            id: inserted[0].id,
+            name: inserted[0].nome_cliente,
+            webhookUrl: inserted[0].webhook_url,
+            webhookPostagens: inserted[0].webhook_postagens,
+            prompt: inserted[0].prompt,
+            columns: inserted[0].columns || [],
+            instagramUserId: inserted[0].instagram_user_id,
+            instagramToken: inserted[0].instagram_token,
+            facebookUserId: inserted[0].facebook_user_id,
+            facebookToken: inserted[0].facebook_token,
+            modeloFeedId: inserted[0].modelo_feed_id,
+            modeloStoriesId: inserted[0].modelo_stories_id,
+            jsonCliente: inserted[0].json_cliente
+        };
+
+        setLayoutClients((prev) => [...prev, newClient]);
     };
 
     const updateLayoutClient = async (id: string, updates: Partial<LayoutClient>) => {
+        const dbUpdates: any = {};
+        if (updates.name) dbUpdates.nome_cliente = updates.name;
+        if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
+        if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
+        if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
+        if (updates.columns) dbUpdates.columns = updates.columns;
+        if (updates.instagramUserId) dbUpdates.instagram_user_id = updates.instagramUserId;
+        if (updates.instagramToken) dbUpdates.instagram_token = updates.instagramToken;
+        if (updates.facebookUserId) dbUpdates.facebook_user_id = updates.facebookUserId;
+        if (updates.facebookToken) dbUpdates.facebook_token = updates.facebookToken;
+        if (updates.modeloFeedId) dbUpdates.modelo_feed_id = updates.modeloFeedId;
+        if (updates.modeloStoriesId) dbUpdates.modelo_stories_id = updates.modeloStoriesId;
+        if (updates.jsonCliente) dbUpdates.json_cliente = updates.jsonCliente;
+
         const { error } = await supabase
             .from("design_online_layouts_clientes")
-            .update(updates)
+            .update(dbUpdates)
             .eq("id", id);
 
         if (error) {

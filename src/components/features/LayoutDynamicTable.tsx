@@ -1,0 +1,166 @@
+"use client";
+
+import { useRef } from "react";
+import { LayoutClient } from "@/lib/store-context";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Trash, Plus, Upload, Image as ImageIcon, Edit, X, Copy, Type } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface LayoutDynamicTableProps {
+    client: LayoutClient;
+    data: Record<string, any>[];
+    onChange: (newData: Record<string, any>[]) => void;
+    onImageUpload: (rowIndex: number, colId: string, files: File[]) => void;
+    onEditImage: (rowIndex: number, colId: string, imageUrl: string, imageIndex: number) => void;
+    onRemoveImage: (rowIndex: number, colId: string, imageIndex: number) => void;
+}
+
+export function LayoutDynamicTable({ client, data, onChange, onImageUpload, onEditImage, onRemoveImage }: LayoutDynamicTableProps) {
+
+    const handleCellChange = (rowIndex: number, colId: string, value: any) => {
+        const newData = [...data];
+        newData[rowIndex] = { ...newData[rowIndex], [colId]: value };
+        onChange(newData);
+    };
+
+    const addRow = () => {
+        const newRow: Record<string, any> = { _id: crypto.randomUUID() };
+        client.columns.forEach(col => newRow[col.id] = "");
+        onChange([...data, newRow]);
+    };
+
+    const removeRow = (index: number) => {
+        if (data.length > 1) {
+            onChange(data.filter((_, idx) => idx !== index));
+        } else {
+            const newRow: Record<string, any> = { _id: crypto.randomUUID() };
+            client.columns.forEach(col => newRow[col.id] = "");
+            onChange([newRow]);
+        }
+    };
+
+    const cloneRow = (index: number) => {
+        const rowToClone = data[index];
+        const clonedRow = { ...rowToClone, _id: crypto.randomUUID() };
+        const newData = [...data];
+        newData.splice(index + 1, 0, clonedRow);
+        onChange(newData);
+    };
+
+    const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+    return (
+        <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="overflow-x-auto rounded-lg border border-white/10 bg-black/20 backdrop-blur-sm pb-4 custom-scrollbar">
+                <table className="w-full text-sm text-left text-gray-300">
+                    <thead className="text-xs text-gray-400 uppercase bg-white/5">
+                        <tr>
+                            <th className="px-4 py-3 w-12 text-center">#</th>
+                            {client.columns.map((col) => (
+                                <th key={col.id} className="px-4 py-3 min-w-[150px]">
+                                    <div className="flex items-center gap-2">
+                                        {col.type === "image" ? <ImageIcon size={14} className="text-purple-400" /> :
+                                            col.type === "checkbox" ? <ImageIcon size={14} className="text-green-400" /> : // Should use a checkbox icon but keeping it simple
+                                                <Type size={14} className="text-blue-400" />}
+                                        {col.name}
+                                    </div>
+                                </th>
+                            ))}
+                            <th className="px-4 py-3 w-12 text-center"><Trash size={14} /></th>
+                            <th className="px-4 py-3 w-12 text-center"><Copy size={14} /></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.map((row, rowIndex) => (
+                            <tr key={row._id || rowIndex} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                                <td className="px-4 py-3 text-center text-muted-foreground">{rowIndex + 1}</td>
+                                {client.columns.map((col) => (
+                                    <td key={col.id} className="px-4 py-3">
+                                        {col.type === "text" ? (
+                                            <Input
+                                                value={row[col.id] || ""}
+                                                onChange={(e) => handleCellChange(rowIndex, col.id, e.target.value)}
+                                                className="h-8 bg-transparent border-transparent hover:border-white/10 focus:border-indigo-500/50 transition-all"
+                                                placeholder="Digite..."
+                                            />
+                                        ) : col.type === "checkbox" ? (
+                                            <div className="flex items-center justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!row[col.id]}
+                                                    onChange={(e) => handleCellChange(rowIndex, col.id, e.target.checked)}
+                                                    className="w-4 h-4 rounded border-white/20 bg-white/5 text-indigo-500 focus:ring-indigo-500"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="min-w-[120px]">
+                                                {(() => {
+                                                    const imageUrl = row[col.id];
+                                                    if (typeof imageUrl === 'string' && imageUrl) {
+                                                        return (
+                                                            <div className="relative group/image h-10 w-10">
+                                                                <div className="h-10 w-10 rounded overflow-hidden border border-white/20 bg-black/50">
+                                                                    <img src={imageUrl} alt="Preview" className="h-full w-full object-cover" />
+                                                                </div>
+                                                                <div className="absolute -right-4 -top-4 hidden group-hover/image:flex gap-0.5 bg-black/90 rounded p-0.5 z-10 border border-white/10 shadow-xl scale-75 origin-bottom-left">
+                                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-400 hover:text-blue-300" onClick={() => onEditImage(rowIndex, col.id, imageUrl, 0)}>
+                                                                        <Edit size={12} />
+                                                                    </Button>
+                                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400 hover:text-red-300" onClick={() => onRemoveImage(rowIndex, col.id, 0)}>
+                                                                        <X size={12} />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <div className="relative">
+                                                            <input
+                                                                type="file"
+                                                                className="hidden"
+                                                                accept="image/*"
+                                                                ref={el => { fileInputRefs.current[`${rowIndex}-${col.id}`] = el }}
+                                                                onChange={(e) => {
+                                                                    if (e.target.files && e.target.files.length > 0) {
+                                                                        onImageUpload(rowIndex, col.id, Array.from(e.target.files));
+                                                                        e.target.value = "";
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 w-full border-dashed border-white/20 text-muted-foreground hover:text-white hover:border-indigo-500/50 px-2"
+                                                                onClick={() => fileInputRefs.current[`${rowIndex}-${col.id}`]?.click()}
+                                                            >
+                                                                <Upload size={14} className="mr-2" /> Upload
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        )}
+                                    </td>
+                                ))}
+                                <td className="px-4 py-3 text-center">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400" onClick={() => removeRow(rowIndex)}>
+                                        <Trash size={14} />
+                                    </Button>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-indigo-400" onClick={() => cloneRow(rowIndex)}>
+                                        <Copy size={14} />
+                                    </Button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <Button variant="ghost" onClick={addRow} className="w-full border border-dashed border-white/10 hover:bg-white/5 py-4 text-muted-foreground hover:text-white">
+                <Plus size={16} className="mr-2" /> Adicionar Linha
+            </Button>
+        </div >
+    );
+}

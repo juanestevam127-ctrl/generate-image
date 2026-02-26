@@ -16,11 +16,15 @@ import WeeklyTrend from '@/components/dashboard/WeeklyTrend';
 import LayoutDetailedTable from '@/components/dashboard/LayoutDetailedTable';
 
 export default function LayoutAnalyticsView() {
+    const { layoutClients } = useStore();
     const [selectedClient, setSelectedClient] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState(getDateRangeFromPreset('last-7-days'));
 
+    const clientNames = useMemo(() => {
+        return layoutClients.map(c => c.name).sort((a, b) => a.localeCompare(b));
+    }, [layoutClients]);
+
     const {
-        clients,
         metrics,
         evolution,
         ranking,
@@ -39,17 +43,17 @@ export default function LayoutAnalyticsView() {
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-gray-900/50 p-6 rounded-2xl border border-white/5">
                 <div>
                     <h2 className="text-2xl font-bold text-white">
-                        Visão Geral de Layouts
+                        Dashboard de Layouts
                     </h2>
                     <p className="text-gray-400 mt-1">
-                        Performance de disparos de webhooks
+                        Performance de geração de layouts por cliente
                     </p>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="w-full md:w-64">
                         <ClientSelector
-                            clients={clients}
+                            clients={clientNames}
                             selectedClient={selectedClient}
                             onSelectClient={setSelectedClient}
                             isLoading={false}
