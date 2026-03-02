@@ -125,8 +125,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     prompt: c.prompt,
                     columns: c.columns,
                     captionTemplate: c.caption_template,
-                    facebookId: c.facebook_id,
-                    instagramId: c.instagram_id,
+                    facebookId: c.id_facebook,
+                    instagramId: c.id_instagram,
                     token: c.token
                 }));
                 setClients(formattedClients);
@@ -245,8 +245,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 prompt: data.prompt,
                 columns: data.columns,
                 caption_template: data.captionTemplate,
-                facebook_id: data.facebookId,
-                instagram_id: data.instagramId,
+                id_facebook: data.facebookId,
+                id_instagram: data.instagramId,
                 token: data.token
             }])
             .select();
@@ -264,8 +264,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             prompt: inserted[0].prompt,
             columns: inserted[0].columns,
             captionTemplate: inserted[0].caption_template,
-            facebookId: inserted[0].facebook_id,
-            instagramId: inserted[0].instagram_id,
+            facebookId: inserted[0].id_facebook,
+            instagramId: inserted[0].id_instagram,
             token: inserted[0].token
         };
 
@@ -281,8 +281,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
         if (updates.columns) dbUpdates.columns = updates.columns;
         if (updates.captionTemplate !== undefined) dbUpdates.caption_template = updates.captionTemplate;
-        if (updates.facebookId !== undefined) dbUpdates.facebook_id = updates.facebookId;
-        if (updates.instagramId !== undefined) dbUpdates.instagram_id = updates.instagramId;
+        if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
+        if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
         if (updates.token !== undefined) dbUpdates.token = updates.token;
 
         const { error } = await supabase
