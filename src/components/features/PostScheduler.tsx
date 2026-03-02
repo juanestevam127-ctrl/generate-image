@@ -614,7 +614,7 @@ export function PostScheduler({ client }: { client: Client }) {
                         <Button
                             onClick={() => handleSchedule(true)}
                             disabled={isScheduling}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                            className="!bg-indigo-600 hover:!bg-indigo-700 !text-white font-bold"
                         >
                             {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                             Enviar Agora
