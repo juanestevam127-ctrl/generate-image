@@ -223,9 +223,10 @@ export function ClientManager() {
                         </div>
                         <div className="space-y-2 col-span-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Token de Acesso</label>
-                            <Input
+                            <textarea
                                 value={token}
                                 onChange={(e) => setToken(e.target.value)}
+                                className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 placeholder="EAAB..."
                             />
                         </div>
