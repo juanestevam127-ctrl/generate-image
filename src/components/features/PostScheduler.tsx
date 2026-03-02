@@ -28,6 +28,7 @@ interface GroupedPost {
     formato: string;
     images: PostImage[];
     caption: string;
+    postType: string;
     created_at: string;
 }
 
@@ -79,6 +80,9 @@ export function PostScheduler({ client }: { client: Client }) {
                         formato: format,
                         images: [],
                         caption: img.descricao || client.captionTemplate || "",
+                        postType: format === "FEED"
+                            ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
+                            : "IMAGEM",
                         created_at: img.created_at
                     };
                 }
@@ -118,6 +122,10 @@ export function PostScheduler({ client }: { client: Client }) {
         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, caption: newCaption } : p));
     };
 
+    const updatePostType = (postId: string, newType: string) => {
+        setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, postType: newType } : p));
+    };
+
     const moveImage = (postId: string, fromIndex: number, toIndex: number) => {
         setGroupedPosts(prev => prev.map(p => {
             if (p.id !== postId) return p;
@@ -153,7 +161,12 @@ export function PostScheduler({ client }: { client: Client }) {
                             publicado: false,
                             veiculo_gerado: p.veiculo_gerado
                         };
-                        return { ...p, images: [...p.images, newImg] };
+                        const newImages = [...p.images, newImg];
+                        return {
+                            ...p,
+                            images: newImages,
+                            postType: p.formato === "FEED" && newImages.length > 1 ? "CARROSSEL" : p.postType
+                        };
                     }));
 
                     // Show the newly added image
@@ -206,8 +219,9 @@ export function PostScheduler({ client }: { client: Client }) {
                 images: currentPost.images.map(img => img.imagem),
                 description: currentPost.caption,
                 format: currentPost.formato,
+                post_type: currentPost.postType,
                 scheduled_at: scheduledDateTime.toISOString(),
-                is_carousel: currentPost.images.length > 1,
+                is_carousel: currentPost.postType === "CARROSSEL",
                 veiculo_gerado: currentPost.veiculo_gerado
             };
 
@@ -406,6 +420,34 @@ export function PostScheduler({ client }: { client: Client }) {
                                         placeholder="Escreva uma legenda..."
                                         className="w-full bg-transparent border-none text-sm text-gray-200 resize-none focus:ring-0 p-0 min-h-[60px]"
                                     />
+
+                                    <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2">
+                                        {post.formato === "FEED" ? (
+                                            <>
+                                                {["ESTATICA", "CARROSSEL", "REELS"].map(type => (
+                                                    <button
+                                                        key={type}
+                                                        onClick={() => updatePostType(post.id, type)}
+                                                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${post.postType === type ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
+                                                    >
+                                                        {type}
+                                                    </button>
+                                                ))}
+                                            </>
+                                        ) : (
+                                            <>
+                                                {["IMAGEM", "VIDEO"].map(type => (
+                                                    <button
+                                                        key={type}
+                                                        onClick={() => updatePostType(post.id, type)}
+                                                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${post.postType === type ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
+                                                    >
+                                                        {type}
+                                                    </button>
+                                                ))}
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </Card>
                         );
@@ -428,7 +470,7 @@ export function PostScheduler({ client }: { client: Client }) {
                                 <img src={currentPost.images[0].imagem} className="w-16 h-16 rounded-md object-cover border border-white/10" />
                                 <div>
                                     <p className="text-white font-bold text-sm truncate w-48">{currentPost.veiculo_gerado}</p>
-                                    <p className="text-xs text-indigo-400 font-bold">{currentPost.formato} • {currentPost.images.length} imagem(ns)</p>
+                                    <p className="text-xs text-indigo-400 font-bold">{currentPost.formato} • {currentPost.postType} • {currentPost.images.length} item(ns)</p>
                                 </div>
                             </div>
                         </div>
