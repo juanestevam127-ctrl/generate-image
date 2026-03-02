@@ -47,6 +47,12 @@ export function PostScheduler({ client }: { client: Client }) {
     // Carousel State
     const [carouselIndices, setCarouselIndices] = useState<Record<string, number>>({});
 
+    // Manual Post State
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [newPostFormat, setNewPostFormat] = useState<"FEED" | "STORY">("FEED");
+    const [newPostType, setNewPostType] = useState("ESTATICA");
+    const [newPostVehicle, setNewPostVehicle] = useState("");
+
     useEffect(() => {
         fetchImages();
     }, [client.name]);
@@ -197,6 +203,23 @@ export function PostScheduler({ client }: { client: Client }) {
         setCarouselIndices(prev => ({ ...prev, [postId]: 0 }));
     };
 
+    const handleCreateManualPost = () => {
+        const id = `manual-${Date.now()}`;
+        const newPost: GroupedPost = {
+            id,
+            veiculo_gerado: newPostVehicle || "Nova Postagem",
+            formato: newPostFormat,
+            images: [],
+            caption: client.captionTemplate || "",
+            postType: newPostType,
+            created_at: new Date().toISOString()
+        };
+        setGroupedPosts(prev => [newPost, ...prev]);
+        setViewFilter(newPostFormat);
+        setIsCreateModalOpen(false);
+        setNewPostVehicle("");
+    };
+
     const handleSchedule = async () => {
         if (!currentPost) return;
 
@@ -236,13 +259,19 @@ export function PostScheduler({ client }: { client: Client }) {
 
             if (!res.ok) throw new Error("Falha ao enviar para o webhook");
 
-            const selectedIds = currentPost.images.map(img => img.id);
-            const { error } = await supabase
-                .from("publicacoes_design_online")
-                .update({ publicado: true })
-                .in("id", selectedIds);
+            // For manual posts, items won't have numeric numeric IDs. Filter only real IDs.
+            const selectedIds = currentPost.images
+                .map(img => img.id)
+                .filter(id => typeof id === 'number');
 
-            if (error) console.error("Error updating published status:", error);
+            if (selectedIds.length > 0) {
+                const { error } = await supabase
+                    .from("publicacoes_design_online")
+                    .update({ publicado: true })
+                    .in("id", selectedIds);
+
+                if (error) console.error("Error updating published status:", error);
+            }
 
             alert("Agendamento enviado com sucesso!");
             setIsScheduleModalOpen(false);
@@ -284,9 +313,19 @@ export function PostScheduler({ client }: { client: Client }) {
                         STORY
                     </button>
                 </div>
-                <h2 className="text-xl font-bold text-white uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-                    InstaFeed: {viewFilter}
-                </h2>
+
+                <div className="flex items-center space-x-4">
+                    <Button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold px-4 h-9"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        NOVA POSTAGEM
+                    </Button>
+                    <h2 className="text-xl font-bold text-white uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                        InstaFeed: {viewFilter}
+                    </h2>
+                </div>
             </div>
 
             {filteredPosts.length === 0 ? (
@@ -374,6 +413,16 @@ export function PostScheduler({ client }: { client: Client }) {
                                             </div>
                                         </>
                                     )}
+
+                                    {/* Empty Post Placeholder */}
+                                    {totalImages === 0 && (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 space-y-2">
+                                            <Plus size={48} className="opacity-20" />
+                                            <p className="text-sm font-medium">Adicione imagens ao seu post</p>
+                                        </div>
+                                    )}
+
+                                    {/* Add Image Button */}
 
                                     {/* Add Image Button */}
                                     <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -510,6 +559,85 @@ export function PostScheduler({ client }: { client: Client }) {
                     </div>
                 </div>
             </Modal >
+
+            {/* Create Post Modal */}
+            <Modal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                title="Nova Postagem Manual"
+                className="max-w-md"
+            >
+                <div className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Veículo / Título</label>
+                            <Input
+                                placeholder="Ex: CRETA 2024"
+                                value={newPostVehicle}
+                                onChange={(e) => setNewPostVehicle(e.target.value)}
+                                className="bg-white/5 border-white/10"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Formato</label>
+                                <div className="flex bg-white/5 p-1 rounded-md border border-white/10">
+                                    <button
+                                        onClick={() => {
+                                            setNewPostFormat("FEED");
+                                            setNewPostType("ESTATICA");
+                                        }}
+                                        className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "FEED" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                                    >
+                                        FEED
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setNewPostFormat("STORY");
+                                            setNewPostType("IMAGEM");
+                                        }}
+                                        className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "STORY" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                                    >
+                                        STORY
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Tipo</label>
+                                <select
+                                    value={newPostType}
+                                    onChange={(e) => setNewPostType(e.target.value)}
+                                    className="w-full h-9 bg-white/5 border border-white/10 rounded-md px-3 text-[10px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                                >
+                                    {newPostFormat === "FEED" ? (
+                                        <>
+                                            <option value="ESTATICA">ESTÁTICA</option>
+                                            <option value="CARROSSEL">CARROSSEL</option>
+                                            <option value="REELS">REELS</option>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <option value="IMAGEM">IMAGEM</option>
+                                            <option value="VIDEO">VÍDEO</option>
+                                        </>
+                                    )}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4 space-x-3">
+                        <Button variant="ghost" onClick={() => setIsCreateModalOpen(false)}>Cancelar</Button>
+                        <Button
+                            onClick={handleCreateManualPost}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                        >
+                            Criar Esboço
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div >
     );
 }
