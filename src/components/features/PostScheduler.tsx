@@ -469,7 +469,8 @@ export function PostScheduler({ client }: { client: Client }) {
                                         value={post.caption}
                                         onChange={(e) => updateCaption(post.id, e.target.value)}
                                         placeholder="Escreva uma legenda..."
-                                        className="w-full bg-transparent border-none text-sm text-gray-200 resize-none focus:ring-0 p-0 min-h-[60px]"
+                                        rows={4}
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg text-sm text-gray-200 resize-y focus:ring-1 focus:ring-indigo-500 p-3 min-h-[100px]"
                                     />
 
                                     <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2">
@@ -639,7 +640,7 @@ export function PostScheduler({ client }: { client: Client }) {
                         <Button variant="ghost" onClick={() => setIsCreateModalOpen(false)} className="text-gray-400 hover:text-white">Cancelar</Button>
                         <Button
                             onClick={handleCreateManualPost}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+                            className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold px-8 shadow-lg shadow-green-500/20 active:scale-95 transition-all uppercase tracking-tight"
                         >
                             CRIAR POSTAGEM
                         </Button>
