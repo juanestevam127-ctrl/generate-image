@@ -19,6 +19,10 @@ export function ClientManager() {
     const [webhookUrl, setWebhookUrl] = useState("");
     const [webhookPostagens, setWebhookPostagens] = useState("");
     const [prompt, setPrompt] = useState("");
+    const [captionTemplate, setCaptionTemplate] = useState("");
+    const [facebookId, setFacebookId] = useState("");
+    const [instagramId, setInstagramId] = useState("");
+    const [token, setToken] = useState("");
     const [columns, setColumns] = useState<ColumnDefinition[]>([]);
 
     const openNewClientModal = () => {
@@ -27,6 +31,10 @@ export function ClientManager() {
         setWebhookUrl("");
         setWebhookPostagens("");
         setPrompt("");
+        setCaptionTemplate("");
+        setFacebookId("");
+        setInstagramId("");
+        setToken("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
     };
@@ -37,6 +45,10 @@ export function ClientManager() {
         setWebhookUrl(client.webhookUrl);
         setWebhookPostagens(client.webhookPostagens || "");
         setPrompt(client.prompt || "");
+        setCaptionTemplate(client.captionTemplate || "");
+        setFacebookId(client.facebookId || "");
+        setInstagramId(client.instagramId || "");
+        setToken(client.token || "");
         setColumns([...client.columns]);
         setIsModalOpen(true);
     };
@@ -49,6 +61,10 @@ export function ClientManager() {
             webhookUrl,
             webhookPostagens,
             prompt,
+            captionTemplate,
+            facebookId,
+            instagramId,
+            token,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
@@ -178,6 +194,39 @@ export function ClientManager() {
                                 onChange={(e) => setPrompt(e.target.value)}
                                 className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 placeholder="Escreva o prompt padrão para redimensionamento..."
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Modelo de Legenda</label>
+                            <textarea
+                                value={captionTemplate}
+                                onChange={(e) => setCaptionTemplate(e.target.value)}
+                                className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Configure a legenda padrão aqui..."
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Facebook ID</label>
+                            <Input
+                                value={facebookId}
+                                onChange={(e) => setFacebookId(e.target.value)}
+                                placeholder="ID da página do Facebook"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Instagram ID</label>
+                            <Input
+                                value={instagramId}
+                                onChange={(e) => setInstagramId(e.target.value)}
+                                placeholder="ID da conta do Instagram"
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Token de Acesso</label>
+                            <Input
+                                value={token}
+                                onChange={(e) => setToken(e.target.value)}
+                                placeholder="EAAB..."
                             />
                         </div>
                     </div>

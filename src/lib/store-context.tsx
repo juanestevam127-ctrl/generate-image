@@ -34,6 +34,10 @@ export interface Client {
     webhookPostagens?: string;
     prompt?: string;
     columns: ColumnDefinition[];
+    captionTemplate?: string;
+    facebookId?: string;
+    instagramId?: string;
+    token?: string;
 }
 
 export interface LayoutClient {
@@ -118,8 +122,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     name: c.name,
                     webhookUrl: c.webhook_url,
                     webhookPostagens: c.webhook_postagens,
-                    prompt: c.prompt, // Load prompt
-                    columns: c.columns
+                    prompt: c.prompt,
+                    columns: c.columns,
+                    captionTemplate: c.caption_template,
+                    facebookId: c.facebook_id,
+                    instagramId: c.instagram_id,
+                    token: c.token
                 }));
                 setClients(formattedClients);
 
@@ -234,8 +242,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 name: data.name,
                 webhook_url: data.webhookUrl,
                 webhook_postagens: data.webhookPostagens,
-                prompt: data.prompt, // Save prompt
-                columns: data.columns
+                prompt: data.prompt,
+                columns: data.columns,
+                caption_template: data.captionTemplate,
+                facebook_id: data.facebookId,
+                instagram_id: data.instagramId,
+                token: data.token
             }])
             .select();
 
@@ -250,7 +262,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             webhookUrl: inserted[0].webhook_url,
             webhookPostagens: inserted[0].webhook_postagens,
             prompt: inserted[0].prompt,
-            columns: inserted[0].columns
+            columns: inserted[0].columns,
+            captionTemplate: inserted[0].caption_template,
+            facebookId: inserted[0].facebook_id,
+            instagramId: inserted[0].instagram_id,
+            token: inserted[0].token
         };
 
         setClients((prev) => [...prev, newClient]);
@@ -262,8 +278,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (updates.name) dbUpdates.name = updates.name;
         if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
         if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
-        if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt; // Save prompt update
+        if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
         if (updates.columns) dbUpdates.columns = updates.columns;
+        if (updates.captionTemplate !== undefined) dbUpdates.caption_template = updates.captionTemplate;
+        if (updates.facebookId !== undefined) dbUpdates.facebook_id = updates.facebookId;
+        if (updates.instagramId !== undefined) dbUpdates.instagram_id = updates.instagramId;
+        if (updates.token !== undefined) dbUpdates.token = updates.token;
 
         const { error } = await supabase
             .from("clientes")

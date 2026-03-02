@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, Loader2, Send } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, Loader2, Send, Plus, Trash2, MoveUp, MoveDown } from "lucide-react";
 
 import { useStore, Client } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { supabase } from "@/lib/supabase";
+import { supabase, uploadImage } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 interface PostImage {
@@ -17,21 +17,34 @@ interface PostImage {
     nome_empresa: string;
     imagem: string; // URL
     formato: string;
-    descricao: string;
+    descricao: string | null;
     publicado: boolean;
+    veiculo_gerado: string | null;
+}
+
+interface GroupedPost {
+    id: string; // Unique ID for the group
+    veiculo_gerado: string;
+    formato: string;
+    images: PostImage[];
+    caption: string;
+    created_at: string;
 }
 
 export function PostScheduler({ client }: { client: Client }) {
-    const [images, setImages] = useState<PostImage[]>([]);
+    const [groupedPosts, setGroupedPosts] = useState<GroupedPost[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [viewFilter, setViewFilter] = useState<"FEED" | "STORY">("FEED");
 
     // Scheduling State
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+    const [currentPost, setCurrentPost] = useState<GroupedPost | null>(null);
     const [scheduleDate, setScheduleDate] = useState("");
     const [scheduleTime, setScheduleTime] = useState("");
-    const [description, setDescription] = useState("");
     const [isScheduling, setIsScheduling] = useState(false);
+
+    // Carousel State
+    const [carouselIndices, setCarouselIndices] = useState<Record<string, number>>({});
 
     useEffect(() => {
         fetchImages();
@@ -40,7 +53,6 @@ export function PostScheduler({ client }: { client: Client }) {
     const fetchImages = async () => {
         setLoading(true);
         try {
-            // Fetch un-published images for this company
             const { data, error } = await supabase
                 .from("publicacoes_design_online")
                 .select("*")
@@ -49,7 +61,31 @@ export function PostScheduler({ client }: { client: Client }) {
                 .order("created_at", { ascending: false });
 
             if (error) throw error;
-            setImages(data || []);
+
+            const rawImages = (data || []) as PostImage[];
+
+            // Group by veiculo_gerado and formato
+            const groups: Record<string, GroupedPost> = {};
+
+            rawImages.forEach(img => {
+                const vehicle = img.veiculo_gerado || "Sem Veículo";
+                const format = img.formato || "FEED";
+                const key = `${vehicle}-${format}`;
+
+                if (!groups[key]) {
+                    groups[key] = {
+                        id: key,
+                        veiculo_gerado: vehicle,
+                        formato: format,
+                        images: [],
+                        caption: img.descricao || client.captionTemplate || "",
+                        created_at: img.created_at
+                    };
+                }
+                groups[key].images.push(img);
+            });
+
+            setGroupedPosts(Object.values(groups));
         } catch (error) {
             console.error("Error fetching images:", error);
         } finally {
@@ -57,26 +93,102 @@ export function PostScheduler({ client }: { client: Client }) {
         }
     };
 
-    const toggleSelection = (id: number) => {
-        setSelectedIds(prev =>
-            prev.includes(id)
-                ? prev.filter(i => i !== id)
-                : [...prev, id]
-        );
-    };
-
-    const handleOpenModal = () => {
-        setDescription("");
+    const handleOpenModal = (post: GroupedPost) => {
+        setCurrentPost(post);
         setScheduleDate("");
         setScheduleTime("");
         setIsScheduleModalOpen(true);
     };
 
+    const nextImage = (postId: string, total: number) => {
+        setCarouselIndices(prev => ({
+            ...prev,
+            [postId]: ((prev[postId] || 0) + 1) % total
+        }));
+    };
+
+    const prevImage = (postId: string, total: number) => {
+        setCarouselIndices(prev => ({
+            ...prev,
+            [postId]: ((prev[postId] || 0) - 1 + total) % total
+        }));
+    };
+
+    const updateCaption = (postId: string, newCaption: string) => {
+        setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, caption: newCaption } : p));
+    };
+
+    const moveImage = (postId: string, fromIndex: number, toIndex: number) => {
+        setGroupedPosts(prev => prev.map(p => {
+            if (p.id !== postId) return p;
+            const newImages = [...p.images];
+            const [movedItem] = newImages.splice(fromIndex, 1);
+            newImages.splice(toIndex, 0, movedItem);
+            return { ...p, images: newImages };
+        }));
+        // Reset index to ensure we stay on the moved image or visible area
+        setCarouselIndices(prev => ({ ...prev, [postId]: toIndex }));
+    };
+
+    const handleAddImage = async (postId: string, files: FileList | null) => {
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            if (e.target?.result) {
+                const base64Str = e.target.result as string;
+                const publicUrl = await uploadImage(base64Str, 'temp-files', '');
+
+                if (publicUrl) {
+                    setGroupedPosts(prev => prev.map(p => {
+                        if (p.id !== postId) return p;
+                        const newImg: PostImage = {
+                            id: Math.random(), // Temporary ID
+                            created_at: new Date().toISOString(),
+                            nome_empresa: client.name,
+                            imagem: publicUrl,
+                            formato: p.formato,
+                            descricao: p.caption,
+                            publicado: false,
+                            veiculo_gerado: p.veiculo_gerado
+                        };
+                        return { ...p, images: [...p.images, newImg] };
+                    }));
+
+                    // Show the newly added image
+                    setGroupedPosts(current => {
+                        const post = current.find(p => p.id === postId);
+                        if (post) {
+                            setCarouselIndices(prev => ({ ...prev, [postId]: post.images.length - 1 }));
+                        }
+                        return current;
+                    });
+                }
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeImageFromPost = (postId: string, imgIndex: number) => {
+        setGroupedPosts(prev => prev.map(p => {
+            if (p.id !== postId) return p;
+            if (p.images.length <= 1) {
+                // If it's the last image, maybe we should delete the post or alert
+                return p;
+            }
+            const newImages = [...p.images];
+            newImages.splice(imgIndex, 1);
+            return { ...p, images: newImages };
+        }));
+        setCarouselIndices(prev => ({ ...prev, [postId]: 0 }));
+    };
+
     const handleSchedule = async () => {
-        if (!client.webhookPostagens) {
-            alert("Configure o Webhook de Postagens nas configurações do cliente.");
-            return;
-        }
+        if (!currentPost) return;
+
+        const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
+
         if (!scheduleDate || !scheduleTime) {
             alert("Selecione data e hora.");
             return;
@@ -84,34 +196,33 @@ export function PostScheduler({ client }: { client: Client }) {
 
         setIsScheduling(true);
         try {
-            const selectedImages = images.filter(img => selectedIds.includes(img.id));
-            const imageUrls = selectedImages.map(img => img.imagem);
-            const descriptions = selectedImages.map(img => img.descricao).join("\n\n");
-
             const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
 
             const payload = {
                 client: client.name,
-                images: imageUrls,
-                description: descriptions, // Concatenated descriptions
-                format: selectedImages[0]?.formato || "feed", // Assume first format or default
+                facebook_id: client.facebookId,
+                instagram_id: client.instagramId,
+                token: client.token,
+                images: currentPost.images.map(img => img.imagem),
+                description: currentPost.caption,
+                format: currentPost.formato,
                 scheduled_at: scheduledDateTime.toISOString(),
-                is_carousel: selectedImages.length > 1
+                is_carousel: currentPost.images.length > 1,
+                veiculo_gerado: currentPost.veiculo_gerado
             };
 
-            // Send to Webhook via proxy to avoid CORS
             const res = await fetch("/api/proxy-webhook", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    url: client.webhookPostagens,
+                    url: webhookAgendar,
                     payload: payload
                 })
             });
 
             if (!res.ok) throw new Error("Falha ao enviar para o webhook");
 
-            // Mark as published in Supabase (Optimistic update)
+            const selectedIds = currentPost.images.map(img => img.id);
             const { error } = await supabase
                 .from("publicacoes_design_online")
                 .update({ publicado: true })
@@ -121,8 +232,8 @@ export function PostScheduler({ client }: { client: Client }) {
 
             alert("Agendamento enviado com sucesso!");
             setIsScheduleModalOpen(false);
-            setSelectedIds([]);
-            fetchImages(); // Refresh list
+            setCurrentPost(null);
+            fetchImages();
 
         } catch (error) {
             console.error("Scheduling error:", error);
@@ -140,65 +251,165 @@ export function PostScheduler({ client }: { client: Client }) {
         );
     }
 
+    const filteredPosts = groupedPosts.filter(p => p.formato === viewFilter);
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-white">Imagens Disponíveis</h2>
-                <div className="flex items-center space-x-4">
-                    <span className="text-sm text-muted-foreground">
-                        {selectedIds.length} selecionada(s)
-                    </span>
-                    <Button
-                        disabled={selectedIds.length === 0}
-                        onClick={handleOpenModal}
-                        className="!bg-green-400 hover:!bg-green-500 !text-slate-950 font-bold"
+                <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
+                    <button
+                        onClick={() => setViewFilter("FEED")}
+                        className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${viewFilter === "FEED" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                     >
-                        <Clock className="w-4 h-4 mr-2" />
-                        Agendar Postagem
-                    </Button>
+                        FEED
+                    </button>
+                    <button
+                        onClick={() => setViewFilter("STORY")}
+                        className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${viewFilter === "STORY" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        STORY
+                    </button>
                 </div>
+                <h2 className="text-xl font-bold text-white uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                    InstaFeed: {viewFilter}
+                </h2>
             </div>
 
-            {images.length === 0 ? (
+            {filteredPosts.length === 0 ? (
                 <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
-                    <p>Nenhuma imagem pendente para este cliente.</p>
+                    <p>Nenhum conteúdo {viewFilter.toLowerCase()} disponível para este cliente.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {images.map((img) => (
-                        <div
-                            key={img.id}
-                            onClick={() => toggleSelection(img.id)}
-                            className={cn(
-                                "relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 aspect-square",
-                                selectedIds.includes(img.id)
-                                    ? "border-green-500 ring-2 ring-green-500/20"
-                                    : "border-transparent hover:border-white/20"
-                            )}
-                        >
-                            <img
-                                src={img.imagem}
-                                alt="Post"
-                                className="w-full h-full object-cover"
-                            />
+                <div className="flex flex-col items-center space-y-8">
+                    {filteredPosts.map((post) => {
+                        const currentIndex = carouselIndices[post.id] || 0;
+                        const totalImages = post.images.length;
 
-                            {/* Overlay Info */}
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                                <p className="text-xs text-white font-medium capitalize">{img.formato}</p>
-                                <p className="text-[10px] text-gray-300 line-clamp-2">{img.descricao}</p>
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    {format(new Date(img.created_at), "dd/MM/yyyy HH:mm")}
-                                </p>
-                            </div>
-
-                            {/* Checkmark */}
-                            {selectedIds.includes(img.id) && (
-                                <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1 shadow-lg">
-                                    <Check size={12} />
+                        return (
+                            <Card key={post.id} className="w-full max-w-[500px] bg-black border-white/10 overflow-hidden shadow-2xl">
+                                {/* Header */}
+                                <div className="p-3 flex items-center justify-between border-b border-white/5">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[2px]">
+                                            <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] font-bold text-white">
+                                                {client.name.slice(0, 2).toUpperCase()}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-white leading-none">{client.name}</p>
+                                            <p className="text-[10px] text-gray-400 mt-1">{post.veiculo_gerado}</p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={() => handleOpenModal(post)}
+                                        size="sm"
+                                        className="h-8 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-bold px-4"
+                                    >
+                                        Agendar
+                                    </Button>
                                 </div>
-                            )}
-                        </div>
-                    ))}
+
+                                {/* Image Area */}
+                                <div className="relative aspect-square bg-zinc-900 group">
+                                    <img
+                                        src={post.images[currentIndex].imagem}
+                                        alt="Post"
+                                        className="w-full h-full object-contain"
+                                    />
+
+                                    {totalImages > 1 && (
+                                        <>
+                                            <button
+                                                onClick={() => prevImage(post.id, totalImages)}
+                                                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                {"<"}
+                                            </button>
+                                            <button
+                                                onClick={() => nextImage(post.id, totalImages)}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                {">"}
+                                            </button>
+
+                                            {/* Reorder controls */}
+                                            <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => moveImage(post.id, currentIndex, currentIndex - 1)}
+                                                    disabled={currentIndex === 0}
+                                                    className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
+                                                    title="Mover para trás"
+                                                >
+                                                    <MoveUp size={14} className="-rotate-90" />
+                                                </button>
+                                                <button
+                                                    onClick={() => moveImage(post.id, currentIndex, currentIndex + 1)}
+                                                    disabled={currentIndex === totalImages - 1}
+                                                    className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
+                                                    title="Mover para frente"
+                                                >
+                                                    <MoveDown size={14} className="-rotate-90" />
+                                                </button>
+                                                <button
+                                                    onClick={() => removeImageFromPost(post.id, currentIndex)}
+                                                    className="w-8 h-8 bg-red-500/80 text-white rounded-full flex items-center justify-center hover:bg-red-500"
+                                                    title="Remover imagem"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* Add Image Button */}
+                                    <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <label className="cursor-pointer">
+                                            <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700">
+                                                <Plus size={20} />
+                                            </div>
+                                            <input
+                                                type="file"
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={(e) => handleAddImage(post.id, e.target.files)}
+                                            />
+                                        </label>
+                                    </div>
+
+                                    {/* Indicator */}
+                                    {totalImages > 1 && (
+                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-1.5">
+                                            {post.images.map((_, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentIndex ? "bg-white scale-125" : "bg-white/30"}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Caption Area */}
+                                <div className="p-4 space-y-3">
+                                    <div className="flex items-center space-x-4 text-white">
+                                        <div className="font-bold flex-1">
+                                            {currentIndex + 1} / {totalImages} Imagem(ns)
+                                        </div>
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                                            {format(new Date(post.created_at), "dd MMM yyyy", { locale: ptBR })}
+                                        </div>
+                                    </div>
+
+                                    <textarea
+                                        value={post.caption}
+                                        onChange={(e) => updateCaption(post.id, e.target.value)}
+                                        placeholder="Escreva uma legenda..."
+                                        className="w-full bg-transparent border-none text-sm text-gray-200 resize-none focus:ring-0 p-0 min-h-[60px]"
+                                    />
+                                </div>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
 
@@ -206,37 +417,22 @@ export function PostScheduler({ client }: { client: Client }) {
             <Modal
                 isOpen={isScheduleModalOpen}
                 onClose={() => setIsScheduleModalOpen(false)}
-                title="Agendar Postagem"
+                title="Confirmar Agendamento"
                 className="max-w-md"
             >
                 <div className="space-y-6">
-                    <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                        <p className="text-sm text-gray-300 mb-2">
-                            Você está agendando <span className="text-white font-bold">{selectedIds.length}</span> imagem(ns)
-                            {selectedIds.length > 1 && " como Carrossel"}.
-                        </p>
-                        <div className="flex -space-x-2 overflow-hidden py-2">
-                            {images.filter(i => selectedIds.includes(i.id)).slice(0, 5).map(i => (
-                                <img key={i.id} src={i.imagem} className="w-10 h-10 rounded-full border-2 border-background object-cover" />
-                            ))}
-                            {selectedIds.length > 5 && (
-                                <div className="w-10 h-10 rounded-full border-2 border-background bg-zinc-800 flex items-center justify-center text-xs text-white">
-                                    +{selectedIds.length - 5}
+                    {currentPost && (
+                        <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                            <p className="text-sm text-gray-300 mb-2 font-medium">Resumo do Post</p>
+                            <div className="flex items-center space-x-4">
+                                <img src={currentPost.images[0].imagem} className="w-16 h-16 rounded-md object-cover border border-white/10" />
+                                <div>
+                                    <p className="text-white font-bold text-sm truncate w-48">{currentPost.veiculo_gerado}</p>
+                                    <p className="text-xs text-indigo-400 font-bold">{currentPost.formato} • {currentPost.images.length} imagem(ns)</p>
                                 </div>
-                            )}
+                            </div>
                         </div>
-                    </div>
-
-                    {/* Description Field */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Legenda / Descrição</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="flex w-full rounded-md border border-input bg-black/20 px-3 py-2 text-sm text-white ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px]"
-                            placeholder="Escreva a legenda para esta postagem..."
-                        />
-                    </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
