@@ -124,8 +124,33 @@ export function PostScheduler({ client }: { client: Client }) {
         }));
     };
 
-    const updateCaption = (postId: string, newCaption: string) => {
+    const updateCaptionBase = async (postId: string, newCaption: string) => {
         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, caption: newCaption } : p));
+
+        const post = groupedPosts.find(p => p.id === postId);
+        if (post) {
+            const { error } = await supabase
+                .from("publicacoes_design_online")
+                .update({ descricao: newCaption })
+                .eq("nome_empresa", client.name)
+                .eq("veiculo_gerado", post.veiculo_gerado)
+                .eq("formato", post.formato);
+
+            if (error) console.error("Error updating caption in DB:", error);
+        }
+    };
+
+    // Debounced caption update
+    const captionTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+    const updateCaption = (postId: string, newCaption: string) => {
+        // Update local state immediately
+        setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, caption: newCaption } : p));
+
+        // Debounce DB sync
+        if (captionTimeoutRef.current[postId]) clearTimeout(captionTimeoutRef.current[postId]);
+        captionTimeoutRef.current[postId] = setTimeout(() => {
+            updateCaptionBase(postId, newCaption);
+        }, 1000);
     };
 
     const updatePostType = (postId: string, newType: string) => {
@@ -155,19 +180,32 @@ export function PostScheduler({ client }: { client: Client }) {
                 const publicUrl = await uploadImage(base64Str, 'temp-files', '');
 
                 if (publicUrl) {
-                    setGroupedPosts(prev => prev.map(p => {
-                        if (p.id !== postId) return p;
-                        const newImg: PostImage = {
-                            id: Math.random(), // Temporary ID
-                            created_at: new Date().toISOString(),
+                    const post = groupedPosts.find(p => p.id === postId);
+                    if (!post) return;
+
+                    // Persist to DB
+                    const { data: inserted, error } = await supabase
+                        .from("publicacoes_design_online")
+                        .insert([{
                             nome_empresa: client.name,
                             imagem: publicUrl,
-                            formato: p.formato,
-                            descricao: p.caption,
+                            formato: post.formato,
+                            descricao: post.caption,
                             publicado: false,
-                            veiculo_gerado: p.veiculo_gerado
-                        };
-                        const newImages = [...p.images, newImg];
+                            veiculo_gerado: post.veiculo_gerado
+                        }])
+                        .select();
+
+                    if (error) {
+                        console.error("Error persisting image to DB:", error);
+                        return;
+                    }
+
+                    const dbImg = inserted[0] as PostImage;
+
+                    setGroupedPosts(prev => prev.map(p => {
+                        if (p.id !== postId) return p;
+                        const newImages = [...p.images, dbImg];
                         return {
                             ...p,
                             images: newImages,
@@ -177,9 +215,9 @@ export function PostScheduler({ client }: { client: Client }) {
 
                     // Show the newly added image
                     setGroupedPosts(current => {
-                        const post = current.find(p => p.id === postId);
-                        if (post) {
-                            setCarouselIndices(prev => ({ ...prev, [postId]: post.images.length - 1 }));
+                        const postAfterImg = current.find(p => p.id === postId);
+                        if (postAfterImg) {
+                            setCarouselIndices(prev => ({ ...prev, [postId]: postAfterImg.images.length - 1 }));
                         }
                         return current;
                     });
@@ -189,12 +227,30 @@ export function PostScheduler({ client }: { client: Client }) {
         reader.readAsDataURL(file);
     };
 
-    const removeImageFromPost = (postId: string, imgIndex: number) => {
+    const removeImageFromPost = async (postId: string, imgIndex: number) => {
+        const post = groupedPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        const imgToDelete = post.images[imgIndex];
+
+        // Delete from DB if it has a real ID
+        if (typeof imgToDelete.id === 'number') {
+            const { error } = await supabase
+                .from("publicacoes_design_online")
+                .delete()
+                .eq("id", imgToDelete.id);
+
+            if (error) {
+                console.error("Error deleting image from DB:", error);
+                return;
+            }
+        }
+
         setGroupedPosts(prev => prev.map(p => {
             if (p.id !== postId) return p;
             if (p.images.length <= 1) {
-                // If it's the last image, maybe we should delete the post or alert
-                return p;
+                // Keep the group but empty (so user can add more or title stays)
+                return { ...p, images: [] };
             }
             const newImages = [...p.images];
             newImages.splice(imgIndex, 1);
