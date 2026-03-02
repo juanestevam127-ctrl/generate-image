@@ -364,11 +364,18 @@ export function PostScheduler({ client }: { client: Client }) {
 
                                 {/* Image Area */}
                                 <div className="relative aspect-square bg-zinc-900 group">
-                                    <img
-                                        src={post.images[currentIndex].imagem}
-                                        alt="Post"
-                                        className="w-full h-full object-contain"
-                                    />
+                                    {post.images[currentIndex] ? (
+                                        <img
+                                            src={post.images[currentIndex].imagem}
+                                            alt="Post"
+                                            className="w-full h-full object-contain"
+                                        />
+                                    ) : (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 bg-zinc-900/50">
+                                            <Plus size={48} className="opacity-20 mb-2" />
+                                            <p className="text-sm font-medium opacity-50">Nenhuma imagem adicionada</p>
+                                        </div>
+                                    )}
 
                                     {totalImages > 1 && (
                                         <>
@@ -415,12 +422,7 @@ export function PostScheduler({ client }: { client: Client }) {
                                     )}
 
                                     {/* Empty Post Placeholder */}
-                                    {totalImages === 0 && (
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 space-y-2">
-                                            <Plus size={48} className="opacity-20" />
-                                            <p className="text-sm font-medium">Adicione imagens ao seu post</p>
-                                        </div>
-                                    )}
+                                    {/* (Moved logic above for better safety) */}
 
                                     {/* Add Image Button */}
 
@@ -608,18 +610,24 @@ export function PostScheduler({ client }: { client: Client }) {
                                 <select
                                     value={newPostType}
                                     onChange={(e) => setNewPostType(e.target.value)}
-                                    className="w-full h-9 bg-white/5 border border-white/10 rounded-md px-3 text-[10px] font-bold text-white focus:outline-none focus:ring-1 focus:ring-indigo-600"
+                                    className="w-full h-9 bg-white/5 border border-white/10 rounded-md px-3 text-[11px] font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-600 appearance-none cursor-pointer hover:bg-white/10 transition-colors"
+                                    style={{
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundPosition: 'right 0.75rem center',
+                                        backgroundSize: '1rem'
+                                    }}
                                 >
                                     {newPostFormat === "FEED" ? (
                                         <>
-                                            <option value="ESTATICA">ESTÁTICA</option>
-                                            <option value="CARROSSEL">CARROSSEL</option>
-                                            <option value="REELS">REELS</option>
+                                            <option value="ESTATICA" className="bg-[#1a1a1a]">ESTÁTICA</option>
+                                            <option value="CARROSSEL" className="bg-[#1a1a1a]">CARROSSEL</option>
+                                            <option value="REELS" className="bg-[#1a1a1a]">REELS</option>
                                         </>
                                     ) : (
                                         <>
-                                            <option value="IMAGEM">IMAGEM</option>
-                                            <option value="VIDEO">VÍDEO</option>
+                                            <option value="IMAGEM" className="bg-[#1a1a1a]">IMAGEM</option>
+                                            <option value="VIDEO" className="bg-[#1a1a1a]">VÍDEO</option>
                                         </>
                                     )}
                                 </select>
@@ -628,12 +636,12 @@ export function PostScheduler({ client }: { client: Client }) {
                     </div>
 
                     <div className="flex justify-end pt-4 space-x-3">
-                        <Button variant="ghost" onClick={() => setIsCreateModalOpen(false)}>Cancelar</Button>
+                        <Button variant="ghost" onClick={() => setIsCreateModalOpen(false)} className="text-gray-400 hover:text-white">Cancelar</Button>
                         <Button
                             onClick={handleCreateManualPost}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
                         >
-                            Criar Esboço
+                            CRIAR POSTAGEM
                         </Button>
                     </div>
                 </div>
