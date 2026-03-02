@@ -276,19 +276,19 @@ export function PostScheduler({ client }: { client: Client }) {
         setNewPostVehicle("");
     };
 
-    const handleSchedule = async () => {
+    const handleSchedule = async (isInstant: boolean = false) => {
         if (!currentPost) return;
 
         const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
 
-        if (!scheduleDate || !scheduleTime) {
+        if (!isInstant && (!scheduleDate || !scheduleTime)) {
             alert("Selecione data e hora.");
             return;
         }
 
         setIsScheduling(true);
         try {
-            const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
+            const scheduledDateTime = isInstant ? new Date() : new Date(`${scheduleDate}T${scheduleTime}`);
 
             const payload = {
                 client: client.name,
@@ -329,14 +329,18 @@ export function PostScheduler({ client }: { client: Client }) {
                 if (error) console.error("Error updating published status:", error);
             }
 
-            alert("Agendamento enviado com sucesso!");
+            // Remove from local state
+            setGroupedPosts(prev => prev.filter(p => p.id !== currentPost.id));
+
+            alert(isInstant ? "Postagem enviada com sucesso!" : "Agendamento realizado com sucesso!");
             setIsScheduleModalOpen(false);
+            setScheduleDate("");
+            setScheduleTime("");
             setCurrentPost(null);
-            fetchImages();
 
         } catch (error) {
             console.error("Scheduling error:", error);
-            alert("Erro ao agendar: " + (error as Error).message);
+            alert("Erro ao realizar a operação: " + (error as Error).message);
         } finally {
             setIsScheduling(false);
         }
@@ -608,12 +612,20 @@ export function PostScheduler({ client }: { client: Client }) {
                     <div className="flex justify-end pt-4 space-x-3">
                         <Button variant="ghost" onClick={() => setIsScheduleModalOpen(false)}>Cancelar</Button>
                         <Button
-                            onClick={handleSchedule}
+                            onClick={() => handleSchedule(true)}
+                            disabled={isScheduling}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                        >
+                            {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                            Enviar Agora
+                        </Button>
+                        <Button
+                            onClick={() => handleSchedule(false)}
                             disabled={isScheduling}
                             className="!bg-green-400 hover:!bg-green-500 !text-slate-950 font-bold"
                         >
-                            {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                            Confirmar Agendamento
+                            {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CalendarIcon className="w-4 h-4 mr-2" />}
+                            Agendar
                         </Button>
                     </div>
                 </div>
