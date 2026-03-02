@@ -160,6 +160,11 @@ export function PostScheduler({ client }: { client: Client }) {
     };
 
     const updatePostType = (postId: string, newType: string) => {
+        const post = groupedPosts.find(p => p.id === postId);
+        if (post && newType !== "CARROSSEL" && post.images.length > 1) {
+            alert(`Para mudar para ${newType}, você deve remover as outras imagens e deixar apenas uma.`);
+            return;
+        }
         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, postType: newType } : p));
     };
 
@@ -177,6 +182,15 @@ export function PostScheduler({ client }: { client: Client }) {
 
     const handleAddImage = async (postId: string, files: FileList | null) => {
         if (!files || files.length === 0) return;
+
+        const post = groupedPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        // Validation based on post type
+        if (post.postType !== "CARROSSEL" && post.images.length >= 1) {
+            alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
+            return;
+        }
 
         const file = files[0];
         const reader = new FileReader();
@@ -502,19 +516,21 @@ export function PostScheduler({ client }: { client: Client }) {
                                     {/* Add Image Button */}
 
                                     {/* Add Image Button */}
-                                    <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <label className="cursor-pointer">
-                                            <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700">
-                                                <Plus size={20} />
-                                            </div>
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                accept="image/*,video/*"
-                                                onChange={(e) => handleAddImage(post.id, e.target.files)}
-                                            />
-                                        </label>
-                                    </div>
+                                    {((post.postType === "CARROSSEL") || (post.images.length === 0)) && (
+                                        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <label className="cursor-pointer">
+                                                <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold">
+                                                    <Plus size={20} />
+                                                </div>
+                                                <input
+                                                    type="file"
+                                                    className="hidden"
+                                                    accept="image/*,video/*"
+                                                    onChange={(e) => handleAddImage(post.id, e.target.files)}
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
 
                                     {/* Indicator */}
                                     {totalImages > 1 && (
