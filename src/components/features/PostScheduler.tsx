@@ -44,6 +44,12 @@ export function PostScheduler({ client }: { client: Client }) {
     const [scheduleTime, setScheduleTime] = useState("");
     const [isScheduling, setIsScheduling] = useState(false);
 
+    const isVideo = (url: string) => {
+        if (!url) return false;
+        const videoExtensions = ['.mp4', '.mov', '.webm', '.ogg', '.m4v'];
+        return videoExtensions.some(ext => url.toLowerCase().endsWith(ext));
+    };
+
     // Carousel State
     const [carouselIndices, setCarouselIndices] = useState<Record<string, number>>({});
 
@@ -425,11 +431,20 @@ export function PostScheduler({ client }: { client: Client }) {
                                 {/* Image Area */}
                                 <div className="relative aspect-square bg-zinc-900 group">
                                     {post.images[currentIndex] ? (
-                                        <img
-                                            src={post.images[currentIndex].imagem}
-                                            alt="Post"
-                                            className="w-full h-full object-contain"
-                                        />
+                                        isVideo(post.images[currentIndex].imagem) ? (
+                                            <video
+                                                src={post.images[currentIndex].imagem}
+                                                className="w-full h-full object-contain"
+                                                controls
+                                                playsInline
+                                            />
+                                        ) : (
+                                            <img
+                                                src={post.images[currentIndex].imagem}
+                                                alt="Post"
+                                                className="w-full h-full object-contain"
+                                            />
+                                        )
                                     ) : (
                                         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 bg-zinc-900/50">
                                             <Plus size={48} className="opacity-20 mb-2" />
@@ -495,7 +510,7 @@ export function PostScheduler({ client }: { client: Client }) {
                                             <input
                                                 type="file"
                                                 className="hidden"
-                                                accept="image/*"
+                                                accept="image/*,video/*"
                                                 onChange={(e) => handleAddImage(post.id, e.target.files)}
                                             />
                                         </label>
@@ -579,7 +594,13 @@ export function PostScheduler({ client }: { client: Client }) {
                         <div className="bg-white/5 p-4 rounded-lg border border-white/10">
                             <p className="text-sm text-gray-300 mb-2 font-medium">Resumo do Post</p>
                             <div className="flex items-center space-x-4">
-                                <img src={currentPost.images[0].imagem} className="w-16 h-16 rounded-md object-cover border border-white/10" />
+                                <div className="w-16 h-16 rounded-md overflow-hidden bg-zinc-800 border border-white/10 shrink-0">
+                                    {isVideo(currentPost.images[0].imagem) ? (
+                                        <video src={currentPost.images[0].imagem} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <img src={currentPost.images[0].imagem} className="w-full h-full object-cover" />
+                                    )}
+                                </div>
                                 <div>
                                     <p className="text-white font-bold text-sm truncate w-48">{currentPost.veiculo_gerado}</p>
                                     <p className="text-xs text-indigo-400 font-bold">{currentPost.formato} • {currentPost.postType} • {currentPost.images.length} item(ns)</p>

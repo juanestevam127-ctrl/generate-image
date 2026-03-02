@@ -10,19 +10,21 @@ export async function uploadImage(image: string, bucket: string = 'images', fold
         // 1. Convert Base64 (DataURL) to Blob - Browser safe
         const res = await fetch(image);
         const blob = await res.blob();
+        const contentType = blob.type || 'image/png';
+        const extension = contentType.split('/')[1] || 'png';
 
         // 2. Generate unique filename
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(7);
         // Ensure folder ends with / if provided and not empty
         const folderPrefix = folder ? (folder.endsWith('/') ? folder : `${folder}/`) : '';
-        const filename = `${folderPrefix}${timestamp}-${randomStr}.png`;
+        const filename = `${folderPrefix}${timestamp}-${randomStr}.${extension}`;
 
         // 3. Upload
         const { data, error } = await supabase.storage
             .from(bucket)
             .upload(filename, blob, {
-                contentType: 'image/png',
+                contentType: contentType,
                 upsert: false
             });
 
