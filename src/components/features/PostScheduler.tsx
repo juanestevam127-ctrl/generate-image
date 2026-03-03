@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, Loader2, Send, Plus, Trash2, MoveUp, MoveDown } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Check, Loader2, Send, Plus, Trash2, MoveUp, MoveDown, Crop } from "lucide-react";
 
 import { useStore, Client } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { ImageEditor } from "@/components/features/ImageEditor";
 import { supabase, uploadImage } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,12 @@ export function PostScheduler({ client }: { client: Client }) {
     const [newPostFormat, setNewPostFormat] = useState<"FEED" | "STORY">("FEED");
     const [newPostType, setNewPostType] = useState("ESTATICA");
     const [newPostVehicle, setNewPostVehicle] = useState("");
+
+    // Sequential Editing State
+    const [editQueue, setEditQueue] = useState<File[]>([]);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [currentEditBase64, setCurrentEditBase64] = useState<string | null>(null);
+    const [activePostId, setActivePostId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchImages();
@@ -197,660 +204,659 @@ export function PostScheduler({ client }: { client: Client }) {
         });
         // Reset index to ensure we stay on the moved image or visible area
         setCarouselIndices(prev => ({ ...prev, [postId]: toIndex }));
-        const resizeImageTo4x5 = (base64Str: string): Promise<string> => {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) {
-                        resolve(base64Str);
-                        return;
-                    }
+    };
 
-                    const targetWidth = 1080;
-                    const targetHeight = 1350;
-                    canvas.width = targetWidth;
-                    canvas.height = targetHeight;
-
-                    // Fill with white background
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, targetWidth, targetHeight);
-
-                    // Calculate dimensions for "object-fit: cover"
-                    const scale = Math.max(targetWidth / img.width, targetHeight / img.height);
-                    const x = (targetWidth - img.width * scale) / 2;
-                    const y = (targetHeight - img.height * scale) / 2;
-
-                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-                    resolve(canvas.toDataURL('image/jpeg', 0.9));
-                };
-                img.onerror = () => resolve(base64Str);
-                img.src = base64Str;
-            });
-        };
-
-        const handleAddImage = async (postId: string, files: FileList | null) => {
-            if (!files || files.length === 0) return;
-
-            const post = groupedPosts.find(p => p.id === postId);
-            if (!post) return;
-
-            // Validation based on post type
-            if (post.postType !== "CARROSSEL" && files.length > 1) {
-                alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
-                return;
-            }
-
-            if (post.postType !== "CARROSSEL" && post.images.length >= 1) {
-                alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
-                return;
-            }
-
-            const filesArray = Array.from(files);
-
-            for (const file of filesArray) {
-                await new Promise<void>((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        if (e.target?.result) {
-                            const originalBase64 = e.target.result as string;
-
-                            // Resize to 4:5 (1080x1350)
-                            const resizedBase64 = await resizeImageTo4x5(originalBase64);
-
-                            const publicUrl = await uploadImage(resizedBase64, 'temp-files', '');
-
-                            if (publicUrl) {
-                                // Calculate order based on starting length + loop index
-                                const startOrder = post.images.length;
-                                const nextOrder = startOrder + filesArray.indexOf(file);
-
-                                // Persist to DB
-                                const { data: inserted, error } = await supabase
-                                    .from("publicacoes_design_online")
-                                    .insert([{
-                                        nome_empresa: client.name,
-                                        imagem: publicUrl,
-                                        formato: post.formato,
-                                        descricao: post.caption,
-                                        publicado: false,
-                                        veiculo_gerado: post.veiculo_gerado,
-                                        adicionado_manualmente: true,
-                                        ordem: nextOrder
-                                    }])
-                                    .select();
-
-                                if (error) {
-                                    console.error("Error persisting image to DB:", error);
-                                } else if (inserted) {
-                                    const dbImg = inserted[0] as PostImage;
-
-                                    setGroupedPosts(prev => prev.map(p => {
-                                        if (p.id !== postId) return p;
-                                        const newImages = [...p.images, dbImg];
-                                        return {
-                                            ...p,
-                                            images: newImages,
-                                            postType: p.formato === "FEED" && newImages.length > 1 ? "CARROSSEL" : p.postType
-                                        };
-                                    }));
-                                }
-                            }
-                        }
-                        resolve();
-                    };
-                    reader.readAsDataURL(file);
-                });
-            }
-
-            // Show the newly added image (last one)
-            setGroupedPosts(current => {
-                const postAfterAdd = current.find(p => p.id === postId);
-                if (postAfterAdd && postAfterAdd.images.length > 0) {
-                    setCarouselIndices(prev => ({ ...prev, [postId]: postAfterAdd.images.length - 1 }));
-                }
-                return current;
-            });
-        };
-
-        const removeImageFromPost = async (postId: string, imgIndex: number) => {
-            const post = groupedPosts.find(p => p.id === postId);
-            if (!post) return;
-
-            const imgToDelete = post.images[imgIndex];
-
-            // Delete from DB if it has a real ID
-            if (typeof imgToDelete.id === 'number') {
-                const { error } = await supabase
-                    .from("publicacoes_design_online")
-                    .delete()
-                    .eq("id", imgToDelete.id);
-
-                if (error) {
-                    console.error("Error deleting image from DB:", error);
-                    return;
-                }
-            }
-
-            setGroupedPosts(prev => prev.map(p => {
-                if (p.id !== postId) return p;
-                if (p.images.length <= 1) {
-                    // Keep the group but empty (so user can add more or title stays)
-                    return { ...p, images: [] };
-                }
-                const newImages = [...p.images];
-                newImages.splice(imgIndex, 1);
-                return { ...p, images: newImages };
-            }));
-            setCarouselIndices(prev => ({ ...prev, [postId]: 0 }));
-        };
-
-        const handleCreateManualPost = () => {
-            const id = `manual-${Date.now()}`;
-            const newPost: GroupedPost = {
-                id,
-                veiculo_gerado: newPostVehicle || "Nova Postagem",
-                formato: newPostFormat,
-                images: [],
-                caption: client.captionTemplate || "",
-                postType: newPostType,
-                created_at: new Date().toISOString()
-            };
-            setGroupedPosts(prev => [newPost, ...prev]);
-            setViewFilter(newPostFormat);
-            setIsCreateModalOpen(false);
-            setNewPostVehicle("");
-        };
-
-        const handleSchedule = async (isInstant: boolean = false) => {
-            if (!currentPost) return;
-
-            const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
-
-            if (!isInstant && (!scheduleDate || !scheduleTime)) {
-                alert("Selecione data e hora.");
-                return;
-            }
-
-            setIsScheduling(true);
-            try {
-                // Respect Brasilia Timezone (UTC-3)
-                let scheduledDateTime: Date;
-                if (isInstant) {
-                    scheduledDateTime = new Date();
-                } else {
-                    scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
-                }
-
-                if (isInstant) {
-                    const payload = {
-                        client: client.name,
-                        facebook_id: client.facebookId,
-                        instagram_id: client.instagramId,
-                        token: client.token,
-                        images: currentPost.images.map(img => img.imagem),
-                        description: currentPost.caption,
-                        format: currentPost.formato,
-                        post_type: currentPost.postType,
-                        scheduled_at: scheduledDateTime.toISOString(),
-                        scheduled_at_local: "",
-                        timezone: "America/Sao_Paulo",
-                        timezone_offset: scheduledDateTime.getTimezoneOffset(),
-                        is_carousel: currentPost.postType === "CARROSSEL",
-                        veiculo_gerado: currentPost.veiculo_gerado
-                    };
-
-                    const res = await fetch("/api/proxy-webhook", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            url: webhookAgendar,
-                            payload: payload
-                        })
-                    });
-
-                    if (!res.ok) throw new Error("Falha ao enviar para o webhook");
-
-                    const selectedIds = currentPost.images
-                        .map(img => img.id)
-                        .filter(id => typeof id === 'number');
-
-                    if (selectedIds.length > 0) {
-                        const { error } = await supabase
-                            .from("publicacoes_design_online")
-                            .update({ publicado: true })
-                            .in("id", selectedIds);
-
-                        if (error) console.error("Error updating published status:", error);
-                    }
-                } else {
-                    // Scheduling for later: Update DB only
-                    const selectedIds = currentPost.images
-                        .map(img => img.id)
-                        .filter(id => typeof id === 'number');
-
-                    if (selectedIds.length > 0) {
-                        const { error } = await supabase
-                            .from("publicacoes_design_online")
-                            .update({
-                                data_agendamento: scheduledDateTime.toISOString()
-                            })
-                            .in("id", selectedIds);
-
-                        if (error) throw error;
-                    }
-                }
-
-                // Remove from local state
-                setGroupedPosts(prev => prev.filter(p => p.id !== currentPost.id));
-
-                alert(isInstant ? "Postagem enviada com sucesso!" : "Agendamento realizado com sucesso! O post será processado automaticamente no horário selecionado.");
-                setIsScheduleModalOpen(false);
-                setScheduleDate("");
-                setScheduleTime("");
-                setCurrentPost(null);
-
-            } catch (error) {
-                console.error("Scheduling error:", error);
-                alert("Erro ao realizar a operação: " + (error as Error).message);
-            } finally {
-                setIsScheduling(false);
+    const prepareNextInQueue = async (file: File) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (e.target?.result) {
+                setCurrentEditBase64(e.target.result as string);
+                setIsEditorOpen(true);
             }
         };
+        reader.readAsDataURL(file);
+    };
 
-        if (loading) {
-            return (
-                <div className="flex justify-center items-center h-64">
-                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-                </div>
-            );
+    const handleAddImage = async (postId: string, files: FileList | null) => {
+        if (!files || files.length === 0) return;
+
+        const post = groupedPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        // Validation based on post type
+        if (post.postType !== "CARROSSEL" && files.length > 1) {
+            alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
+            return;
         }
 
-        const filteredPosts = groupedPosts.filter(p => p.formato === viewFilter);
+        if (post.postType !== "CARROSSEL" && post.images.length >= 1) {
+            alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
+            return;
+        }
 
+        const filesArray = Array.from(files);
+        setEditQueue(filesArray);
+        setActivePostId(postId);
+
+        // Start editing the first file
+        await prepareNextInQueue(filesArray[0]);
+    };
+
+    const handleSaveEditedImage = async (croppedBase64: string) => {
+        if (!activePostId) return;
+
+        const post = groupedPosts.find(p => p.id === activePostId);
+        if (!post) return;
+
+        setIsScheduling(true); // Loading state
+        try {
+            const publicUrl = await uploadImage(croppedBase64, 'temp-files', '');
+            if (publicUrl) {
+                const nextOrder = post.images.length;
+
+                const { data: inserted, error } = await supabase
+                    .from("publicacoes_design_online")
+                    .insert([{
+                        nome_empresa: client.name,
+                        imagem: publicUrl,
+                        formato: post.formato,
+                        descricao: post.caption,
+                        publicado: false,
+                        veiculo_gerado: post.veiculo_gerado,
+                        adicionado_manualmente: true,
+                        ordem: nextOrder
+                    }])
+                    .select();
+
+                if (error) throw error;
+
+                if (inserted && inserted[0]) {
+                    const dbImg = inserted[0] as PostImage;
+                    setGroupedPosts(prev => prev.map(p => {
+                        if (p.id === activePostId) {
+                            const newImages = [...p.images, dbImg];
+                            return {
+                                ...p,
+                                images: newImages,
+                                postType: p.formato === "FEED" && newImages.length > 1 ? "CARROSSEL" : p.postType
+                            };
+                        }
+                        return p;
+                    }));
+                    // Show the newly added image (last one)
+                    setCarouselIndices(prev => ({ ...prev, [activePostId]: post.images.length }));
+                }
+            }
+        } catch (error) {
+            console.error("Error saving edited image:", error);
+            alert("Erro ao salvar imagem.");
+        } finally {
+            setIsScheduling(false);
+
+            // Handle queue
+            const remainingQueue = [...editQueue];
+            remainingQueue.shift(); // Remove processed
+            setEditQueue(remainingQueue);
+
+            if (remainingQueue.length > 0) {
+                // Prepare next
+                await prepareNextInQueue(remainingQueue[0]);
+            } else {
+                // Done
+                setIsEditorOpen(false);
+                setCurrentEditBase64(null);
+                setActivePostId(null);
+            }
+        }
+    };
+
+    const removeImageFromPost = async (postId: string, imgIndex: number) => {
+        const post = groupedPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        const imgToDelete = post.images[imgIndex];
+
+        // Delete from DB if it has a real ID
+        if (typeof imgToDelete.id === 'number') {
+            const { error } = await supabase
+                .from("publicacoes_design_online")
+                .delete()
+                .eq("id", imgToDelete.id);
+
+            if (error) {
+                console.error("Error deleting image from DB:", error);
+                return;
+            }
+        }
+
+        setGroupedPosts(prev => prev.map(p => {
+            if (p.id !== postId) return p;
+            if (p.images.length <= 1) {
+                // Keep the group but empty (so user can add more or title stays)
+                return { ...p, images: [] };
+            }
+            const newImages = [...p.images];
+            newImages.splice(imgIndex, 1);
+            return { ...p, images: newImages };
+        }));
+        setCarouselIndices(prev => ({ ...prev, [postId]: 0 }));
+    };
+
+    const handleCreateManualPost = () => {
+        const id = `manual-${Date.now()}`;
+        const newPost: GroupedPost = {
+            id,
+            veiculo_gerado: newPostVehicle || "Nova Postagem",
+            formato: newPostFormat,
+            images: [],
+            caption: client.captionTemplate || "",
+            postType: newPostType,
+            created_at: new Date().toISOString()
+        };
+        setGroupedPosts(prev => [newPost, ...prev]);
+        setViewFilter(newPostFormat);
+        setIsCreateModalOpen(false);
+        setNewPostVehicle("");
+    };
+
+    const handleSchedule = async (isInstant: boolean = false) => {
+        if (!currentPost) return;
+
+        const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
+
+        if (!isInstant && (!scheduleDate || !scheduleTime)) {
+            alert("Selecione data e hora.");
+            return;
+        }
+
+        setIsScheduling(true);
+        try {
+            // Respect Brasilia Timezone (UTC-3)
+            let scheduledDateTime: Date;
+            if (isInstant) {
+                scheduledDateTime = new Date();
+            } else {
+                scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
+            }
+
+            if (isInstant) {
+                const payload = {
+                    client: client.name,
+                    facebook_id: client.facebookId,
+                    instagram_id: client.instagramId,
+                    token: client.token,
+                    images: currentPost.images.map(img => img.imagem),
+                    description: currentPost.caption,
+                    format: currentPost.formato,
+                    post_type: currentPost.postType,
+                    scheduled_at: scheduledDateTime.toISOString(),
+                    scheduled_at_local: "",
+                    timezone: "America/Sao_Paulo",
+                    timezone_offset: scheduledDateTime.getTimezoneOffset(),
+                    is_carousel: currentPost.postType === "CARROSSEL",
+                    veiculo_gerado: currentPost.veiculo_gerado
+                };
+
+                const res = await fetch("/api/proxy-webhook", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        url: webhookAgendar,
+                        payload: payload
+                    })
+                });
+
+                if (!res.ok) throw new Error("Falha ao enviar para o webhook");
+
+                const selectedIds = currentPost.images
+                    .map(img => img.id)
+                    .filter(id => typeof id === 'number');
+
+                if (selectedIds.length > 0) {
+                    const { error } = await supabase
+                        .from("publicacoes_design_online")
+                        .update({ publicado: true })
+                        .in("id", selectedIds);
+
+                    if (error) console.error("Error updating published status:", error);
+                }
+            } else {
+                // Scheduling for later: Update DB only
+                const selectedIds = currentPost.images
+                    .map(img => img.id)
+                    .filter(id => typeof id === 'number');
+
+                if (selectedIds.length > 0) {
+                    const { error } = await supabase
+                        .from("publicacoes_design_online")
+                        .update({
+                            data_agendamento: scheduledDateTime.toISOString()
+                        })
+                        .in("id", selectedIds);
+
+                    if (error) throw error;
+                }
+            }
+
+            // Remove from local state
+            setGroupedPosts(prev => prev.filter(p => p.id !== currentPost.id));
+
+            alert(isInstant ? "Postagem enviada com sucesso!" : "Agendamento realizado com sucesso! O post será processado automaticamente no horário selecionado.");
+            setIsScheduleModalOpen(false);
+            setScheduleDate("");
+            setScheduleTime("");
+            setCurrentPost(null);
+
+        } catch (error) {
+            console.error("Scheduling error:", error);
+            alert("Erro ao realizar a operação: " + (error as Error).message);
+        } finally {
+            setIsScheduling(false);
+        }
+    };
+
+    if (loading) {
         return (
-            <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                    <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
-                        <button
-                            onClick={() => setViewFilter("FEED")}
-                            className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${viewFilter === "FEED" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
-                        >
-                            FEED
-                        </button>
-                        <button
-                            onClick={() => setViewFilter("STORY")}
-                            className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${viewFilter === "STORY" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
-                        >
-                            STORY
-                        </button>
-                    </div>
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+            </div>
+        );
+    }
 
-                    <div className="flex items-center space-x-4">
-                        <Button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold px-4 h-9"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            NOVA POSTAGEM
-                        </Button>
-                        <h2 className="text-xl font-bold text-white uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-                            InstaFeed: {viewFilter}
-                        </h2>
-                    </div>
+    const filteredPosts = groupedPosts.filter(p => p.formato === viewFilter);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
+                    <button
+                        onClick={() => setViewFilter("FEED")}
+                        className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${viewFilter === "FEED" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        FEED
+                    </button>
+                    <button
+                        onClick={() => setViewFilter("STORY")}
+                        className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${viewFilter === "STORY" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        STORY
+                    </button>
                 </div>
 
-                {filteredPosts.length === 0 ? (
-                    <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
-                        <p>Nenhum conteúdo {viewFilter.toLowerCase()} disponível para este cliente.</p>
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center space-y-8">
-                        {filteredPosts.map((post) => {
-                            const currentIndex = carouselIndices[post.id] || 0;
-                            const totalImages = post.images.length;
+                <div className="flex items-center space-x-4">
+                    <Button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold px-4 h-9"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        NOVA POSTAGEM
+                    </Button>
+                    <h2 className="text-xl font-bold text-white uppercase tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                        InstaFeed: {viewFilter}
+                    </h2>
+                </div>
+            </div>
 
-                            return (
-                                <Card key={post.id} className="w-full max-w-[500px] bg-black border-white/10 overflow-hidden shadow-2xl">
-                                    {/* Header */}
-                                    <div className="p-3 flex items-center justify-between border-b border-white/5">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[2px]">
-                                                <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] font-bold text-white">
-                                                    {client.name.slice(0, 2).toUpperCase()}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-white leading-none">{client.name}</p>
-                                                <p className="text-[10px] text-gray-400 mt-1">{post.veiculo_gerado}</p>
+            {filteredPosts.length === 0 ? (
+                <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
+                    <p>Nenhum conteúdo {viewFilter.toLowerCase()} disponível para este cliente.</p>
+                </div>
+            ) : (
+                <div className="flex flex-col items-center space-y-8">
+                    {filteredPosts.map((post) => {
+                        const currentIndex = carouselIndices[post.id] || 0;
+                        const totalImages = post.images.length;
+
+                        return (
+                            <Card key={post.id} className="w-full max-w-[500px] bg-black border-white/10 overflow-hidden shadow-2xl">
+                                {/* Header */}
+                                <div className="p-3 flex items-center justify-between border-b border-white/5">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[2px]">
+                                            <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] font-bold text-white">
+                                                {client.name.slice(0, 2).toUpperCase()}
                                             </div>
                                         </div>
-                                        <Button
-                                            onClick={() => handleOpenModal(post)}
-                                            size="sm"
-                                            className="h-8 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-bold px-4"
-                                        >
-                                            Agendar
-                                        </Button>
+                                        <div>
+                                            <p className="text-sm font-bold text-white leading-none">{client.name}</p>
+                                            <p className="text-[10px] text-gray-400 mt-1">{post.veiculo_gerado}</p>
+                                        </div>
                                     </div>
+                                    <Button
+                                        onClick={() => handleOpenModal(post)}
+                                        size="sm"
+                                        className="h-8 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-bold px-4"
+                                    >
+                                        Agendar
+                                    </Button>
+                                </div>
 
-                                    {/* Image Area */}
-                                    <div className="relative aspect-square bg-zinc-900 group">
-                                        {post.images[currentIndex] ? (
-                                            isVideo(post.images[currentIndex].imagem) ? (
-                                                <video
-                                                    src={post.images[currentIndex].imagem}
-                                                    className="w-full h-full object-contain"
-                                                    controls
-                                                    playsInline
-                                                />
-                                            ) : (
-                                                <img
-                                                    src={post.images[currentIndex].imagem}
-                                                    alt="Post"
-                                                    className="w-full h-full object-contain"
-                                                />
-                                            )
+                                {/* Image Area */}
+                                <div className="relative aspect-square bg-zinc-900 group">
+                                    {post.images[currentIndex] ? (
+                                        isVideo(post.images[currentIndex].imagem) ? (
+                                            <video
+                                                src={post.images[currentIndex].imagem}
+                                                className="w-full h-full object-contain"
+                                                controls
+                                                playsInline
+                                            />
                                         ) : (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 bg-zinc-900/50">
-                                                <Plus size={48} className="opacity-20 mb-2" />
-                                                <p className="text-sm font-medium opacity-50">Nenhuma imagem adicionada</p>
-                                            </div>
-                                        )}
-
-                                        {totalImages > 1 && (
-                                            <>
-                                                <button
-                                                    onClick={() => prevImage(post.id, totalImages)}
-                                                    className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    {"<"}
-                                                </button>
-                                                <button
-                                                    onClick={() => nextImage(post.id, totalImages)}
-                                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    {">"}
-                                                </button>
-                                            </>
-                                        )}
-
-                                        {totalImages > 0 && (
-                                            <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {totalImages > 1 && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => moveImage(post.id, currentIndex, currentIndex - 1)}
-                                                            disabled={currentIndex === 0}
-                                                            className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
-                                                            title="Mover para trás"
-                                                        >
-                                                            <MoveUp size={14} className="-rotate-90" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => moveImage(post.id, currentIndex, currentIndex + 1)}
-                                                            disabled={currentIndex === totalImages - 1}
-                                                            className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
-                                                            title="Mover para frente"
-                                                        >
-                                                            <MoveDown size={14} className="-rotate-90" />
-                                                        </button>
-                                                    </>
-                                                )}
-                                                <button
-                                                    onClick={() => removeImageFromPost(post.id, currentIndex)}
-                                                    className="w-8 h-8 bg-red-500/80 text-white rounded-full flex items-center justify-center hover:bg-red-500"
-                                                    title="Remover item"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {/* Empty Post Placeholder */}
-                                        {/* (Moved logic above for better safety) */}
-
-                                        {/* Add Image Button */}
-
-                                        {/* Add Image Button */}
-                                        {((post.postType === "CARROSSEL") || (post.images.length === 0)) && (
-                                            <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <label className="cursor-pointer">
-                                                    <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold">
-                                                        <Plus size={20} />
-                                                    </div>
-                                                    <input
-                                                        type="file"
-                                                        className="hidden"
-                                                        accept="image/*,video/*"
-                                                        multiple={post.postType === "CARROSSEL"}
-                                                        onChange={(e) => handleAddImage(post.id, e.target.files)}
-                                                    />
-                                                </label>
-                                            </div>
-                                        )}
-
-                                        {/* Indicator */}
-                                        {totalImages > 1 && (
-                                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-1.5">
-                                                {post.images.map((_, idx) => (
-                                                    <div
-                                                        key={idx}
-                                                        className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentIndex ? "bg-white scale-125" : "bg-white/30"}`}
-                                                    />
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Caption Area */}
-                                    <div className="p-4 space-y-3">
-                                        <div className="flex items-center space-x-4 text-white">
-                                            <div className="font-bold flex-1">
-                                                {currentIndex + 1} / {totalImages} Imagem(ns)
-                                            </div>
-                                            <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
-                                                {format(new Date(post.created_at), "dd MMM yyyy", { locale: ptBR })}
-                                            </div>
+                                            <img
+                                                src={post.images[currentIndex].imagem}
+                                                alt="Post"
+                                                className="w-full h-full object-contain"
+                                            />
+                                        )
+                                    ) : (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 bg-zinc-900/50">
+                                            <Plus size={48} className="opacity-20 mb-2" />
+                                            <p className="text-sm font-medium opacity-50">Nenhuma imagem adicionada</p>
                                         </div>
+                                    )}
 
-                                        <textarea
-                                            value={post.caption}
-                                            onChange={(e) => updateCaption(post.id, e.target.value)}
-                                            placeholder="Escreva uma legenda..."
-                                            rows={4}
-                                            className="w-full bg-white/5 border border-white/10 rounded-lg text-sm text-gray-200 resize-y focus:ring-1 focus:ring-indigo-500 p-3 min-h-[100px]"
-                                        />
+                                    {totalImages > 1 && (
+                                        <>
+                                            <button
+                                                onClick={() => prevImage(post.id, totalImages)}
+                                                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                {"<"}
+                                            </button>
+                                            <button
+                                                onClick={() => nextImage(post.id, totalImages)}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                {">"}
+                                            </button>
+                                        </>
+                                    )}
 
-                                        <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2">
-                                            {post.formato === "FEED" ? (
+                                    {totalImages > 0 && (
+                                        <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {totalImages > 1 && (
                                                 <>
-                                                    {["ESTATICA", "CARROSSEL", "REELS"].map(type => (
-                                                        <button
-                                                            key={type}
-                                                            onClick={() => updatePostType(post.id, type)}
-                                                            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${post.postType === type ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
-                                                        >
-                                                            {type}
-                                                        </button>
-                                                    ))}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {["IMAGEM", "VIDEO"].map(type => (
-                                                        <button
-                                                            key={type}
-                                                            onClick={() => updatePostType(post.id, type)}
-                                                            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${post.postType === type ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
-                                                        >
-                                                            {type}
-                                                        </button>
-                                                    ))}
+                                                    <button
+                                                        onClick={() => moveImage(post.id, currentIndex, currentIndex - 1)}
+                                                        disabled={currentIndex === 0}
+                                                        className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
+                                                        title="Mover para trás"
+                                                    >
+                                                        <MoveUp size={14} className="-rotate-90" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => moveImage(post.id, currentIndex, currentIndex + 1)}
+                                                        disabled={currentIndex === totalImages - 1}
+                                                        className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
+                                                        title="Mover para frente"
+                                                    >
+                                                        <MoveDown size={14} className="-rotate-90" />
+                                                    </button>
                                                 </>
                                             )}
+                                            <button
+                                                onClick={() => removeImageFromPost(post.id, currentIndex)}
+                                                className="w-8 h-8 bg-red-500/80 text-white rounded-full flex items-center justify-center hover:bg-red-500"
+                                                title="Remover item"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Empty Post Placeholder */}
+                                    {/* (Moved logic above for better safety) */}
+
+                                    {/* Add Image Button */}
+
+                                    {/* Add Image Button */}
+                                    {((post.postType === "CARROSSEL") || (post.images.length === 0)) && (
+                                        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <label className="cursor-pointer">
+                                                <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold">
+                                                    <Plus size={20} />
+                                                </div>
+                                                <input
+                                                    type="file"
+                                                    className="hidden"
+                                                    accept="image/*,video/*"
+                                                    multiple={post.postType === "CARROSSEL"}
+                                                    onChange={(e) => handleAddImage(post.id, e.target.files)}
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
+
+                                    {/* Indicator */}
+                                    {totalImages > 1 && (
+                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-1.5">
+                                            {post.images.map((_, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={`w-1.5 h-1.5 rounded-full transition-all ${idx === currentIndex ? "bg-white scale-125" : "bg-white/30"}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Caption Area */}
+                                <div className="p-4 space-y-3">
+                                    <div className="flex items-center space-x-4 text-white">
+                                        <div className="font-bold flex-1">
+                                            {currentIndex + 1} / {totalImages} Imagem(ns)
+                                        </div>
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                                            {format(new Date(post.created_at), "dd MMM yyyy", { locale: ptBR })}
                                         </div>
                                     </div>
-                                </Card>
-                            );
-                        })}
-                    </div>
-                )}
 
-                {/* Schedule Modal */}
-                <Modal
-                    isOpen={isScheduleModalOpen}
-                    onClose={() => setIsScheduleModalOpen(false)}
-                    title="Confirmar Agendamento"
-                    className="max-w-md"
-                >
-                    <div className="space-y-6">
-                        {currentPost && (
-                            <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                                <p className="text-sm text-gray-300 mb-2 font-medium">Resumo do Post</p>
-                                <div className="flex items-center space-x-4">
-                                    <div className="w-16 h-16 rounded-md overflow-hidden bg-zinc-800 border border-white/10 shrink-0">
-                                        {isVideo(currentPost.images[0].imagem) ? (
-                                            <video src={currentPost.images[0].imagem} className="w-full h-full object-cover" />
+                                    <textarea
+                                        value={post.caption}
+                                        onChange={(e) => updateCaption(post.id, e.target.value)}
+                                        placeholder="Escreva uma legenda..."
+                                        rows={4}
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg text-sm text-gray-200 resize-y focus:ring-1 focus:ring-indigo-500 p-3 min-h-[100px]"
+                                    />
+
+                                    <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2">
+                                        {post.formato === "FEED" ? (
+                                            <>
+                                                {["ESTATICA", "CARROSSEL", "REELS"].map(type => (
+                                                    <button
+                                                        key={type}
+                                                        onClick={() => updatePostType(post.id, type)}
+                                                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${post.postType === type ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
+                                                    >
+                                                        {type}
+                                                    </button>
+                                                ))}
+                                            </>
                                         ) : (
-                                            <img src={currentPost.images[0].imagem} className="w-full h-full object-cover" />
+                                            <>
+                                                {["IMAGEM", "VIDEO"].map(type => (
+                                                    <button
+                                                        key={type}
+                                                        onClick={() => updatePostType(post.id, type)}
+                                                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${post.postType === type ? "bg-indigo-600 text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
+                                                    >
+                                                        {type}
+                                                    </button>
+                                                ))}
+                                            </>
                                         )}
                                     </div>
-                                    <div>
-                                        <p className="text-white font-bold text-sm truncate w-48">{currentPost.veiculo_gerado}</p>
-                                        <p className="text-xs text-indigo-400 font-bold">{currentPost.formato} • {currentPost.postType} • {currentPost.images.length} item(ns)</p>
-                                    </div>
+                                </div>
+                            </Card>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Schedule Modal */}
+            <Modal
+                isOpen={isScheduleModalOpen}
+                onClose={() => setIsScheduleModalOpen(false)}
+                title="Confirmar Agendamento"
+                className="max-w-md"
+            >
+                <div className="space-y-6">
+                    {currentPost && (
+                        <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                            <p className="text-sm text-gray-300 mb-2 font-medium">Resumo do Post</p>
+                            <div className="flex items-center space-x-4">
+                                <div className="w-16 h-16 rounded-md overflow-hidden bg-zinc-800 border border-white/10 shrink-0">
+                                    {isVideo(currentPost.images[0].imagem) ? (
+                                        <video src={currentPost.images[0].imagem} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <img src={currentPost.images[0].imagem} className="w-full h-full object-cover" />
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="text-white font-bold text-sm truncate w-48">{currentPost.veiculo_gerado}</p>
+                                    <p className="text-xs text-indigo-400 font-bold">{currentPost.formato} • {currentPost.postType} • {currentPost.images.length} item(ns)</p>
                                 </div>
                             </div>
-                        )}
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-300">Data</label>
+                            <Input
+                                type="date"
+                                value={scheduleDate}
+                                onChange={(e) => setScheduleDate(e.target.value)}
+                                className="bg-black/20"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-300">Horário</label>
+                            <Input
+                                type="time"
+                                value={scheduleTime}
+                                onChange={(e) => setScheduleTime(e.target.value)}
+                                className="bg-black/20"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4 space-x-3">
+                        <Button variant="ghost" onClick={() => setIsScheduleModalOpen(false)}>Cancelar</Button>
+                        <Button
+                            onClick={() => handleSchedule(true)}
+                            disabled={isScheduling}
+                            className="!bg-indigo-600 hover:!bg-indigo-700 !text-white font-bold"
+                        >
+                            {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                            Enviar Agora
+                        </Button>
+                        <Button
+                            onClick={() => handleSchedule(false)}
+                            disabled={isScheduling}
+                            className="!bg-green-400 hover:!bg-green-500 !text-slate-950 font-bold"
+                        >
+                            {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CalendarIcon className="w-4 h-4 mr-2" />}
+                            Agendar
+                        </Button>
+                    </div>
+                </div>
+            </Modal >
+
+            {/* Create Post Modal */}
+            <Modal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                title="Nova Postagem Manual"
+                className="max-w-md"
+            >
+                <div className="space-y-6">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Veículo / Título</label>
+                            <Input
+                                placeholder="Ex: CRETA 2024"
+                                value={newPostVehicle}
+                                onChange={(e) => setNewPostVehicle(e.target.value)}
+                                className="bg-white/5 border-white/10"
+                            />
+                        </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">Data</label>
-                                <Input
-                                    type="date"
-                                    value={scheduleDate}
-                                    onChange={(e) => setScheduleDate(e.target.value)}
-                                    className="bg-black/20"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">Horário</label>
-                                <Input
-                                    type="time"
-                                    value={scheduleTime}
-                                    onChange={(e) => setScheduleTime(e.target.value)}
-                                    className="bg-black/20"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-4 space-x-3">
-                            <Button variant="ghost" onClick={() => setIsScheduleModalOpen(false)}>Cancelar</Button>
-                            <Button
-                                onClick={() => handleSchedule(true)}
-                                disabled={isScheduling}
-                                className="!bg-indigo-600 hover:!bg-indigo-700 !text-white font-bold"
-                            >
-                                {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                                Enviar Agora
-                            </Button>
-                            <Button
-                                onClick={() => handleSchedule(false)}
-                                disabled={isScheduling}
-                                className="!bg-green-400 hover:!bg-green-500 !text-slate-950 font-bold"
-                            >
-                                {isScheduling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CalendarIcon className="w-4 h-4 mr-2" />}
-                                Agendar
-                            </Button>
-                        </div>
-                    </div>
-                </Modal >
-
-                {/* Create Post Modal */}
-                <Modal
-                    isOpen={isCreateModalOpen}
-                    onClose={() => setIsCreateModalOpen(false)}
-                    title="Nova Postagem Manual"
-                    className="max-w-md"
-                >
-                    <div className="space-y-6">
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Veículo / Título</label>
-                                <Input
-                                    placeholder="Ex: CRETA 2024"
-                                    value={newPostVehicle}
-                                    onChange={(e) => setNewPostVehicle(e.target.value)}
-                                    className="bg-white/5 border-white/10"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Formato</label>
-                                    <div className="flex bg-white/5 p-1 rounded-md border border-white/10">
-                                        <button
-                                            onClick={() => {
-                                                setNewPostFormat("FEED");
-                                                setNewPostType("ESTATICA");
-                                            }}
-                                            className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "FEED" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
-                                        >
-                                            FEED
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setNewPostFormat("STORY");
-                                                setNewPostType("IMAGEM");
-                                            }}
-                                            className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "STORY" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
-                                        >
-                                            STORY
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Tipo</label>
-                                    <select
-                                        value={newPostType}
-                                        onChange={(e) => setNewPostType(e.target.value)}
-                                        className="w-full h-9 bg-white/5 border border-white/10 rounded-md px-3 text-[11px] font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-600 appearance-none cursor-pointer hover:bg-white/10 transition-colors"
-                                        style={{
-                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                                            backgroundRepeat: 'no-repeat',
-                                            backgroundPosition: 'right 0.75rem center',
-                                            backgroundSize: '1rem'
+                                <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Formato</label>
+                                <div className="flex bg-white/5 p-1 rounded-md border border-white/10">
+                                    <button
+                                        onClick={() => {
+                                            setNewPostFormat("FEED");
+                                            setNewPostType("ESTATICA");
                                         }}
+                                        className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "FEED" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                                     >
-                                        {newPostFormat === "FEED" ? (
-                                            <>
-                                                <option value="ESTATICA" className="bg-[#1a1a1a]">ESTÁTICA</option>
-                                                <option value="CARROSSEL" className="bg-[#1a1a1a]">CARROSSEL</option>
-                                                <option value="REELS" className="bg-[#1a1a1a]">REELS</option>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <option value="IMAGEM" className="bg-[#1a1a1a]">IMAGEM</option>
-                                                <option value="VIDEO" className="bg-[#1a1a1a]">VÍDEO</option>
-                                            </>
-                                        )}
-                                    </select>
+                                        FEED
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setNewPostFormat("STORY");
+                                            setNewPostType("IMAGEM");
+                                        }}
+                                        className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "STORY" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                                    >
+                                        STORY
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="flex justify-end pt-4 space-x-3">
-                            <Button variant="ghost" onClick={() => setIsCreateModalOpen(false)} className="text-gray-400 hover:text-white">Cancelar</Button>
-                            <Button
-                                onClick={handleCreateManualPost}
-                                className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold px-8 shadow-lg shadow-green-500/20 active:scale-95 transition-all uppercase tracking-tight"
-                            >
-                                CRIAR POSTAGEM
-                            </Button>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-300 uppercase text-[10px] tracking-wider">Tipo</label>
+                                <select
+                                    value={newPostType}
+                                    onChange={(e) => setNewPostType(e.target.value)}
+                                    className="w-full h-9 bg-white/5 border border-white/10 rounded-md px-3 text-[11px] font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-600 appearance-none cursor-pointer hover:bg-white/10 transition-colors"
+                                    style={{
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundPosition: 'right 0.75rem center',
+                                        backgroundSize: '1rem'
+                                    }}
+                                >
+                                    {newPostFormat === "FEED" ? (
+                                        <>
+                                            <option value="ESTATICA" className="bg-[#1a1a1a]">ESTÁTICA</option>
+                                            <option value="CARROSSEL" className="bg-[#1a1a1a]">CARROSSEL</option>
+                                            <option value="REELS" className="bg-[#1a1a1a]">REELS</option>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <option value="IMAGEM" className="bg-[#1a1a1a]">IMAGEM</option>
+                                            <option value="VIDEO" className="bg-[#1a1a1a]">VÍDEO</option>
+                                        </>
+                                    )}
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </Modal>
-            </div >
-        );
-    }
+
+                    <div className="flex justify-end pt-4 space-x-3">
+                        <Button variant="ghost" onClick={() => setIsCreateModalOpen(false)} className="text-gray-400 hover:text-white">Cancelar</Button>
+                        <Button
+                            onClick={handleCreateManualPost}
+                            className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold px-8 shadow-lg shadow-green-500/20 active:scale-95 transition-all uppercase tracking-tight"
+                        >
+                            CRIAR POSTAGEM
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+            <ImageEditor
+                isOpen={isEditorOpen}
+                onClose={() => {
+                    setIsEditorOpen(false);
+                    setEditQueue([]);
+                    setActivePostId(null);
+                }}
+                imageUrl={currentEditBase64}
+                onSave={handleSaveEditedImage}
+            />
+        </div>
+    );
+}
