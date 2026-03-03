@@ -212,7 +212,8 @@ export function PostScheduler({ client }: { client: Client }) {
                             formato: post.formato,
                             descricao: post.caption,
                             publicado: false,
-                            veiculo_gerado: post.veiculo_gerado
+                            veiculo_gerado: post.veiculo_gerado,
+                            adicionado_manualmente: true
                         }])
                         .select();
 
@@ -308,7 +309,15 @@ export function PostScheduler({ client }: { client: Client }) {
 
         setIsScheduling(true);
         try {
-            const scheduledDateTime = isInstant ? new Date() : new Date(`${scheduleDate}T${scheduleTime}`);
+            // Respect Brasilia Timezone (UTC-3)
+            // Constructing date from "YYYY-MM-DD" and "HH:mm"
+            let scheduledDateTime: Date;
+            if (isInstant) {
+                scheduledDateTime = new Date();
+            } else {
+                // Ensure browser parses as local time and then we can get ISO
+                scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
+            }
 
             const payload = {
                 client: client.name,
@@ -320,6 +329,9 @@ export function PostScheduler({ client }: { client: Client }) {
                 format: currentPost.formato,
                 post_type: currentPost.postType,
                 scheduled_at: scheduledDateTime.toISOString(),
+                scheduled_at_local: isInstant ? "" : `${scheduleDate} ${scheduleTime}`,
+                timezone: "America/Sao_Paulo",
+                timezone_offset: scheduledDateTime.getTimezoneOffset(),
                 is_carousel: currentPost.postType === "CARROSSEL",
                 veiculo_gerado: currentPost.veiculo_gerado
             };
