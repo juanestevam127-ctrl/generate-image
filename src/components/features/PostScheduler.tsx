@@ -492,34 +492,39 @@ export function PostScheduler({ client }: { client: Client }) {
                                             >
                                                 {">"}
                                             </button>
-
-                                            {/* Reorder controls */}
-                                            <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => moveImage(post.id, currentIndex, currentIndex - 1)}
-                                                    disabled={currentIndex === 0}
-                                                    className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
-                                                    title="Mover para trás"
-                                                >
-                                                    <MoveUp size={14} className="-rotate-90" />
-                                                </button>
-                                                <button
-                                                    onClick={() => moveImage(post.id, currentIndex, currentIndex + 1)}
-                                                    disabled={currentIndex === totalImages - 1}
-                                                    className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
-                                                    title="Mover para frente"
-                                                >
-                                                    <MoveDown size={14} className="-rotate-90" />
-                                                </button>
-                                                <button
-                                                    onClick={() => removeImageFromPost(post.id, currentIndex)}
-                                                    className="w-8 h-8 bg-red-500/80 text-white rounded-full flex items-center justify-center hover:bg-red-500"
-                                                    title="Remover imagem"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
                                         </>
+                                    )}
+
+                                    {totalImages > 0 && (
+                                        <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {totalImages > 1 && (
+                                                <>
+                                                    <button
+                                                        onClick={() => moveImage(post.id, currentIndex, currentIndex - 1)}
+                                                        disabled={currentIndex === 0}
+                                                        className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
+                                                        title="Mover para trás"
+                                                    >
+                                                        <MoveUp size={14} className="-rotate-90" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => moveImage(post.id, currentIndex, currentIndex + 1)}
+                                                        disabled={currentIndex === totalImages - 1}
+                                                        className="w-8 h-8 bg-black/70 text-white rounded-full flex items-center justify-center disabled:opacity-30 hover:bg-black/90"
+                                                        title="Mover para frente"
+                                                    >
+                                                        <MoveDown size={14} className="-rotate-90" />
+                                                    </button>
+                                                </>
+                                            )}
+                                            <button
+                                                onClick={() => removeImageFromPost(post.id, currentIndex)}
+                                                className="w-8 h-8 bg-red-500/80 text-white rounded-full flex items-center justify-center hover:bg-red-500"
+                                                title="Remover item"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     )}
 
                                     {/* Empty Post Placeholder */}
