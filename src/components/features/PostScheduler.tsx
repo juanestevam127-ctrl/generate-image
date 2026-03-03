@@ -187,65 +187,72 @@ export function PostScheduler({ client }: { client: Client }) {
         if (!post) return;
 
         // Validation based on post type
+        if (post.postType !== "CARROSSEL" && files.length > 1) {
+            alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
+            return;
+        }
+
         if (post.postType !== "CARROSSEL" && post.images.length >= 1) {
             alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
             return;
         }
 
-        const file = files[0];
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            if (e.target?.result) {
-                const base64Str = e.target.result as string;
-                const publicUrl = await uploadImage(base64Str, 'temp-files', '');
+        const filesArray = Array.from(files);
 
-                if (publicUrl) {
-                    const post = groupedPosts.find(p => p.id === postId);
-                    if (!post) return;
+        for (const file of filesArray) {
+            await new Promise<void>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    if (e.target?.result) {
+                        const base64Str = e.target.result as string;
+                        const publicUrl = await uploadImage(base64Str, 'temp-files', '');
 
-                    // Persist to DB
-                    const { data: inserted, error } = await supabase
-                        .from("publicacoes_design_online")
-                        .insert([{
-                            nome_empresa: client.name,
-                            imagem: publicUrl,
-                            formato: post.formato,
-                            descricao: post.caption,
-                            publicado: false,
-                            veiculo_gerado: post.veiculo_gerado,
-                            adicionado_manualmente: true
-                        }])
-                        .select();
+                        if (publicUrl) {
+                            // Persist to DB
+                            const { data: inserted, error } = await supabase
+                                .from("publicacoes_design_online")
+                                .insert([{
+                                    nome_empresa: client.name,
+                                    imagem: publicUrl,
+                                    formato: post.formato,
+                                    descricao: post.caption,
+                                    publicado: false,
+                                    veiculo_gerado: post.veiculo_gerado,
+                                    adicionado_manualmente: true
+                                }])
+                                .select();
 
-                    if (error) {
-                        console.error("Error persisting image to DB:", error);
-                        return;
-                    }
+                            if (error) {
+                                console.error("Error persisting image to DB:", error);
+                            } else if (inserted) {
+                                const dbImg = inserted[0] as PostImage;
 
-                    const dbImg = inserted[0] as PostImage;
-
-                    setGroupedPosts(prev => prev.map(p => {
-                        if (p.id !== postId) return p;
-                        const newImages = [...p.images, dbImg];
-                        return {
-                            ...p,
-                            images: newImages,
-                            postType: p.formato === "FEED" && newImages.length > 1 ? "CARROSSEL" : p.postType
-                        };
-                    }));
-
-                    // Show the newly added image
-                    setGroupedPosts(current => {
-                        const postAfterImg = current.find(p => p.id === postId);
-                        if (postAfterImg) {
-                            setCarouselIndices(prev => ({ ...prev, [postId]: postAfterImg.images.length - 1 }));
+                                setGroupedPosts(prev => prev.map(p => {
+                                    if (p.id !== postId) return p;
+                                    const newImages = [...p.images, dbImg];
+                                    return {
+                                        ...p,
+                                        images: newImages,
+                                        postType: p.formato === "FEED" && newImages.length > 1 ? "CARROSSEL" : p.postType
+                                    };
+                                }));
+                            }
                         }
-                        return current;
-                    });
-                }
+                    }
+                    resolve();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Show the newly added image (last one)
+        setGroupedPosts(current => {
+            const postAfterAdd = current.find(p => p.id === postId);
+            if (postAfterAdd && postAfterAdd.images.length > 0) {
+                setCarouselIndices(prev => ({ ...prev, [postId]: postAfterAdd.images.length - 1 }));
             }
-        };
-        reader.readAsDataURL(file);
+            return current;
+        });
     };
 
     const removeImageFromPost = async (postId: string, imgIndex: number) => {
@@ -543,6 +550,7 @@ export function PostScheduler({ client }: { client: Client }) {
                                                     type="file"
                                                     className="hidden"
                                                     accept="image/*,video/*"
+                                                    multiple={post.postType === "CARROSSEL"}
                                                     onChange={(e) => handleAddImage(post.id, e.target.files)}
                                                 />
                                             </label>
