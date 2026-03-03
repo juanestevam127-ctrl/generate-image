@@ -21,6 +21,7 @@ interface PostImage {
     publicado: boolean;
     veiculo_gerado: string | null;
     data_agendamento: string | null;
+    ordem: number;
 }
 
 interface GroupedPost {
@@ -73,7 +74,8 @@ export function PostScheduler({ client }: { client: Client }) {
                 .eq("nome_empresa", client.name)
                 .eq("publicado", false)
                 .is("data_agendamento", null)
-                .order("created_at", { ascending: false });
+                .order("ordem", { ascending: true })
+                .order("created_at", { ascending: true });
 
             if (error) throw error;
 
@@ -170,14 +172,29 @@ export function PostScheduler({ client }: { client: Client }) {
         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, postType: newType } : p));
     };
 
-    const moveImage = (postId: string, fromIndex: number, toIndex: number) => {
-        setGroupedPosts(prev => prev.map(p => {
-            if (p.id !== postId) return p;
-            const newImages = [...p.images];
-            const [movedItem] = newImages.splice(fromIndex, 1);
-            newImages.splice(toIndex, 0, movedItem);
-            return { ...p, images: newImages };
-        }));
+    const moveImage = async (postId: string, fromIndex: number, toIndex: number) => {
+        setGroupedPosts(prev => {
+            const newPosts = prev.map(p => {
+                if (p.id !== postId) return p;
+                const newImages = [...p.images];
+                const [movedItem] = newImages.splice(fromIndex, 1);
+                newImages.splice(toIndex, 0, movedItem);
+
+                // Update orders in memory
+                const reorderedImages = newImages.map((img, idx) => ({ ...img, ordem: idx }));
+
+                // Persist order to DB
+                Promise.all(reorderedImages.map(img =>
+                    supabase
+                        .from("publicacoes_design_online")
+                        .update({ ordem: img.ordem })
+                        .eq("id", img.id)
+                )).catch(err => console.error("Error updating order in DB:", err));
+
+                return { ...p, images: reorderedImages };
+            });
+            return newPosts;
+        });
         // Reset index to ensure we stay on the moved image or visible area
         setCarouselIndices(prev => ({ ...prev, [postId]: toIndex }));
     };
@@ -210,6 +227,10 @@ export function PostScheduler({ client }: { client: Client }) {
                         const publicUrl = await uploadImage(base64Str, 'temp-files', '');
 
                         if (publicUrl) {
+                            // Calculate order based on starting length + loop index
+                            const startOrder = post.images.length;
+                            const nextOrder = startOrder + filesArray.indexOf(file);
+
                             // Persist to DB
                             const { data: inserted, error } = await supabase
                                 .from("publicacoes_design_online")
@@ -220,7 +241,8 @@ export function PostScheduler({ client }: { client: Client }) {
                                     descricao: post.caption,
                                     publicado: false,
                                     veiculo_gerado: post.veiculo_gerado,
-                                    adicionado_manualmente: true
+                                    adicionado_manualmente: true,
+                                    ordem: nextOrder
                                 }])
                                 .select();
 
