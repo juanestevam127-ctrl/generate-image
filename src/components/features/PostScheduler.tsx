@@ -20,6 +20,7 @@ interface PostImage {
     descricao: string | null;
     publicado: boolean;
     veiculo_gerado: string | null;
+    data_agendamento: string | null;
 }
 
 interface GroupedPost {
@@ -71,6 +72,7 @@ export function PostScheduler({ client }: { client: Client }) {
                 .select("*")
                 .eq("nome_empresa", client.name)
                 .eq("publicado", false)
+                .is("data_agendamento", null)
                 .order("created_at", { ascending: false });
 
             if (error) throw error;
@@ -317,61 +319,76 @@ export function PostScheduler({ client }: { client: Client }) {
         setIsScheduling(true);
         try {
             // Respect Brasilia Timezone (UTC-3)
-            // Constructing date from "YYYY-MM-DD" and "HH:mm"
             let scheduledDateTime: Date;
             if (isInstant) {
                 scheduledDateTime = new Date();
             } else {
-                // Ensure browser parses as local time and then we can get ISO
                 scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
             }
 
-            const payload = {
-                client: client.name,
-                facebook_id: client.facebookId,
-                instagram_id: client.instagramId,
-                token: client.token,
-                images: currentPost.images.map(img => img.imagem),
-                description: currentPost.caption,
-                format: currentPost.formato,
-                post_type: currentPost.postType,
-                scheduled_at: scheduledDateTime.toISOString(),
-                scheduled_at_local: isInstant ? "" : `${scheduleDate} ${scheduleTime}`,
-                timezone: "America/Sao_Paulo",
-                timezone_offset: scheduledDateTime.getTimezoneOffset(),
-                is_carousel: currentPost.postType === "CARROSSEL",
-                veiculo_gerado: currentPost.veiculo_gerado
-            };
+            if (isInstant) {
+                const payload = {
+                    client: client.name,
+                    facebook_id: client.facebookId,
+                    instagram_id: client.instagramId,
+                    token: client.token,
+                    images: currentPost.images.map(img => img.imagem),
+                    description: currentPost.caption,
+                    format: currentPost.formato,
+                    post_type: currentPost.postType,
+                    scheduled_at: scheduledDateTime.toISOString(),
+                    scheduled_at_local: "",
+                    timezone: "America/Sao_Paulo",
+                    timezone_offset: scheduledDateTime.getTimezoneOffset(),
+                    is_carousel: currentPost.postType === "CARROSSEL",
+                    veiculo_gerado: currentPost.veiculo_gerado
+                };
 
-            const res = await fetch("/api/proxy-webhook", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    url: webhookAgendar,
-                    payload: payload
-                })
-            });
+                const res = await fetch("/api/proxy-webhook", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        url: webhookAgendar,
+                        payload: payload
+                    })
+                });
 
-            if (!res.ok) throw new Error("Falha ao enviar para o webhook");
+                if (!res.ok) throw new Error("Falha ao enviar para o webhook");
 
-            // For manual posts, items won't have numeric numeric IDs. Filter only real IDs.
-            const selectedIds = currentPost.images
-                .map(img => img.id)
-                .filter(id => typeof id === 'number');
+                const selectedIds = currentPost.images
+                    .map(img => img.id)
+                    .filter(id => typeof id === 'number');
 
-            if (selectedIds.length > 0) {
-                const { error } = await supabase
-                    .from("publicacoes_design_online")
-                    .update({ publicado: true })
-                    .in("id", selectedIds);
+                if (selectedIds.length > 0) {
+                    const { error } = await supabase
+                        .from("publicacoes_design_online")
+                        .update({ publicado: true })
+                        .in("id", selectedIds);
 
-                if (error) console.error("Error updating published status:", error);
+                    if (error) console.error("Error updating published status:", error);
+                }
+            } else {
+                // Scheduling for later: Update DB only
+                const selectedIds = currentPost.images
+                    .map(img => img.id)
+                    .filter(id => typeof id === 'number');
+
+                if (selectedIds.length > 0) {
+                    const { error } = await supabase
+                        .from("publicacoes_design_online")
+                        .update({
+                            data_agendamento: scheduledDateTime.toISOString()
+                        })
+                        .in("id", selectedIds);
+
+                    if (error) throw error;
+                }
             }
 
             // Remove from local state
             setGroupedPosts(prev => prev.filter(p => p.id !== currentPost.id));
 
-            alert(isInstant ? "Postagem enviada com sucesso!" : "Agendamento realizado com sucesso!");
+            alert(isInstant ? "Postagem enviada com sucesso!" : "Agendamento realizado com sucesso! O post será processado automaticamente no horário selecionado.");
             setIsScheduleModalOpen(false);
             setScheduleDate("");
             setScheduleTime("");
