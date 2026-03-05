@@ -102,7 +102,7 @@ export function PostScheduler({ client }: { client: Client }) {
                         veiculo_gerado: vehicle,
                         formato: format,
                         images: [],
-                        caption: img.descricao || client.captionTemplate || "",
+                        caption: img.descricao || "",
                         postType: format === "FEED"
                             ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
                             : "IMAGEM",
