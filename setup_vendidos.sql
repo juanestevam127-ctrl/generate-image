@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS public.clientes_vendidos (
     id_facebook TEXT,
     id_instagram TEXT,
     token TEXT,
+    json_feed TEXT,
+    json_stories TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

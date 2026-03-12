@@ -22,6 +22,8 @@ export function SoldClientManager() {
     const [facebookId, setFacebookId] = useState("");
     const [instagramId, setInstagramId] = useState("");
     const [token, setToken] = useState("");
+    const [jsonFeed, setJsonFeed] = useState("");
+    const [jsonStories, setJsonStories] = useState("");
     const [columns, setColumns] = useState<ColumnDefinition[]>([]);
 
     const openNewClientModal = () => {
@@ -34,6 +36,8 @@ export function SoldClientManager() {
         setFacebookId("");
         setInstagramId("");
         setToken("");
+        setJsonFeed("");
+        setJsonStories("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
     };
@@ -48,6 +52,8 @@ export function SoldClientManager() {
         setFacebookId(client.facebookId || "");
         setInstagramId(client.instagramId || "");
         setToken(client.token || "");
+        setJsonFeed(client.jsonFeed || "");
+        setJsonStories(client.jsonStories || "");
         setColumns([...client.columns]);
         setIsModalOpen(true);
     };
@@ -64,6 +70,8 @@ export function SoldClientManager() {
             facebookId,
             instagramId,
             token,
+            jsonFeed,
+            jsonStories,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
@@ -227,6 +235,24 @@ export function SoldClientManager() {
                                 onChange={(e) => setToken(e.target.value)}
                                 className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 placeholder="EAAB..."
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">JSON Feed</label>
+                            <textarea
+                                value={jsonFeed}
+                                onChange={(e) => setJsonFeed(e.target.value)}
+                                className="w-full h-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                                placeholder='{"layout_id": 123, ...}'
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">JSON Stories</label>
+                            <textarea
+                                value={jsonStories}
+                                onChange={(e) => setJsonStories(e.target.value)}
+                                className="w-full h-32 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                                placeholder='{"layout_id": 456, ...}'
                             />
                         </div>
                     </div>

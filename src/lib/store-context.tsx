@@ -38,6 +38,8 @@ export interface Client {
     facebookId?: string;
     instagramId?: string;
     token?: string;
+    jsonFeed?: string;
+    jsonStories?: string;
 }
 
 export interface LayoutClient {
@@ -189,7 +191,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                         captionTemplate: c.caption_template,
                         facebookId: c.id_facebook,
                         instagramId: c.id_instagram,
-                        token: c.token
+                        token: c.token,
+                        jsonFeed: c.json_feed,
+                        jsonStories: c.json_stories
                     }));
                     setSoldClients(formattedSold);
                 }
@@ -276,7 +280,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 caption_template: data.captionTemplate,
                 id_facebook: data.facebookId,
                 id_instagram: data.instagramId,
-                token: data.token
+                token: data.token,
+                json_feed: data.jsonFeed,
+                json_stories: data.jsonStories
             }])
             .select();
 
@@ -482,7 +488,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                         captionTemplate: inserted[0].caption_template,
                         facebookId: inserted[0].id_facebook,
                         instagramId: inserted[0].id_instagram,
-                        token: inserted[0].token
+                        token: inserted[0].token,
+                        jsonFeed: inserted[0].json_feed,
+                        jsonStories: inserted[0].json_stories
                     };
                     setSoldClients((prev) => [...prev, newClient]);
                 },
@@ -497,6 +505,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
                     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
                     if (updates.token !== undefined) dbUpdates.token = updates.token;
+                    if (updates.jsonFeed !== undefined) dbUpdates.json_feed = updates.jsonFeed;
+                    if (updates.jsonStories !== undefined) dbUpdates.json_stories = updates.jsonStories;
 
                     const { error } = await supabase
                         .from("clientes_vendidos")
