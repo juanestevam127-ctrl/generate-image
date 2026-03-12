@@ -469,7 +469,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                             caption_template: data.captionTemplate,
                             id_facebook: data.facebookId,
                             id_instagram: data.instagramId,
-                            token: data.token
+                            token: data.token,
+                            json_feed: data.jsonFeed,
+                            json_stories: data.jsonStories
                         }])
                         .select();
 

@@ -58,7 +58,7 @@ export function SoldClientManager() {
         setIsModalOpen(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!name || !webhookUrl) return alert("Preencha nome e webhook");
 
         const clientData = {
@@ -76,9 +76,9 @@ export function SoldClientManager() {
         };
 
         if (editingClient) {
-            updateSoldClient(editingClient.id, clientData);
+            await updateSoldClient(editingClient.id, clientData);
         } else {
-            addSoldClient(clientData);
+            await addSoldClient(clientData);
         }
         setIsModalOpen(false);
     };
