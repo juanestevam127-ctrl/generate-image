@@ -28,6 +28,7 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
 
     const navItems = [
         { label: "Gerenciar Imagens", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Gerenciar Imagens Vendidos", href: "/imagens-vendidos", icon: LayoutDashboard },
         { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },
         { label: "Layouts Vendidos", href: "/layouts-vendidos", icon: Layout },
     ];

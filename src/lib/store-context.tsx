@@ -79,6 +79,12 @@ interface StoreContextType {
     updateLayoutClient: (id: string, updates: Partial<LayoutClient>) => Promise<void>;
     deleteLayoutClient: (id: string) => Promise<void>;
 
+    // Sold Clients
+    soldClients: Client[];
+    addSoldClient: (client: Omit<Client, "id">) => Promise<void>;
+    updateSoldClient: (id: string, updates: Partial<Client>) => Promise<void>;
+    deleteSoldClient: (id: string) => Promise<void>;
+
     // Loading state (for hydration)
     isLoaded: boolean;
 }
@@ -95,6 +101,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
     const [layoutClients, setLayoutClients] = useState<LayoutClient[]>([]);
+    const [soldClients, setSoldClients] = useState<Client[]>([]);
     const [registeredUsers, setRegisteredUsers] = useState<UserAccount[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -163,6 +170,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                         jsonCliente: l.json_cliente
                     }));
                     setLayoutClients(formattedLayouts);
+                }
+
+                // 5. Fetch Sold Clients
+                const { data: soldData, error: soldError } = await supabase
+                    .from("clientes_vendidos")
+                    .select("*")
+                    .order("name", { ascending: true });
+
+                if (!soldError) {
+                    const formattedSold = (soldData || []).map(c => ({
+                        id: c.id,
+                        name: c.name,
+                        webhookUrl: c.webhook_url,
+                        webhookPostagens: c.webhook_postagens,
+                        prompt: c.prompt,
+                        columns: c.columns,
+                        captionTemplate: c.caption_template,
+                        facebookId: c.id_facebook,
+                        instagramId: c.id_instagram,
+                        token: c.token
+                    }));
+                    setSoldClients(formattedSold);
                 }
 
             } catch (error) {
@@ -421,6 +450,81 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 addLayoutClient,
                 updateLayoutClient,
                 deleteLayoutClient,
+                soldClients,
+                addSoldClient: async (data) => {
+                    const { data: inserted, error } = await supabase
+                        .from("clientes_vendidos")
+                        .insert([{
+                            name: data.name,
+                            webhook_url: data.webhookUrl,
+                            webhook_postagens: data.webhookPostagens,
+                            prompt: data.prompt,
+                            columns: data.columns,
+                            caption_template: data.captionTemplate,
+                            id_facebook: data.facebookId,
+                            id_instagram: data.instagramId,
+                            token: data.token
+                        }])
+                        .select();
+
+                    if (error) {
+                        alert("Erro ao adicionar cliente vendido: " + error.message);
+                        return;
+                    }
+
+                    const newClient: Client = {
+                        id: inserted[0].id,
+                        name: inserted[0].name,
+                        webhookUrl: inserted[0].webhook_url,
+                        webhookPostagens: inserted[0].webhook_postagens,
+                        prompt: inserted[0].prompt,
+                        columns: inserted[0].columns,
+                        captionTemplate: inserted[0].caption_template,
+                        facebookId: inserted[0].id_facebook,
+                        instagramId: inserted[0].id_instagram,
+                        token: inserted[0].token
+                    };
+                    setSoldClients((prev) => [...prev, newClient]);
+                },
+                updateSoldClient: async (id, updates) => {
+                    const dbUpdates: any = {};
+                    if (updates.name) dbUpdates.name = updates.name;
+                    if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
+                    if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
+                    if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
+                    if (updates.columns) dbUpdates.columns = updates.columns;
+                    if (updates.captionTemplate !== undefined) dbUpdates.caption_template = updates.captionTemplate;
+                    if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
+                    if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
+                    if (updates.token !== undefined) dbUpdates.token = updates.token;
+
+                    const { error } = await supabase
+                        .from("clientes_vendidos")
+                        .update(dbUpdates)
+                        .eq("id", id);
+
+                    if (error) {
+                        alert("Erro ao atualizar cliente vendido: " + error.message);
+                        return;
+                    }
+
+                    setSoldClients((prev) =>
+                        prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+                    );
+                },
+                deleteSoldClient: async (id) => {
+                    const { error } = await supabase
+                        .from("clientes_vendidos")
+                        .delete()
+                        .eq("id", id);
+
+                    if (error) {
+                        alert("Erro ao deletar cliente vendido: " + error.message);
+                        return;
+                    }
+
+                    setSoldClients((prev) => prev.filter((c) => c.id !== id));
+                },
                 isLoaded,
             }}
         >
