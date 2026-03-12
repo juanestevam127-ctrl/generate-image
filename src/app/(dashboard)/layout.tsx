@@ -8,14 +8,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sidebar } from "@/components/layout/Sidebar";
 
-export default function DashboardLayout({
+export default function SharedDashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const { user, isLoaded, logout } = useStore();
+    const { user, isLoaded } = useStore();
     const router = useRouter();
-    const pathname = usePathname();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
