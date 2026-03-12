@@ -71,7 +71,7 @@ export default function LoginPage() {
                         {error && (
                             <p className="text-sm text-red-400 text-center">{error}</p>
                         )}
-                        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-900/20">
+                        <Button type="submit" className="w-full !bg-blue-600 hover:!bg-blue-700 !text-white font-bold shadow-lg shadow-blue-900/20">
                             Entrar
                         </Button>
                     </form>
