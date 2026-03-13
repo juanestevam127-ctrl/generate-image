@@ -55,8 +55,8 @@ export async function fetchMetrics(filters: DashboardFilters) {
     if (error) throw error;
 
     const total = count || 0;
-    const feedCount = data?.filter(i => i.formato === 'FEED').length || 0;
-    const storiesCount = data?.filter(i => i.formato === 'STORIES').length || 0;
+    const feedCount = data?.filter(i => i.formato === 'FEED' || i.formato === 'VENDIDO FEED').length || 0;
+    const storiesCount = data?.filter(i => i.formato === 'STORIES' || i.formato === 'VENDIDO STORIES').length || 0;
 
     return {
         total,
@@ -99,8 +99,8 @@ export async function fetchEvolutionData(filters: DashboardFilters) {
         if (!grouped[date]) {
             grouped[date] = { date, feed: 0, stories: 0 };
         }
-        if (item.formato === 'FEED') grouped[date].feed++;
-        if (item.formato === 'STORIES') grouped[date].stories++;
+        if (item.formato === 'FEED' || item.formato === 'VENDIDO FEED') grouped[date].feed++;
+        if (item.formato === 'STORIES' || item.formato === 'VENDIDO STORIES') grouped[date].stories++;
     });
 
     return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));

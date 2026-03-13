@@ -824,6 +824,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                         <>
                                             <option value="IMAGEM">IMAGEM</option>
                                             <option value="VIDEO">VÍDEO</option>
+                                            <option value="CARROSSEL">CARROSSEL</option>
                                         </>
                                     )}
                                 </select>
