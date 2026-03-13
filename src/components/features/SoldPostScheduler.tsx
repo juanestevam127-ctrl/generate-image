@@ -79,6 +79,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 .from("publicacoes_design_online")
                 .select("*")
                 .eq("nome_empresa", client.name)
+                .in("formato", ["VENDIDO FEED", "VENDIDO STORIES"])
                 .eq("publicado", false)
                 .is("data_agendamento", null)
                 .order("ordem", { ascending: true })
@@ -93,18 +94,20 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
             rawImages.forEach(img => {
                 const vehicle = img.veiculo_gerado || "Sem Veículo";
-                const format = img.formato || "FEED";
-                const key = `${vehicle}-${format}`;
+                const originalFormat = img.formato || "FEED";
+                // Map VENDIDO FEED -> FEED and VENDIDO STORIES -> STORY for UI filtering
+                const uiFormat = originalFormat === 'VENDIDO STORIES' ? 'STORY' : 'FEED';
+                const key = `${vehicle}-${originalFormat}`;
 
                 if (!groups[key]) {
                     groups[key] = {
                         id: key,
                         veiculo_gerado: vehicle,
-                        formato: format,
+                        formato: originalFormat, // Keep original for webhook
                         images: [],
                         caption: img.descricao || "",
-                        postType: format === "FEED"
-                            ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
+                        postType: uiFormat === "FEED"
+                            ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
                             : "IMAGEM",
                         created_at: img.created_at
                     };
@@ -362,7 +365,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const handleSchedule = async (isInstant: boolean = false) => {
         if (!currentPost) return;
 
-        const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
+        const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos";
 
         if (!isInstant && (!scheduleDate || !scheduleTime)) {
             alert("Selecione data e hora.");
@@ -463,7 +466,10 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         );
     }
 
-    const filteredPosts = groupedPosts.filter(p => p.formato === viewFilter);
+    const filteredPosts = groupedPosts.filter(p => {
+        const uiFormat = p.formato === 'VENDIDO STORIES' ? 'STORY' : 'FEED';
+        return uiFormat === viewFilter;
+    });
 
     return (
         <div className="space-y-6">

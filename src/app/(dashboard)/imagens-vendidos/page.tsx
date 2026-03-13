@@ -229,7 +229,7 @@ export default function SoldDashboardPage() {
 
             <div className="mt-8">
                 {viewMode === "analytics" ? (
-                    <AnalyticsView />
+                    <AnalyticsView isSold={true} />
                 ) : viewMode === "admin" ? (
                     <div className="space-y-12 animate-in fade-in duration-500">
                         <SoldClientManager />

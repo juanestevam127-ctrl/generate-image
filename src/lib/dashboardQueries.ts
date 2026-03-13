@@ -6,6 +6,7 @@ export const TABLE_NAME = 'publicacoes_design_online';
 export interface DashboardFilters {
     dateRange: DateRange;
     selectedClient: string | null; // null means 'All Clients'
+    formats?: string[];
 }
 
 export interface MetricStats {
@@ -44,6 +45,11 @@ export async function fetchMetrics(filters: DashboardFilters) {
         query = query.eq('nome_empresa', filters.selectedClient);
     }
 
+    // Apply format filter
+    if (filters.formats && filters.formats.length > 0) {
+        query = query.in('formato', filters.formats);
+    }
+
     const { data, error, count } = await query;
 
     if (error) throw error;
@@ -77,6 +83,10 @@ export async function fetchEvolutionData(filters: DashboardFilters) {
         query = query.eq('nome_empresa', filters.selectedClient);
     }
 
+    if (filters.formats && filters.formats.length > 0) {
+        query = query.in('formato', filters.formats);
+    }
+
     const { data, error } = await query;
     if (error) throw error;
 
@@ -105,6 +115,10 @@ export async function fetchRankingData(filters: DashboardFilters) {
     query = query
         .gte('created_at', filters.dateRange.from.toISOString())
         .lte('created_at', filters.dateRange.to.toISOString());
+
+    if (filters.formats && filters.formats.length > 0) {
+        query = query.in('formato', filters.formats);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
@@ -135,6 +149,10 @@ export async function fetchHourlyData(filters: DashboardFilters) {
         .gte('created_at', filters.dateRange.from.toISOString())
         .lte('created_at', filters.dateRange.to.toISOString());
 
+    if (filters.formats && filters.formats.length > 0) {
+        query = query.in('formato', filters.formats);
+    }
+
     const { data, error } = await query;
     if (error) throw error;
 
@@ -160,6 +178,10 @@ export async function fetchWeeklyData(filters: DashboardFilters) {
         .eq('nome_empresa', filters.selectedClient)
         .gte('created_at', filters.dateRange.from.toISOString())
         .lte('created_at', filters.dateRange.to.toISOString());
+
+    if (filters.formats && filters.formats.length > 0) {
+        query = query.in('formato', filters.formats);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
@@ -188,6 +210,10 @@ export async function fetchDetailedTable(filters: DashboardFilters) {
 
     if (filters.selectedClient) {
         query = query.eq('nome_empresa', filters.selectedClient);
+    }
+
+    if (filters.formats && filters.formats.length > 0) {
+        query = query.in('formato', filters.formats);
     }
 
     const { data, error } = await query;
@@ -230,6 +256,11 @@ export async function fetchVehicleData(filters: DashboardFilters) {
     // Apply client filter
     if (filters.selectedClient) {
         query = query.eq('nome_empresa', filters.selectedClient);
+    }
+
+    // Apply format filter
+    if (filters.formats && filters.formats.length > 0) {
+        query = query.in('formato', filters.formats);
     }
 
     const { data, error } = await query;

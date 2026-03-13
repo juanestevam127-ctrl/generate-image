@@ -16,16 +16,21 @@ import WeeklyTrend from '@/components/dashboard/WeeklyTrend';
 import DetailedTable from '@/components/dashboard/DetailedTable';
 import VehicleAnalysis from '@/components/dashboard/VehicleAnalysis';
 
-export default function AnalyticsView() {
+interface AnalyticsViewProps {
+    isSold?: boolean;
+}
+
+export default function AnalyticsView({ isSold }: AnalyticsViewProps) {
     // 1. Get clients from global store
-    const { clients: storeClients } = useStore();
+    const { clients: storeClients, soldClients } = useStore();
+    const clients = isSold ? soldClients : storeClients;
     const [selectedClient, setSelectedClient] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState(getDateRangeFromPreset('last-7-days'));
 
     // 2. Extract just the names for the selector
     const clientNames = useMemo(() => {
-        return storeClients.map(c => c.name).sort((a, b) => a.localeCompare(b));
-    }, [storeClients]);
+        return clients.map(c => c.name).sort((a, b) => a.localeCompare(b));
+    }, [clients]);
 
     const {
         metrics,
@@ -39,6 +44,7 @@ export default function AnalyticsView() {
     } = useDashboardData({
         dateRange,
         selectedClient,
+        formats: isSold ? ['VENDIDO FEED', 'VENDIDO STORIES'] : undefined
     });
 
     return (
@@ -125,11 +131,13 @@ export default function AnalyticsView() {
                 />
             </div>
 
-            {/* Vehicle Analysis Section */}
-            <VehicleAnalysis
-                data={vehicleData}
-                isLoading={isLoading}
-            />
+            {/* Vehicle Analysis Section - Hidden for Sold View as per request */}
+            {!isSold && (
+                <VehicleAnalysis
+                    data={vehicleData}
+                    isLoading={isLoading}
+                />
+            )}
         </div>
     );
 }
