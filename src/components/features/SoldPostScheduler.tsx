@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ImageEditor } from "@/components/features/ImageEditor";
-import { supabase, uploadImage } from "@/lib/supabase";
+import { supabase, uploadImage, uploadFile } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 interface PostImage {
@@ -220,14 +220,72 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         reader.readAsDataURL(file);
     };
 
+    const handleUploadFile = async (postId: string, file: File) => {
+        setIsScheduling(true);
+        try {
+            const publicUrl = await uploadFile(file, 'temp-files', '');
+            if (publicUrl) {
+                const post = groupedPosts.find(p => p.id === postId);
+                if (!post) return;
+
+                const nextOrder = post.images.length;
+
+                const { data: inserted, error } = await supabase
+                    .from("publicacoes_design_online")
+                    .insert([{
+                        nome_empresa: client.name,
+                        imagem: publicUrl,
+                        formato: post.formato,
+                        descricao: post.caption,
+                        publicado: false,
+                        veiculo_gerado: post.veiculo_gerado,
+                        adicionado_manualmente: true,
+                        ordem: nextOrder
+                    }])
+                    .select();
+
+                if (error) throw error;
+
+                if (inserted && inserted[0]) {
+                    const dbImg = inserted[0] as PostImage;
+                    setGroupedPosts(prev => prev.map(p => {
+                        if (p.id === postId) {
+                            const newImages = [...p.images, dbImg];
+                            return {
+                                ...p,
+                                images: newImages,
+                                postType: p.formato === "FEED" && newImages.length > 1 ? "CARROSSEL" : p.postType
+                            };
+                        }
+                        return p;
+                    }));
+                    setCarouselIndices(prev => ({ ...prev, [postId]: post.images.length }));
+                }
+            }
+        } catch (error) {
+            console.error("Error uploading file:", error);
+            alert("Erro ao fazer upload do arquivo.");
+        } finally {
+            setIsScheduling(false);
+        }
+    };
+
     const handleAddImage = async (postId: string, files: FileList | null) => {
         if (!files || files.length === 0) return;
 
         const post = groupedPosts.find(p => p.id === postId);
         if (!post) return;
 
+        const filesArray = Array.from(files);
+
+        // If it's a video, upload directly skipping editor
+        if (filesArray.length === 1 && isVideo(filesArray[0].name)) {
+            await handleUploadFile(postId, filesArray[0]);
+            return;
+        }
+
         // Validation based on post type
-        if (post.postType !== "CARROSSEL" && files.length > 1) {
+        if (post.postType !== "CARROSSEL" && filesArray.length > 1) {
             alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
             return;
         }
@@ -237,7 +295,6 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             return;
         }
 
-        const filesArray = Array.from(files);
         setEditQueue(filesArray);
         setActivePostId(postId);
 
@@ -612,7 +669,23 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
                                     {/* Add Image Button */}
                                     {((post.postType === "CARROSSEL") || (post.images.length === 0)) && (
-                                        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                            {post.postType === "REELS" && (
+                                                <label className="cursor-pointer">
+                                                    <div className="h-10 px-4 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold text-xs">
+                                                        SÓ VÍDEO
+                                                    </div>
+                                                    <input
+                                                        type="file"
+                                                        className="hidden"
+                                                        accept="video/*"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) handleUploadFile(post.id, file);
+                                                        }}
+                                                    />
+                                                </label>
+                                            )}
                                             <label className="cursor-pointer">
                                                 <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold">
                                                     <Plus size={20} />

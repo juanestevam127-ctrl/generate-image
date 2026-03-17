@@ -45,3 +45,41 @@ export async function uploadImage(image: string, bucket: string = 'images', fold
         return null;
     }
 }
+
+export async function uploadFile(file: File, bucket: string = 'images', folder: string = ''): Promise<string | null> {
+    try {
+        const contentType = file.type || 'application/octet-stream';
+        const extension = file.name.split('.').pop() || 'bin';
+
+        // 2. Generate unique filename
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(7);
+        // Ensure folder ends with / if provided and not empty
+        const folderPrefix = folder ? (folder.endsWith('/') ? folder : `${folder}/`) : '';
+        const filename = `${folderPrefix}${timestamp}-${randomStr}.${extension}`;
+
+        // 3. Upload
+        const { data, error } = await supabase.storage
+            .from(bucket)
+            .upload(filename, file, {
+                contentType: contentType,
+                upsert: false
+            });
+
+        if (error) {
+            console.error('Supabase Upload Error:', error);
+            return null;
+        }
+
+        // 4. Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(filename);
+
+        console.log("Upload success:", publicUrl);
+        return publicUrl;
+    } catch (e) {
+        console.error('Upload Logic Error:', e);
+        return null;
+    }
+}
