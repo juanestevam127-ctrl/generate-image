@@ -56,9 +56,14 @@ export function CoverPickerModal({ isOpen, onClose, videoUrl, onSelect }: CoverP
             canvas.height = videoRef.current.videoHeight;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-                onSelect(canvas.toDataURL('image/jpeg', 0.8));
-                onClose();
+                try {
+                    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                    onSelect(canvas.toDataURL('image/jpeg', 0.8));
+                    onClose();
+                } catch (error) {
+                    console.error("Error capturing frame:", error);
+                    alert("Erro ao capturar o fotograma. Tente carregar uma imagem manualmente ou use as sugestões.");
+                }
             }
         }
     };
@@ -123,6 +128,7 @@ export function CoverPickerModal({ isOpen, onClose, videoUrl, onSelect }: CoverP
                                 <video 
                                     ref={videoRef}
                                     src={videoUrl} 
+                                    crossOrigin="anonymous"
                                     className="w-full h-full object-contain"
                                     onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
                                     onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
