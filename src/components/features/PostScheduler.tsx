@@ -104,9 +104,11 @@ export function PostScheduler({ client }: { client: Client }) {
                         formato: format,
                         images: [],
                         caption: img.descricao || "",
-                        postType: format === "FEED"
-                            ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
-                            : "IMAGEM",
+                        postType: format === "REELS" || format === "VENDIDO REELS" 
+                            ? "REELS"
+                            : (format === "FEED" || format === "VENDIDO FEED"
+                                ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
+                                : "IMAGEM"),
                         created_at: img.created_at
                     };
                 }

@@ -97,7 +97,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 const vehicle = img.veiculo_gerado || "Sem Veículo";
                 const originalFormat = img.formato || "FEED";
                 // Map VENDIDO FEED -> FEED and VENDIDO STORIES -> STORY for UI filtering
-                const uiFormat = originalFormat === 'VENDIDO STORIES' ? 'STORY' : 'FEED';
+                const uiFormat = originalFormat === 'VENDIDO STORIES' ? 'STORY' : (originalFormat === 'VENDIDO REELS' ? 'REELS' : 'FEED');
                 const key = `${vehicle}-${originalFormat}`;
 
                 if (!groups[key]) {
@@ -107,9 +107,11 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         formato: originalFormat, // Keep original for webhook
                         images: [],
                         caption: img.descricao || "",
-                        postType: uiFormat === "FEED"
-                            ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
-                            : "IMAGEM",
+                        postType: originalFormat === "VENDIDO REELS" || originalFormat === "REELS"
+                            ? "REELS"
+                            : (uiFormat === "FEED"
+                                ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
+                                : "IMAGEM"),
                         created_at: img.created_at
                     };
                 }
@@ -347,7 +349,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         nome_empresa: client.name,
                         imagem: publicUrl,
                         formato: post.formato,
-                        descricao: isCover ? `REELS_COVER:${publicUrl}` : post.caption,
+                        descricao: post.caption,
                         publicado: false,
                         veiculo_gerado: post.veiculo_gerado,
                         adicionado_manualmente: true,
