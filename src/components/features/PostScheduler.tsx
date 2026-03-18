@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ImageEditor } from "@/components/features/ImageEditor";
+import { CoverPickerModal } from "@/components/features/CoverPickerModal";
 import { supabase, uploadImage, uploadFile } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +69,10 @@ export function PostScheduler({ client }: { client: Client }) {
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [currentEditBase64, setCurrentEditBase64] = useState<string | null>(null);
     const [activePostId, setActivePostId] = useState<string | null>(null);
+
+    // Cover Picker State
+    const [isCoverPickerOpen, setIsCoverPickerOpen] = useState(false);
+    const [coverPickerPost, setCoverPickerPost] = useState<GroupedPost | null>(null);
 
     useEffect(() => {
         fetchImages();
@@ -290,6 +295,54 @@ export function PostScheduler({ client }: { client: Client }) {
         } catch (error) {
             console.error("Error uploading file:", error);
             alert("Erro ao fazer upload do arquivo.");
+        } finally {
+            setIsScheduling(false);
+        }
+    };
+
+    const handleSelectCover = async (postId: string, imageBase64: string) => {
+        setIsScheduling(true);
+        try {
+            const post = groupedPosts.find(p => p.id === postId);
+            if (!post) return;
+
+            const publicUrl = await uploadImage(imageBase64, 'temp-files', '');
+            if (publicUrl) {
+                const nextOrder = post.images.length;
+                const { data: inserted, error } = await supabase
+                    .from("publicacoes_design_online")
+                    .insert([{
+                        nome_empresa: client.name,
+                        imagem: publicUrl,
+                        formato: post.formato,
+                        descricao: `REELS_COVER:${publicUrl}`,
+                        publicado: false,
+                        veiculo_gerado: post.veiculo_gerado,
+                        adicionado_manualmente: true,
+                        ordem: nextOrder
+                    }])
+                    .select();
+
+                if (error) throw error;
+
+                if (inserted && inserted[0]) {
+                    const dbImg = inserted[0] as PostImage;
+                    setGroupedPosts(prev => prev.map(p => {
+                        if (p.id === postId) {
+                            const newImages = [...p.images, dbImg];
+                            return {
+                                ...p,
+                                images: newImages,
+                                postType: p.postType
+                            };
+                        }
+                        return p;
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error("Error setting cover:", error);
+            alert("Erro ao salvar a capa do Reels.");
         } finally {
             setIsScheduling(false);
         }
@@ -708,20 +761,15 @@ export function PostScheduler({ client }: { client: Client }) {
                                             {post.postType === "REELS" && (
                                                 <>
                                                     {post.images.some(img => isVideo(img.imagem)) ? (
-                                                        <label className="cursor-pointer">
-                                                            <div className="h-10 px-4 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-purple-700 font-bold text-xs">
-                                                                CAPA REELS
-                                                            </div>
-                                                            <input
-                                                                type="file"
-                                                                className="hidden"
-                                                                accept="image/*"
-                                                                onChange={(e) => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (file) handleUploadFile(post.id, file, true);
-                                                                }}
-                                                            />
-                                                        </label>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setCoverPickerPost(post);
+                                                                setIsCoverPickerOpen(true);
+                                                            }}
+                                                            className="h-10 px-4 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-purple-700 font-bold text-xs"
+                                                        >
+                                                            CAPA REELS
+                                                        </button>
                                                     ) : (
                                                         <label className="cursor-pointer">
                                                             <div className="h-10 px-4 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold text-xs">
@@ -926,7 +974,7 @@ export function PostScheduler({ client }: { client: Client }) {
                                     <button
                                         onClick={() => {
                                             setNewPostFormat("REELS");
-                                            setNewPostType("REELS");
+                                            setNewPostType("VIDEO");
                                         }}
                                         className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "REELS" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                                     >
@@ -956,17 +1004,15 @@ export function PostScheduler({ client }: { client: Client }) {
                                         backgroundSize: '1rem'
                                     }}
                                 >
-                                    {newPostFormat === "FEED" ? (
+                                    {newPostFormat === "REELS" ? (
+                                        <option value="VIDEO" className="bg-[#1a1a1a]">VÍDEO</option>
+                                    ) : newPostFormat === "FEED" ? (
                                         <>
                                             <option value="ESTATICA" className="bg-[#1a1a1a]">ESTÁTICA</option>
                                             <option value="CARROSSEL" className="bg-[#1a1a1a]">CARROSSEL</option>
-                                            <option value="REELS" className="bg-[#1a1a1a]">REELS</option>
                                         </>
                                     ) : (
-                                        <>
-                                            <option value="IMAGEM" className="bg-[#1a1a1a]">IMAGEM</option>
-                                            <option value="VIDEO" className="bg-[#1a1a1a]">VÍDEO</option>
-                                        </>
+                                        <option value="IMAGEM" className="bg-[#1a1a1a]">IMAGEM</option>
                                     )}
                                 </select>
                             </div>
@@ -994,6 +1040,19 @@ export function PostScheduler({ client }: { client: Client }) {
                 imageUrl={currentEditBase64}
                 onSave={handleSaveEditedImage}
             />
+
+            {/* Cover Picker Modal */}
+            {coverPickerPost && (
+                <CoverPickerModal
+                    isOpen={isCoverPickerOpen}
+                    onClose={() => {
+                        setIsCoverPickerOpen(false);
+                        setCoverPickerPost(null);
+                    }}
+                    videoUrl={coverPickerPost.images.find(img => isVideo(img.imagem))?.imagem || ""}
+                    onSelect={(image) => handleSelectCover(coverPickerPost.id, image)}
+                />
+            )}
         </div>
     );
 }
