@@ -64,7 +64,7 @@ export function CoverPickerModal({ isOpen, onClose, videoUrl, onSelect }: CoverP
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Miniatura">
+        <Modal isOpen={isOpen} onClose={onClose} title="Miniatura" className="max-w-md">
             <div className="space-y-4 pt-4">
                 <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
                     <button
@@ -87,7 +87,7 @@ export function CoverPickerModal({ isOpen, onClose, videoUrl, onSelect }: CoverP
                     </button>
                 </div>
 
-                <div className="min-h-[300px] flex flex-col justify-center">
+                <div className="max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                     {activeTab === 'suggestions' && (
                         <div className="w-full">
                             {loading ? (
@@ -119,7 +119,7 @@ export function CoverPickerModal({ isOpen, onClose, videoUrl, onSelect }: CoverP
 
                     {activeTab === 'frame' && (
                         <div className="space-y-4 w-full">
-                            <div className="aspect-[9/16] bg-black rounded-lg border border-white/10 overflow-hidden relative">
+                            <div className="aspect-[9/16] max-h-[400px] bg-black rounded-lg border border-white/10 overflow-hidden relative mx-auto">
                                 <video 
                                     ref={videoRef}
                                     src={videoUrl} 
@@ -170,7 +170,7 @@ export function CoverPickerModal({ isOpen, onClose, videoUrl, onSelect }: CoverP
                     )}
                 </div>
 
-                <div className="flex justify-end pt-4 border-t border-white/10">
+                <div className="flex justify-end pt-4 border-t border-white/10 shrink-0">
                     <Button variant="ghost" onClick={onClose} className="text-gray-400">
                         Cancelar
                     </Button>
