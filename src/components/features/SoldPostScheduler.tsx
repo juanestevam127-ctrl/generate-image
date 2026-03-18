@@ -33,6 +33,7 @@ interface GroupedPost {
     caption: string;
     postType: string;
     created_at: string;
+    reelsCover?: string;
 }
 
 export function SoldPostScheduler({ client }: { client: Client }) {
@@ -113,6 +114,10 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     };
                 }
                 groups[key].images.push(img);
+                if (img.descricao?.includes("REELS_COVER:")) {
+                    const match = img.descricao.match(/REELS_COVER:(https?:\/\/\S+)/);
+                    if (match) groups[key].reelsCover = match[1];
+                }
             });
 
             setGroupedPosts(Object.values(groups));
@@ -175,11 +180,33 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
     const updatePostType = (postId: string, newType: string) => {
         const post = groupedPosts.find(p => p.id === postId);
-        if (post && newType !== "CARROSSEL" && post.images.length > 1) {
+        if (post && newType !== "CARROSSEL" && newType !== "REELS" && post.images.length > 1) {
             alert(`Para mudar para ${newType}, você deve remover as outras imagens e deixar apenas uma.`);
             return;
         }
+        if (post && newType === "REELS" && post.images.filter(img => isVideo(img.imagem)).length > 1) {
+            alert(`Para Reels, você deve ter apenas um vídeo. Remova os vídeos extras.`);
+            return;
+        }
         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, postType: newType } : p));
+
+        // Persist format change to DB
+        const newFormat = newType === "REELS" ? "VENDIDO REELS" : (post?.formato === "VENDIDO REELS" ? "VENDIDO FEED" : post?.formato || "VENDIDO FEED");
+        if (post) {
+            supabase
+                .from("publicacoes_design_online")
+                .update({ formato: newFormat })
+                .eq("nome_empresa", client.name)
+                .eq("veiculo_gerado", post.veiculo_gerado)
+                .eq("formato", post.formato)
+                .then(({ error }) => {
+                    if (error) console.error("Error updating format in DB:", error);
+                    else {
+                        // Update local format to avoid grouping issues on next fetch
+                        setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, formato: newFormat } : p));
+                    }
+                });
+        }
     };
 
     const moveImage = async (postId: string, fromIndex: number, toIndex: number) => {
@@ -220,7 +247,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         reader.readAsDataURL(file);
     };
 
-    const handleUploadFile = async (postId: string, file: File) => {
+    const handleUploadFile = async (postId: string, file: File, isCover: boolean = false) => {
         setIsScheduling(true);
         try {
             const publicUrl = await uploadFile(file, 'temp-files', '');
@@ -236,7 +263,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         nome_empresa: client.name,
                         imagem: publicUrl,
                         formato: post.formato,
-                        descricao: post.caption,
+                        descricao: isCover ? `REELS_COVER:${publicUrl}` : post.caption,
                         publicado: false,
                         veiculo_gerado: post.veiculo_gerado,
                         adicionado_manualmente: true,
@@ -320,7 +347,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         nome_empresa: client.name,
                         imagem: publicUrl,
                         formato: post.formato,
-                        descricao: post.caption,
+                        descricao: isCover ? `REELS_COVER:${publicUrl}` : post.caption,
                         publicado: false,
                         veiculo_gerado: post.veiculo_gerado,
                         adicionado_manualmente: true,
@@ -446,6 +473,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     instagram_id: client.instagramId,
                     token: client.token,
                     images: currentPost.images.map(img => img.imagem),
+                    video: currentPost.images.find(img => isVideo(img.imagem))?.imagem,
+                    reels_cover: currentPost.images.find(img => !isVideo(img.imagem))?.imagem,
                     description: currentPost.caption,
                     format: currentPost.formato,
                     post_type: currentPost.postType,
@@ -668,23 +697,42 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                     )}
 
                                     {/* Add Image Button */}
-                                    {((post.postType === "CARROSSEL") || (post.images.length === 0)) && (
+                                    {((post.postType === "CARROSSEL") || (post.images.length === 0) || (post.postType === "REELS" && post.images.length < 2)) && (
                                         <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                                             {post.postType === "REELS" && (
-                                                <label className="cursor-pointer">
-                                                    <div className="h-10 px-4 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold text-xs">
-                                                        SÓ VÍDEO
-                                                    </div>
-                                                    <input
-                                                        type="file"
-                                                        className="hidden"
-                                                        accept="video/*"
-                                                        onChange={(e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (file) handleUploadFile(post.id, file);
-                                                        }}
-                                                    />
-                                                </label>
+                                                <>
+                                                    {post.images.some(img => isVideo(img.imagem)) ? (
+                                                        <label className="cursor-pointer">
+                                                            <div className="h-10 px-4 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-purple-700 font-bold text-xs">
+                                                                CAPA REELS
+                                                            </div>
+                                                            <input
+                                                                type="file"
+                                                                className="hidden"
+                                                                accept="image/*"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) handleUploadFile(post.id, file, true);
+                                                                }}
+                                                            />
+                                                        </label>
+                                                    ) : (
+                                                        <label className="cursor-pointer">
+                                                            <div className="h-10 px-4 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold text-xs">
+                                                                SÓ VÍDEO
+                                                            </div>
+                                                            <input
+                                                                type="file"
+                                                                className="hidden"
+                                                                accept="video/*"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) handleUploadFile(post.id, file);
+                                                                }}
+                                                            />
+                                                        </label>
+                                                    )}
+                                                </>
                                             )}
                                             <label className="cursor-pointer">
                                                 <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 font-bold">

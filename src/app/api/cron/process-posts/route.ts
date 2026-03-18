@@ -55,22 +55,30 @@ export async function GET(request: Request) {
                 continue;
             }
 
+            const isReels = firstPost.formato === 'REELS' || firstPost.formato === 'VENDIDO REELS';
+            const videoExtensions = ['.mp4', '.mov', '.webm', '.ogg', '.m4v'];
+            const isVideo = (url: string) => url && videoExtensions.some(ext => url.toLowerCase().endsWith(ext));
+
             const payload = {
                 client: client.name,
                 facebook_id: client.id_facebook,
                 instagram_id: client.id_instagram,
                 token: client.token,
                 images: posts.map(p => p.imagem),
+                video: posts.find(p => isVideo(p.imagem))?.imagem,
+                reels_cover: posts.find(p => !isVideo(p.imagem))?.imagem,
                 description: firstPost.descricao,
                 format: firstPost.formato,
-                post_type: firstPost.formato === 'FEED'
-                    ? (posts.length > 1 ? 'CARROSSEL' : 'ESTATICA')
-                    : 'IMAGEM', // Defaulting to IMAGEM/VIDEO based on logic if needed, but consistent with UI
+                post_type: isReels 
+                    ? 'REELS' 
+                    : (firstPost.formato === 'FEED' || firstPost.formato === 'VENDIDO FEED'
+                        ? (posts.length > 1 ? 'CARROSSEL' : 'ESTATICA')
+                        : 'IMAGEM'),
                 scheduled_at: firstPost.data_agendamento,
                 scheduled_at_local: "",
                 timezone: "America/Sao_Paulo",
                 timezone_offset: -180, // Approximate for BRT
-                is_carousel: posts.length > 1,
+                is_carousel: !isReels && posts.length > 1,
                 veiculo_gerado: firstPost.veiculo_gerado
             };
 
