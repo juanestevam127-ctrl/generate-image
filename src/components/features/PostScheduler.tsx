@@ -39,7 +39,7 @@ interface GroupedPost {
 export function PostScheduler({ client }: { client: Client }) {
     const [groupedPosts, setGroupedPosts] = useState<GroupedPost[]>([]);
     const [loading, setLoading] = useState(true);
-    const [viewFilter, setViewFilter] = useState<"FEED" | "STORY">("FEED");
+    const [viewFilter, setViewFilter] = useState<"FEED" | "STORY" | "REELS">("FEED");
 
     // Scheduling State
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -59,7 +59,7 @@ export function PostScheduler({ client }: { client: Client }) {
 
     // Manual Post State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [newPostFormat, setNewPostFormat] = useState<"FEED" | "STORY">("FEED");
+    const [newPostFormat, setNewPostFormat] = useState<"FEED" | "STORY" | "REELS">("FEED");
     const [newPostType, setNewPostType] = useState("ESTATICA");
     const [newPostVehicle, setNewPostVehicle] = useState("");
 
@@ -279,7 +279,7 @@ export function PostScheduler({ client }: { client: Client }) {
                             return {
                                 ...p,
                                 images: newImages,
-                                postType: p.formato === "FEED" && newImages.length > 1 ? "CARROSSEL" : p.postType
+                                postType: (p.formato === "FEED" || p.formato === "VENDIDO FEED") && newImages.length > 1 && p.postType !== "REELS" ? "CARROSSEL" : p.postType
                             };
                         }
                         return p;
@@ -363,7 +363,7 @@ export function PostScheduler({ client }: { client: Client }) {
                             return {
                                 ...p,
                                 images: newImages,
-                                postType: p.formato === "FEED" && newImages.length > 1 ? "CARROSSEL" : p.postType
+                                postType: (p.formato === "FEED" || p.formato === "VENDIDO FEED") && newImages.length > 1 && p.postType !== "REELS" ? "CARROSSEL" : p.postType
                             };
                         }
                         return p;
@@ -561,6 +561,12 @@ export function PostScheduler({ client }: { client: Client }) {
                         className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${viewFilter === "FEED" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                     >
                         FEED
+                    </button>
+                    <button
+                        onClick={() => setViewFilter("REELS")}
+                        className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${viewFilter === "REELS" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        REELS
                     </button>
                     <button
                         onClick={() => setViewFilter("STORY")}
@@ -916,6 +922,15 @@ export function PostScheduler({ client }: { client: Client }) {
                                         className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "FEED" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                                     >
                                         FEED
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setNewPostFormat("REELS");
+                                            setNewPostType("REELS");
+                                        }}
+                                        className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "REELS" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                                    >
+                                        REELS
                                     </button>
                                     <button
                                         onClick={() => {
