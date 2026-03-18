@@ -5,7 +5,13 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-export async function uploadImage(image: string, bucket: string = 'images', folder: string = ''): Promise<string | null> {
+
+export async function uploadImage(
+    image: string, 
+    bucket: string = 'images', 
+    folder: string = '',
+    onProgress?: (progress: number) => void
+): Promise<string | null> {
     try {
         // 1. Convert Base64 (DataURL) to Blob - Browser safe
         const res = await fetch(image);
@@ -16,7 +22,6 @@ export async function uploadImage(image: string, bucket: string = 'images', fold
         // 2. Generate unique filename
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(7);
-        // Ensure folder ends with / if provided and not empty
         const folderPrefix = folder ? (folder.endsWith('/') ? folder : `${folder}/`) : '';
         const filename = `${folderPrefix}${timestamp}-${randomStr}.${extension}`;
 
@@ -25,8 +30,14 @@ export async function uploadImage(image: string, bucket: string = 'images', fold
             .from(bucket)
             .upload(filename, blob, {
                 contentType: contentType,
-                upsert: false
-            });
+                upsert: false,
+                onUploadProgress: (progress: any) => {
+                    if (onProgress) {
+                        const percent = (progress.loaded / progress.total) * 100;
+                        onProgress(Math.round(percent));
+                    }
+                }
+            } as any);
 
         if (error) {
             console.error('Supabase Upload Error:', error);
@@ -38,7 +49,6 @@ export async function uploadImage(image: string, bucket: string = 'images', fold
             .from(bucket)
             .getPublicUrl(filename);
 
-        console.log("Upload success:", publicUrl);
         return publicUrl;
     } catch (e) {
         console.error('Upload Logic Error:', e);
@@ -46,37 +56,43 @@ export async function uploadImage(image: string, bucket: string = 'images', fold
     }
 }
 
-export async function uploadFile(file: File, bucket: string = 'images', folder: string = ''): Promise<string | null> {
+export async function uploadFile(
+    file: File, 
+    bucket: string = 'images', 
+    folder: string = '',
+    onProgress?: (progress: number) => void
+): Promise<string | null> {
     try {
         const contentType = file.type || 'application/octet-stream';
         const extension = file.name.split('.').pop() || 'bin';
 
-        // 2. Generate unique filename
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(7);
-        // Ensure folder ends with / if provided and not empty
         const folderPrefix = folder ? (folder.endsWith('/') ? folder : `${folder}/`) : '';
         const filename = `${folderPrefix}${timestamp}-${randomStr}.${extension}`;
 
-        // 3. Upload
         const { data, error } = await supabase.storage
             .from(bucket)
             .upload(filename, file, {
                 contentType: contentType,
-                upsert: false
-            });
+                upsert: false,
+                onUploadProgress: (progress: any) => {
+                    if (onProgress) {
+                        const percent = (progress.loaded / progress.total) * 100;
+                        onProgress(Math.round(percent));
+                    }
+                }
+            } as any);
 
         if (error) {
             console.error('Supabase Upload Error:', error);
             return null;
         }
 
-        // 4. Get Public URL
         const { data: { publicUrl } } = supabase.storage
             .from(bucket)
             .getPublicUrl(filename);
 
-        console.log("Upload success:", publicUrl);
         return publicUrl;
     } catch (e) {
         console.error('Upload Logic Error:', e);

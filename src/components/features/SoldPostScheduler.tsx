@@ -70,6 +70,9 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const [currentEditBase64, setCurrentEditBase64] = useState<string | null>(null);
     const [activePostId, setActivePostId] = useState<string | null>(null);
 
+    // Upload Progress State
+    const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+
     // Cover Picker State
     const [isCoverPickerOpen, setIsCoverPickerOpen] = useState(false);
     const [coverPickerPost, setCoverPickerPost] = useState<GroupedPost | null>(null);
@@ -85,7 +88,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 .from("publicacoes_design_online")
                 .select("*")
                 .eq("nome_empresa", client.name)
-                .in("formato", ["VENDIDO FEED", "VENDIDO STORIES"])
+                .in("formato", ["VENDIDO FEED", "VENDIDO STORIES", "VENDIDO REELS", "REELS", "FEED", "STORY"])
                 .eq("publicado", false)
                 .is("data_agendamento", null)
                 .order("ordem", { ascending: true })
@@ -256,8 +259,11 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
     const handleUploadFile = async (postId: string, file: File, isCover: boolean = false) => {
         setIsScheduling(true);
+        setUploadProgress(prev => ({ ...prev, [postId]: 0 }));
         try {
-            const publicUrl = await uploadFile(file, 'temp-files', '');
+            const publicUrl = await uploadFile(file, 'temp-files', '', (progress) => {
+                setUploadProgress(prev => ({ ...prev, [postId]: progress }));
+            });
             if (publicUrl) {
                 const post = groupedPosts.find(p => p.id === postId);
                 if (!post) return;
@@ -293,7 +299,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         }
                         return p;
                     }));
-                    setCarouselIndices(prev => ({ ...prev, [postId]: post.images.length }));
+                setCarouselIndices(prev => ({ ...prev, [postId]: post.images.length }));
                 }
             }
         } catch (error) {
@@ -301,16 +307,24 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             alert("Erro ao fazer upload do arquivo.");
         } finally {
             setIsScheduling(false);
+            setUploadProgress(prev => {
+                const n = { ...prev };
+                delete n[postId];
+                return n;
+            });
         }
     };
 
     const handleSelectCover = async (postId: string, imageBase64: string) => {
         setIsScheduling(true);
+        setUploadProgress(prev => ({ ...prev, [postId]: 0 }));
         try {
             const post = groupedPosts.find(p => p.id === postId);
             if (!post) return;
 
-            const publicUrl = await uploadImage(imageBase64, 'temp-files', '');
+            const publicUrl = await uploadImage(imageBase64, 'temp-files', '', (progress) => {
+                setUploadProgress(prev => ({ ...prev, [postId]: progress }));
+            });
             if (publicUrl) {
                 const nextOrder = post.images.length;
                 const { data: inserted, error } = await supabase
@@ -708,6 +722,22 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                         </div>
                                     )}
 
+                                    {/* Upload Progress Overlay */}
+                                    {uploadProgress[post.id] !== undefined && (
+                                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+                                            <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
+                                            <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
+                                                <div 
+                                                    className="h-full bg-indigo-500 transition-all duration-300" 
+                                                    style={{ width: `${uploadProgress[post.id]}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-[10px] font-bold text-white uppercase tracking-widest">
+                                                Carregando... {uploadProgress[post.id]}%
+                                            </p>
+                                        </div>
+                                    )}
+
                                     {totalImages > 1 && (
                                         <>
                                             <button
@@ -760,7 +790,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                     {/* Add Image Button */}
                                     {((post.postType === "CARROSSEL") || (post.images.length === 0) || (post.postType === "REELS" && post.images.length < 2)) && (
                                         <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                            {post.postType === "REELS" && (
+                                            {(post.formato === "REELS" || post.formato === "VENDIDO REELS") && (
                                                 <>
                                                     {post.images.some(img => isVideo(img.imagem)) ? (
                                                         <button 
@@ -822,7 +852,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                 <div className="p-4 space-y-3">
                                     <div className="flex items-center space-x-4 text-white">
                                         <div className="font-bold flex-1">
-                                            {currentIndex + 1} / {totalImages} Imagem(ns)
+                                            {totalImages > 0 ? currentIndex + 1 : 0} / {totalImages} Imagem(ns)
                                         </div>
                                         <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
                                             {format(new Date(post.created_at), "dd MMM yyyy", { locale: ptBR })}
