@@ -617,7 +617,12 @@ export function PostScheduler({ client }: { client: Client }) {
         );
     }
 
-    const filteredPosts = groupedPosts.filter(p => p.formato === viewFilter);
+    const filteredPosts = groupedPosts.filter(p => {
+        if (viewFilter === "STORY") {
+            return p.formato === "STORY" || p.formato === "STORIES";
+        }
+        return p.formato === viewFilter;
+    });
 
     return (
         <div className="space-y-6">

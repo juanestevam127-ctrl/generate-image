@@ -88,7 +88,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 .from("publicacoes_design_online")
                 .select("*")
                 .eq("nome_empresa", client.name)
-                .in("formato", ["VENDIDO FEED", "VENDIDO STORIES", "VENDIDO REELS", "REELS", "FEED", "STORY"])
+                .in("formato", ["VENDIDO FEED", "VENDIDO STORIES", "VENDIDO REELS", "REELS", "FEED", "STORY", "STORIES"])
                 .eq("publicado", false)
                 .is("data_agendamento", null)
                 .order("ordem", { ascending: true })
@@ -105,7 +105,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 const vehicle = img.veiculo_gerado || "Sem Veículo";
                 const originalFormat = img.formato || "FEED";
                 // Map VENDIDO FEED -> FEED and VENDIDO STORIES -> STORY for UI filtering
-                const uiFormat = originalFormat === 'VENDIDO STORIES' ? 'STORY' : (originalFormat === 'VENDIDO REELS' ? 'REELS' : 'FEED');
+                const uiFormat = (originalFormat === 'VENDIDO STORIES' || originalFormat === 'STORIES' || originalFormat === 'STORY') ? 'STORY' : (originalFormat === 'VENDIDO REELS' || originalFormat === 'REELS' ? 'REELS' : 'FEED');
                 const key = `${vehicle}-${originalFormat}`;
 
                 if (!groups[key]) {
@@ -622,7 +622,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     }
 
     const filteredPosts = groupedPosts.filter(p => {
-        const uiFormat = p.formato === 'VENDIDO STORIES' ? 'STORY' : (p.formato === 'VENDIDO REELS' ? 'REELS' : 'FEED');
+        const uiFormat = (p.formato === 'VENDIDO STORIES' || p.formato === 'STORIES' || p.formato === 'STORY') ? 'STORY' : (p.formato === 'VENDIDO REELS' || p.formato === 'REELS' ? 'REELS' : 'FEED');
         return uiFormat === viewFilter;
     });
 
