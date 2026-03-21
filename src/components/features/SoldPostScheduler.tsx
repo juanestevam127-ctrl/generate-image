@@ -88,7 +88,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 .from("publicacoes_design_online")
                 .select("*")
                 .eq("nome_empresa", client.name)
-                .in("formato", ["VENDIDO FEED", "VENDIDO STORIES", "VENDIDO REELS", "REELS", "FEED", "STORY", "STORIES"])
+                .ilike("formato", "VENDIDO %")
                 .eq("publicado", false)
                 .is("data_agendamento", null)
                 .order("ordem", { ascending: true })

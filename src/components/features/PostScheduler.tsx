@@ -88,6 +88,7 @@ export function PostScheduler({ client }: { client: Client }) {
                 .from("publicacoes_design_online")
                 .select("*")
                 .eq("nome_empresa", client.name)
+                .not("formato", "ilike", "VENDIDO %")
                 .eq("publicado", false)
                 .is("data_agendamento", null)
                 .order("ordem", { ascending: true })
