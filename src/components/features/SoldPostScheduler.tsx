@@ -503,7 +503,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         const newPost: GroupedPost = {
             id,
             veiculo_gerado: newPostVehicle || "Nova Postagem",
-            formato: newPostFormat,
+            formato: newPostFormat === "REELS" ? "VENDIDO REELS" : (newPostFormat === "STORY" ? "VENDIDO STORIES" : "VENDIDO FEED"),
             images: [],
             caption: client.captionTemplate || "",
             postType: newPostType,
@@ -1006,7 +1006,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                     <button
                                         onClick={() => {
                                             setNewPostFormat("REELS");
-                                            setNewPostType("VIDEO");
+                                            setNewPostType("REELS");
                                         }}
                                         className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "REELS" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                                     >
@@ -1031,14 +1031,14 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                     className="w-full bg-white/5 border border-white/10 rounded-md h-9 px-3 text-[10px] font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none appearance-none"
                                 >
                                     {newPostFormat === "REELS" ? (
-                                        <option value="VIDEO">VÍDEO</option>
+                                        <option value="REELS" className="bg-[#1a1a1a]">VÍDEO</option>
                                     ) : newPostFormat === "FEED" ? (
                                         <>
-                                            <option value="ESTATICA">ESTÁTICA</option>
-                                            <option value="CARROSSEL">CARROSSEL</option>
+                                            <option value="ESTATICA" className="bg-[#1a1a1a]">ESTÁTICA</option>
+                                            <option value="CARROSSEL" className="bg-[#1a1a1a]">CARROSSEL</option>
                                         </>
                                     ) : (
-                                        <option value="IMAGEM">IMAGEM</option>
+                                        <option value="IMAGEM" className="bg-[#1a1a1a]">IMAGEM</option>
                                     )}
                                 </select>
                             </div>

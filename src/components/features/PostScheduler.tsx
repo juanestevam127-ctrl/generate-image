@@ -1010,7 +1010,7 @@ export function PostScheduler({ client }: { client: Client }) {
                                     <button
                                         onClick={() => {
                                             setNewPostFormat("REELS");
-                                            setNewPostType("VIDEO");
+                                            setNewPostType("REELS");
                                         }}
                                         className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${newPostFormat === "REELS" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                                     >
@@ -1041,7 +1041,7 @@ export function PostScheduler({ client }: { client: Client }) {
                                     }}
                                 >
                                     {newPostFormat === "REELS" ? (
-                                        <option value="VIDEO" className="bg-[#1a1a1a]">VÍDEO</option>
+                                        <option value="REELS" className="bg-[#1a1a1a]">VÍDEO</option>
                                     ) : newPostFormat === "FEED" ? (
                                         <>
                                             <option value="ESTATICA" className="bg-[#1a1a1a]">ESTÁTICA</option>
