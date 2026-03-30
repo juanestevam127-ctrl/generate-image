@@ -12,6 +12,14 @@ import { ImageEditor } from "@/components/features/ImageEditor";
 import { CoverPickerModal } from "@/components/features/CoverPickerModal";
 import { supabase, uploadImage, uploadFile } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { 
+    fetchAllScheduledPosts, 
+    checkSchedulingConflicts, 
+    ScheduledPost, 
+    SchedulingConflict, 
+    POST_TYPE_CONFIG,
+    getPostDelay 
+} from "@/lib/schedulingUtils";
 
 interface PostImage {
     id: number;
@@ -48,6 +56,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const [scheduleDate, setScheduleDate] = useState("");
     const [scheduleTime, setScheduleTime] = useState("");
     const [isScheduling, setIsScheduling] = useState(false);
+    const [allScheduledPosts, setAllScheduledPosts] = useState<ScheduledPost[]>([]);
+    const [conflicts, setConflicts] = useState<SchedulingConflict[]>([]);
 
     const isVideo = (url: string) => {
         if (!url) return false;
@@ -138,12 +148,34 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         }
     };
 
-    const handleOpenModal = (post: GroupedPost) => {
+    const handleOpenModal = async (post: GroupedPost) => {
         setCurrentPost(post);
         setScheduleDate("");
         setScheduleTime("");
+        setConflicts([]);
         setIsScheduleModalOpen(true);
+        
+        // Fetch all scheduled posts to check for conflicts
+        const posts = await fetchAllScheduledPosts();
+        setAllScheduledPosts(posts);
     };
+
+    // Conflict Check Effect
+    useEffect(() => {
+        if (currentPost && scheduleDate && scheduleTime) {
+            const proposedTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
+            const currentPostIds = currentPost.images.map(img => img.id).filter(id => typeof id === 'number') as number[];
+            const foundConflicts = checkSchedulingConflicts(
+                proposedTime,
+                currentPost.postType,
+                allScheduledPosts,
+                currentPostIds
+            );
+            setConflicts(foundConflicts);
+        } else {
+            setConflicts([]);
+        }
+    }, [scheduleDate, scheduleTime, currentPost, allScheduledPosts]);
 
     const nextImage = (postId: string, total: number) => {
         setCarouselIndices(prev => ({
@@ -928,7 +960,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-300">Data</label>
                             <Input
@@ -946,6 +978,37 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                 onChange={(e) => setScheduleTime(e.target.value)}
                                 className="bg-black/20"
                             />
+                        </div>
+                    </div>
+
+                    {/* Conflict Warnings */}
+                    {conflicts.length > 0 && (
+                        <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg space-y-2">
+                            <p className="text-red-400 text-xs font-bold uppercase tracking-wider flex items-center">
+                                <Clock className="w-3 h-3 mr-2" />
+                                Conflito de Horário Detectado
+                            </p>
+                            {conflicts.map((conflict, idx) => (
+                                <p key={idx} className="text-gray-300 text-[11px] leading-relaxed">
+                                    {conflict.reason}
+                                </p>
+                            ))}
+                            <p className="text-red-400/80 text-[10px] italic mt-2">
+                                Para evitar bloqueios da Meta, escolha um horário com maior intervalo.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Delay Info */}
+                    <div className="bg-indigo-500/5 border border-indigo-500/20 p-4 rounded-lg">
+                        <p className="text-indigo-400 text-[10px] font-bold uppercase tracking-wider mb-2">Intervalos Recomendados</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-gray-400">
+                            {Object.entries(POST_TYPE_CONFIG).filter(([key]) => ["CARROSSEL", "REELS", "ESTATICA"].includes(key)).map(([key, cfg]) => (
+                                <div key={key} className="flex justify-between border-b border-white/5 py-1">
+                                    <span>{cfg.label}:</span>
+                                    <span className="text-indigo-300 font-bold">{cfg.delay} min</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
