@@ -548,6 +548,11 @@ export function PostScheduler({ client }: { client: Client }) {
         if (!currentPost) return;
 
         const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
+        
+        if (!client.facebookId || !client.instagramId || !client.token) {
+            alert("Não tem todas informações de ids e token necessarias para fazer a publicação.");
+            return;
+        }
 
         if (!isInstant && (!scheduleDate || !scheduleTime)) {
             alert("Selecione data e hora.");

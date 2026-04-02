@@ -552,6 +552,11 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
         const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos";
 
+        if (!client.facebookId || !client.instagramId || !client.token) {
+            alert("Não tem todas informações de ids e token necessarias para fazer a publicação.");
+            return;
+        }
+
         if (!isInstant && (!scheduleDate || !scheduleTime)) {
             alert("Selecione data e hora.");
             return;
