@@ -46,6 +46,7 @@ interface GroupedPost {
 }
 
 export function SoldPostScheduler({ client }: { client: Client }) {
+    const { clients } = useStore();
     const [groupedPosts, setGroupedPosts] = useState<GroupedPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewFilter, setViewFilter] = useState<"FEED" | "STORY" | "REELS">("FEED");
@@ -552,7 +553,9 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
         const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos";
 
-        if (!client.facebookId || !client.instagramId || !client.token) {
+        const regularClient = clients.find(c => c.name.toLowerCase() === client.name.toLowerCase());
+
+        if (!regularClient || !regularClient.facebookId || !regularClient.instagramId || !regularClient.token) {
             alert("Não tem todas informações de ids e token necessarias para fazer a publicação.");
             return;
         }
@@ -575,9 +578,9 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             if (isInstant) {
                 const payload = {
                     client: client.name,
-                    facebook_id: client.facebookId,
-                    instagram_id: client.instagramId,
-                    token: client.token,
+                    facebook_id: regularClient.facebookId,
+                    instagram_id: regularClient.instagramId,
+                    token: regularClient.token,
                     images: currentPost.images.map(img => img.imagem),
                     video: currentPost.images.find(img => isVideo(img.imagem))?.imagem,
                     reels_cover: currentPost.images.find(img => !isVideo(img.imagem))?.imagem,
