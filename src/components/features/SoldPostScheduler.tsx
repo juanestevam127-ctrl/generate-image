@@ -88,7 +88,11 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const [isCoverPickerOpen, setIsCoverPickerOpen] = useState(false);
     const [coverPickerPost, setCoverPickerPost] = useState<GroupedPost | null>(null);
 
+    // Caption Saving State
+    const [savingCaptions, setSavingCaptions] = useState<Record<string, boolean>>({});
+
     useEffect(() => {
+
         fetchImages();
     }, [client.name]);
 
@@ -193,19 +197,23 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     };
 
     const updateCaptionBase = async (postId: string, newCaption: string) => {
+        setSavingCaptions(prev => ({ ...prev, [postId]: true }));
+        
         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, caption: newCaption } : p));
 
         const post = groupedPosts.find(p => p.id === postId);
         if (post) {
-            const { error } = await supabase
-                .from("publicacoes_design_online")
-                .update({ descricao: newCaption })
-                .eq("nome_empresa", client.name)
-                .eq("veiculo_gerado", post.veiculo_gerado)
-                .eq("formato", post.formato);
+            const imageIds = post.images.map(img => img.id).filter(id => typeof id === 'number');
+            if (imageIds.length > 0) {
+                const { error } = await supabase
+                    .from("publicacoes_design_online")
+                    .update({ descricao: newCaption })
+                    .in("id", imageIds);
 
-            if (error) console.error("Error updating caption in DB:", error);
+                if (error) console.error("Error updating caption in DB:", error);
+            }
         }
+        setSavingCaptions(prev => ({ ...prev, [postId]: false }));
     };
 
     // Debounced caption update
@@ -213,12 +221,13 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const updateCaption = (postId: string, newCaption: string) => {
         // Update local state immediately
         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, caption: newCaption } : p));
+        setSavingCaptions(prev => ({ ...prev, [postId]: true }));
 
         // Debounce DB sync
         if (captionTimeoutRef.current[postId]) clearTimeout(captionTimeoutRef.current[postId]);
         captionTimeoutRef.current[postId] = setTimeout(() => {
             updateCaptionBase(postId, newCaption);
-        }, 1000);
+        }, 2000); // Increased to 2s, handleSchedule will force it
     };
 
     const updatePostType = (postId: string, newType: string) => {
@@ -567,6 +576,13 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
         setIsScheduling(true);
         try {
+            // Force save caption if pending
+            if (captionTimeoutRef.current[currentPost.id]) {
+                clearTimeout(captionTimeoutRef.current[currentPost.id]);
+                delete captionTimeoutRef.current[currentPost.id];
+                await updateCaptionBase(currentPost.id, currentPost.caption);
+            }
+
             // Respect Brasilia Timezone (UTC-3)
             let scheduledDateTime: Date;
             if (isInstant) {
@@ -613,7 +629,10 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 if (selectedIds.length > 0) {
                     const { error } = await supabase
                         .from("publicacoes_design_online")
-                        .update({ publicado: true })
+                        .update({ 
+                            publicado: true,
+                            descricao: currentPost.caption // Final guarantee
+                        })
                         .in("id", selectedIds);
 
                     if (error) console.error("Error updating published status:", error);
@@ -628,7 +647,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     const { error } = await supabase
                         .from("publicacoes_design_online")
                         .update({
-                            data_agendamento: scheduledDateTime.toISOString()
+                            data_agendamento: scheduledDateTime.toISOString(),
+                            descricao: currentPost.caption // CRITICAL: Update caption when scheduling
                         })
                         .in("id", selectedIds);
 
@@ -899,13 +919,21 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                         </div>
                                     </div>
 
-                                    <textarea
-                                        value={post.caption}
-                                        onChange={(e) => updateCaption(post.id, e.target.value)}
-                                        placeholder="Escreva uma legenda..."
-                                        rows={4}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg text-sm text-gray-200 resize-y focus:ring-1 focus:ring-indigo-500 p-3 min-h-[100px]"
-                                    />
+                                    <div className="relative">
+                                        <textarea
+                                            value={post.caption}
+                                            onChange={(e) => updateCaption(post.id, e.target.value)}
+                                            placeholder="Escreva uma legenda..."
+                                            rows={4}
+                                            className="w-full bg-white/5 border border-white/10 rounded-lg text-sm text-gray-200 resize-y focus:ring-1 focus:ring-indigo-500 p-3 min-h-[100px]"
+                                        />
+                                        {savingCaptions[post.id] && (
+                                            <div className="absolute bottom-2 right-2 flex items-center space-x-1.5 px-2 py-1 bg-black/60 backdrop-blur-md rounded-md border border-white/5">
+                                                <Loader2 className="w-3 h-3 animate-spin text-white" />
+                                                <span className="text-[9px] font-bold text-white uppercase tracking-tighter">Salvando...</span>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2">
                                         {post.formato === "FEED" ? (
