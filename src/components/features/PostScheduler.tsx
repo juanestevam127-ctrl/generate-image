@@ -295,7 +295,7 @@ export function PostScheduler({ client }: { client: Client }) {
         reader.readAsDataURL(file);
     };
 
-    const handleUploadFile = async (postId: string, file: File, isCover: boolean = false) => {
+    const handleUploadFile = async (postId: string, file: File, isCover: boolean = false, customOrder?: number) => {
         setIsScheduling(true);
         setUploadProgress(prev => ({ ...prev, [postId]: 0 }));
         try {
@@ -304,9 +304,9 @@ export function PostScheduler({ client }: { client: Client }) {
             });
             if (publicUrl) {
                 const post = groupedPosts.find(p => p.id === postId);
-                if (!post) return;
+                if (!post) return null;
 
-                const nextOrder = post.images.length;
+                const nextOrder = customOrder !== undefined ? customOrder : post.images.length;
 
                 const { data: inserted, error } = await supabase
                     .from("publicacoes_design_online")
@@ -338,11 +338,14 @@ export function PostScheduler({ client }: { client: Client }) {
                         return p;
                     }));
                     setCarouselIndices(prev => ({ ...prev, [postId]: post.images.length }));
+                    return dbImg;
                 }
             }
+            return null;
         } catch (error) {
             console.error("Error uploading file:", error);
             alert("Erro ao fazer upload do arquivo.");
+            return null;
         } finally {
             setIsScheduling(false);
             setUploadProgress(prev => {
@@ -412,12 +415,6 @@ export function PostScheduler({ client }: { client: Client }) {
 
         const filesArray = Array.from(files);
 
-        // If it's a video, upload directly skipping editor
-        if (filesArray.length === 1 && isVideo(filesArray[0].name)) {
-            await handleUploadFile(postId, filesArray[0]);
-            return;
-        }
-
         // Validation based on post type
         if (post.postType !== "CARROSSEL" && filesArray.length > 1) {
             alert("Este tipo de postagem aceita apenas uma imagem/vídeo. Mude para CARROSSEL para adicionar mais.");
@@ -429,11 +426,96 @@ export function PostScheduler({ client }: { client: Client }) {
             return;
         }
 
-        setEditQueue(filesArray);
-        setActivePostId(postId);
+        // Bulk Upload for multiple files (Improved)
+        if (filesArray.length > 1) {
+            setIsScheduling(true);
+            setUploadProgress(prev => ({ ...prev, [postId]: 0 }));
+            
+            try {
+                const uploadedUrls: string[] = [];
+                let completedCount = 0;
 
-        // Start editing the first file
-        await prepareNextInQueue(filesArray[0]);
+                // 1. Upload files sequentially to track progress accurately
+                for (const file of filesArray) {
+                    const publicUrl = await uploadFile(file, 'temp-files', '', (progress) => {
+                        const totalProgress = Math.round(((completedCount * 100) + progress) / filesArray.length);
+                        setUploadProgress(prev => ({ ...prev, [postId]: totalProgress }));
+                    });
+                    
+                    if (publicUrl) {
+                        uploadedUrls.push(publicUrl);
+                    }
+                    completedCount++;
+                }
+
+                if (uploadedUrls.length > 0) {
+                    // 2. Prepare all DB rows
+                    let currentOrder = post.images.length;
+                    const rowsToInsert = uploadedUrls.map(url => ({
+                        nome_empresa: client.name,
+                        imagem: url,
+                        formato: post.formato,
+                        descricao: post.caption,
+                        publicado: false,
+                        veiculo_gerado: post.veiculo_gerado,
+                        adicionado_manualmente: true,
+                        ordem: currentOrder++
+                    }));
+
+                    // 3. Batch Insert to Supabase
+                    const { data: inserted, error } = await supabase
+                        .from("publicacoes_design_online")
+                        .insert(rowsToInsert)
+                        .select();
+
+                    if (error) throw error;
+
+                    if (inserted && inserted.length > 0) {
+                        const newDbImages = inserted as PostImage[];
+                        
+                        // 4. Update local state once
+                        setGroupedPosts(prev => prev.map(p => {
+                            if (p.id === postId) {
+                                const newImages = [...p.images, ...newDbImages];
+                                return {
+                                    ...p,
+                                    images: newImages,
+                                    postType: (p.formato === "FEED" || p.formato === "VENDIDO FEED") && newImages.length > 1 && p.postType !== "REELS" ? "CARROSSEL" : p.postType
+                                };
+                            }
+                            return p;
+                        }));
+
+                        // Show the newly added image index
+                        setCarouselIndices(prev => ({ ...prev, [postId]: post.images.length + newDbImages.length - 1 }));
+                    }
+                }
+            } catch (err) {
+                console.error("Error in bulk upload:", err);
+                alert("Erro ao enviar algumas imagens.");
+            } finally {
+                setIsScheduling(false);
+                setUploadProgress(prev => {
+                    const n = { ...prev };
+                    delete n[postId];
+                    return n;
+                });
+            }
+            return;
+        }
+
+        const singleFile = filesArray[0];
+
+        // If it's a video, upload directly skipping editor
+        if (isVideo(singleFile.name)) {
+            await handleUploadFile(postId, singleFile);
+            return;
+        }
+
+        // Single image -> open editor
+        setEditQueue([singleFile]);
+        setActivePostId(postId);
+        await prepareNextInQueue(singleFile);
     };
 
     const handleSaveEditedImage = async (croppedBase64: string) => {
