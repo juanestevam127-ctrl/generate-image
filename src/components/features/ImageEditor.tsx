@@ -7,16 +7,17 @@ import "cropperjs/dist/cropper.css"; // Essential styles
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { Check, X, Expand, Lock, Unlock } from "lucide-react";
+import { Check, X, Expand, Lock, Unlock, Loader2 } from "lucide-react";
 
 interface ImageEditorProps {
     isOpen: boolean;
     onClose: () => void;
     imageUrl: string | null;
     onSave: (processedImage: string) => void;
+    isSaving?: boolean;
 }
 
-export function ImageEditor({ isOpen, onClose, imageUrl, onSave }: ImageEditorProps) {
+export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = false }: ImageEditorProps) {
     const cropperRef = useRef<ReactCropperElement>(null);
 
     // State
@@ -41,7 +42,7 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave }: ImageEditorPr
 
             if (canvas) {
                 onSave(canvas.toDataURL("image/png"));
-                onClose();
+                // Parent will handle closing or moving to next
             }
         }
     };
@@ -179,9 +180,19 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave }: ImageEditorPr
                         <Button
                             className="w-full !bg-white !text-slate-950 hover:!bg-white/90 font-bold py-6 shadow-xl shadow-indigo-900/20"
                             onClick={handleSave}
+                            disabled={isSaving}
                         >
-                            <Check className="mr-2 h-5 w-5" />
-                            Confirmar & Salvar
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Salvando...
+                                </>
+                            ) : (
+                                <>
+                                    <Check className="mr-2 h-5 w-5" />
+                                    Confirmar & Salvar
+                                </>
+                            )}
                         </Button>
                         <Button variant="ghost" className="w-full text-muted-foreground hover:text-white" onClick={onClose}>
                             Cancelar
