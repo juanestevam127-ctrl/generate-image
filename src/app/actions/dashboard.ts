@@ -1,7 +1,16 @@
 "use server";
 
 import { supabase } from "@/lib/supabase";
-import { DashboardFilters, TABLE_NAME } from "@/lib/dashboardQueries";
+import { TABLE_NAME } from "@/lib/dashboardQueries";
+
+export interface DashboardFiltersSerialized {
+    dateRange: {
+        from: string;
+        to: string;
+    };
+    selectedClient: string | null;
+    formats?: string[];
+}
 
 export async function fetchClientsAction() {
     const { data, error } = await supabase
@@ -14,7 +23,7 @@ export async function fetchClientsAction() {
     return uniqueClients as string[];
 }
 
-export async function fetchMetricsAction(filters: DashboardFilters) {
+export async function fetchMetricsAction(filters: DashboardFiltersSerialized) {
     let query = supabase
         .from(TABLE_NAME)
         .select('formato', { count: 'exact' });
@@ -47,7 +56,7 @@ export async function fetchMetricsAction(filters: DashboardFilters) {
     };
 }
 
-export async function fetchEvolutionDataAction(filters: DashboardFilters) {
+export async function fetchEvolutionDataAction(filters: DashboardFiltersSerialized) {
     let query = supabase
         .from(TABLE_NAME)
         .select('created_at, formato');
@@ -81,7 +90,7 @@ export async function fetchEvolutionDataAction(filters: DashboardFilters) {
     return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function fetchRankingDataAction(filters: DashboardFilters) {
+export async function fetchRankingDataAction(filters: DashboardFiltersSerialized) {
     let query = supabase
         .from(TABLE_NAME)
         .select('nome_empresa, formato');
@@ -110,7 +119,7 @@ export async function fetchRankingDataAction(filters: DashboardFilters) {
         .slice(0, 15);
 }
 
-export async function fetchHourlyDataAction(filters: DashboardFilters) {
+export async function fetchHourlyDataAction(filters: DashboardFiltersSerialized) {
     if (!filters.selectedClient) return [];
     let query = supabase.from(TABLE_NAME).select('created_at');
     query = query.eq('nome_empresa', filters.selectedClient)
@@ -128,7 +137,7 @@ export async function fetchHourlyDataAction(filters: DashboardFilters) {
     return hours;
 }
 
-export async function fetchWeeklyDataAction(filters: DashboardFilters) {
+export async function fetchWeeklyDataAction(filters: DashboardFiltersSerialized) {
     if (!filters.selectedClient) return [];
     let query = supabase.from(TABLE_NAME).select('created_at');
     query = query.eq('nome_empresa', filters.selectedClient)
@@ -147,7 +156,7 @@ export async function fetchWeeklyDataAction(filters: DashboardFilters) {
     return weekStats;
 }
 
-export async function fetchDetailedTableAction(filters: DashboardFilters) {
+export async function fetchDetailedTableAction(filters: DashboardFiltersSerialized) {
     let query = supabase.from(TABLE_NAME).select('*');
     query = query.gte('created_at', filters.dateRange.from)
         .lte('created_at', filters.dateRange.to)
@@ -161,7 +170,7 @@ export async function fetchDetailedTableAction(filters: DashboardFilters) {
     return data;
 }
 
-export async function fetchVehicleDataAction(filters: DashboardFilters) {
+export async function fetchVehicleDataAction(filters: DashboardFiltersSerialized) {
     let query = supabase.from(TABLE_NAME).select('veiculo_gerado, nome_empresa');
     query = query.gte('created_at', filters.dateRange.from)
         .lte('created_at', filters.dateRange.to)
