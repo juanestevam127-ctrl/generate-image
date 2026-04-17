@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "./supabase";
 import { verifyLoginAction, loadInitialDataAction } from "@/app/actions";
 import { 
     addClientAction, 

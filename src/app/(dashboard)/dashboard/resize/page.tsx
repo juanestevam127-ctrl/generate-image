@@ -50,7 +50,9 @@ export default function ResizePage() {
     // 1. Upload to Supabase
     const uploadToSupabase = async (image: UploadedImage): Promise<string | null> => {
         try {
-            const result = await serverUploadFile(image.file, 'images', 'resize-uploads');
+            const formData = new FormData();
+            formData.append('file', image.file);
+            const result = await serverUploadFile(formData, 'images', 'resize-uploads');
             if (result.success && result.url) {
                 return result.url;
             }
