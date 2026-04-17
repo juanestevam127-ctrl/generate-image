@@ -17,42 +17,50 @@ export function useDashboardData(filters: DashboardFilters) {
         staleTime: 1000 * 60 * 5,
     });
 
+    const serverFilters = {
+        ...filters,
+        dateRange: {
+            from: filters.dateRange.from.toISOString(),
+            to: filters.dateRange.to.toISOString(),
+        }
+    };
+
     const metricsQuery = useQuery({
-        queryKey: ['dashboard-metrics', filters],
-        queryFn: () => fetchMetricsAction(filters),
+        queryKey: ['dashboard-metrics', serverFilters],
+        queryFn: () => fetchMetricsAction(serverFilters),
     });
 
     const evolutionQuery = useQuery({
-        queryKey: ['dashboard-evolution', filters],
-        queryFn: () => fetchEvolutionDataAction(filters),
+        queryKey: ['dashboard-evolution', serverFilters],
+        queryFn: () => fetchEvolutionDataAction(serverFilters),
     });
 
     const rankingQuery = useQuery({
-        queryKey: ['dashboard-ranking', filters],
-        queryFn: () => fetchRankingDataAction(filters),
+        queryKey: ['dashboard-ranking', serverFilters],
+        queryFn: () => fetchRankingDataAction(serverFilters),
         enabled: !filters.selectedClient, // Only fetch for All Clients
     });
 
     const hourlyQuery = useQuery({
-        queryKey: ['dashboard-hourly', filters],
-        queryFn: () => fetchHourlyDataAction(filters),
+        queryKey: ['dashboard-hourly', serverFilters],
+        queryFn: () => fetchHourlyDataAction(serverFilters),
         enabled: !!filters.selectedClient, // Only fetch for Specific Client
     });
 
     const weeklyQuery = useQuery({
-        queryKey: ['dashboard-weekly', filters],
-        queryFn: () => fetchWeeklyDataAction(filters),
+        queryKey: ['dashboard-weekly', serverFilters],
+        queryFn: () => fetchWeeklyDataAction(serverFilters),
         enabled: !!filters.selectedClient, // Only fetch for Specific Client
     });
 
     const tableQuery = useQuery({
-        queryKey: ['dashboard-table', filters],
-        queryFn: () => fetchDetailedTableAction(filters),
+        queryKey: ['dashboard-table', serverFilters],
+        queryFn: () => fetchDetailedTableAction(serverFilters),
     });
 
     const vehicleQuery = useQuery({
-        queryKey: ['dashboard-vehicle', filters],
-        queryFn: () => fetchVehicleDataAction(filters),
+        queryKey: ['dashboard-vehicle', serverFilters],
+        queryFn: () => fetchVehicleDataAction(serverFilters),
     });
 
     return {
