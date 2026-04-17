@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { verifyLoginAction, loadInitialDataAction } from "@/app/actions";
 
 // --- Types ---
 
@@ -111,22 +112,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         async function loadData() {
             try {
-                // 1. Check if we have a session in localStorage for the CURRENT user object (not data)
+                // 1. Check session in localStorage
                 const savedUser = localStorage.getItem("ias_user");
                 if (savedUser) {
                     try { setUser(JSON.parse(savedUser)); } catch (e) { }
                 }
 
-                // 2. Fetch Clients
-                const { data: clientsData, error: clientsError } = await supabase
-                    .from("clientes")
-                    .select("*")
-                    .order("name", { ascending: true });
+                // 2. Fetch all data using Server Action (bypasses client DNS issues)
+                const result = await loadInitialDataAction();
 
-                if (clientsError) throw clientsError;
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
 
-                // Map snake_case from DB to camelCase in app
-                const formattedClients = (clientsData || []).map(c => ({
+                const { clients: clientsData, registeredUsers: usersData, layoutClients: layoutData, soldClients: soldData } = result.data!;
+
+                // Map snake_case to camelCase for clients
+                const formattedClients = (clientsData || []).map((c: any) => ({
                     id: c.id,
                     name: c.name,
                     webhookUrl: c.webhook_url,
@@ -140,70 +142,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 }));
                 setClients(formattedClients);
 
-                // 3. Fetch Registered Users
-                const { data: usersData, error: usersError } = await supabase
-                    .from("usuarios")
-                    .select("*")
-                    .order("email", { ascending: true });
-
-                if (usersError) throw usersError;
+                // Set users
                 setRegisteredUsers(usersData || []);
 
-                // 4. Fetch Layout Clients
-                const { data: layoutData, error: layoutError } = await supabase
-                    .from("design_online_layouts_clientes")
-                    .select("*")
-                    .order("nome_cliente", { ascending: true });
+                // Map layouts
+                const formattedLayouts = (layoutData || []).map((l: any) => ({
+                    id: l.id,
+                    name: l.nome_cliente,
+                    webhookUrl: l.webhook_url,
+                    webhookPostagens: l.webhook_postagens,
+                    prompt: l.prompt,
+                    columns: l.columns || [],
+                    instagramUserId: l.instagram_user_id,
+                    instagramToken: l.instagram_token,
+                    facebookUserId: l.facebook_user_id,
+                    facebookToken: l.facebook_token,
+                    modeloFeedId: l.modelo_feed_id,
+                    modeloStoriesId: l.modelo_stories_id,
+                    jsonCliente: l.json_cliente
+                }));
+                setLayoutClients(formattedLayouts);
 
-                if (!layoutError) {
-                    const formattedLayouts = (layoutData || []).map(l => ({
-                        id: l.id,
-                        name: l.nome_cliente,
-                        webhookUrl: l.webhook_url,
-                        webhookPostagens: l.webhook_postagens,
-                        prompt: l.prompt,
-                        columns: l.columns || [],
-                        instagramUserId: l.instagram_user_id,
-                        instagramToken: l.instagram_token,
-                        facebookUserId: l.facebook_user_id,
-                        facebookToken: l.facebook_token,
-                        modeloFeedId: l.modelo_feed_id,
-                        modeloStoriesId: l.modelo_stories_id,
-                        jsonCliente: l.json_cliente
-                    }));
-                    setLayoutClients(formattedLayouts);
-                }
-
-                // 5. Fetch Sold Clients
-                const { data: soldData, error: soldError } = await supabase
-                    .from("clientes_vendidos")
-                    .select("*")
-                    .order("name", { ascending: true });
-
-                if (!soldError) {
-                    const formattedSold = (soldData || []).map(c => ({
-                        id: c.id,
-                        name: c.name,
-                        webhookUrl: c.webhook_url,
-                        webhookPostagens: c.webhook_postagens,
-                        prompt: c.prompt,
-                        columns: c.columns,
-                        captionTemplate: c.caption_template,
-                        facebookId: c.id_facebook,
-                        instagramId: c.id_instagram,
-                        token: c.token,
-                        jsonFeed: c.json_feed,
-                        jsonStories: c.json_stories
-                    }));
-                    setSoldClients(formattedSold);
-                }
+                // Map sold clients
+                const formattedSold = (soldData || []).map((c: any) => ({
+                    id: c.id,
+                    name: c.name,
+                    webhookUrl: c.webhook_url,
+                    webhookPostagens: c.webhook_postagens,
+                    prompt: c.prompt,
+                    columns: c.columns,
+                    captionTemplate: c.caption_template,
+                    facebookId: c.id_facebook,
+                    instagramId: c.id_instagram,
+                    token: c.token,
+                    jsonFeed: c.json_feed,
+                    jsonStories: c.json_stories
+                }));
+                setSoldClients(formattedSold);
 
             } catch (error) {
-                console.error("Error loading Supabase data:", error);
-                // Log detailed error if available
-                if (error && typeof error === 'object' && 'message' in error) {
-                    console.error("Supabase Error Message:", error.message);
-                }
+                console.error("Error loading data via Server Action:", error);
             } finally {
                 setIsLoaded(true);
             }
@@ -225,41 +203,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Auth Actions
     const login = async (email: string, pass: string) => {
         try {
-            // Priority 1: Check in memory (if already loaded)
-            let foundUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+            // First try Server Action (Proxy)
+            const result = await verifyLoginAction(email, pass);
 
-            // Priority 2: Query Supabase directly (On-demand fallback or fresh check)
-            if (!foundUser) {
-                const { data, error } = await supabase
-                    .from("usuarios")
-                    .select("*")
-                    .eq("email", email.toLowerCase())
-                    .eq("password", pass)
-                    .single();
-
-                if (error) {
-                    // Check if it's a real connection error (no response)
-                    if (error.message === 'Failed to fetch' || error.code === 'PGRST301') {
-                         return { success: false, error: "Erro de conexão com o banco de dados. Verifique sua internet." };
-                    }
-                    // For other errors (like 406 NOT ACCEPTABLE if the query is malformed), proceed to check if we found a user
-                }
-
-                if (data && !error) {
-                    foundUser = data;
-                }
+            if (result.success && result.user) {
+                setUser(result.user);
+                return { success: true };
             }
 
-            if (foundUser) {
-                const { password, ...safeUser } = foundUser;
+            // Fallback: Check in memory if Server Action failed but data was somehow pre-loaded
+            const foundInMemory = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+            if (foundInMemory) {
+                const { password, ...safeUser } = foundInMemory;
                 setUser(safeUser);
                 return { success: true };
             }
 
-            return { success: false, error: "Credenciais inválidas." };
+            return { success: false, error: result.error || "Credenciais inválidas." };
         } catch (e) {
-            console.error("Login verification error:", e);
-            return { success: false, error: "Erro na conexão com o banco de dados." };
+            console.error("Login Error:", e);
+            return { success: false, error: "Erro na comunicação com o servidor." };
         }
     };
 
