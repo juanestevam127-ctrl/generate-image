@@ -1,53 +1,61 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-    fetchClients,
-    fetchMetrics,
-    fetchEvolutionData,
-    fetchRankingData,
-    fetchHourlyData,
-    fetchWeeklyData,
-    fetchDetailedTable,
-    DashboardFilters
-} from '@/lib/layoutsQueries';
+    fetchLayoutClientsAction,
+    fetchLayoutMetricsAction,
+    fetchLayoutEvolutionDataAction,
+    fetchLayoutRankingDataAction,
+    fetchLayoutHourlyDataAction,
+    fetchLayoutWeeklyDataAction,
+    fetchLayoutDetailedTableAction,
+} from '@/app/actions/layoutDashboard';
+import { DashboardFilters } from '@/lib/layoutsQueries';
 
 export function useLayoutDashboardData(filters: DashboardFilters) {
+    const serverFilters = {
+        ...filters,
+        dateRange: {
+            from: filters.dateRange.from.toISOString(),
+            to: filters.dateRange.to.toISOString(),
+        }
+    };
+
     const clientsQuery = useQuery({
         queryKey: ['layout-dashboard-clients'],
-        queryFn: fetchClients,
+        queryFn: fetchLayoutClientsAction,
         staleTime: 1000 * 60 * 5,
     });
 
     const metricsQuery = useQuery({
         queryKey: ['layout-dashboard-metrics', filters],
-        queryFn: () => fetchMetrics(filters),
+        queryFn: () => fetchLayoutMetricsAction(serverFilters),
     });
 
     const evolutionQuery = useQuery({
         queryKey: ['layout-dashboard-evolution', filters],
-        queryFn: () => fetchEvolutionData(filters),
+        queryFn: () => fetchLayoutEvolutionDataAction(serverFilters),
     });
 
     const rankingQuery = useQuery({
         queryKey: ['layout-dashboard-ranking', filters],
-        queryFn: () => fetchRankingData(filters),
+        queryFn: () => fetchLayoutRankingDataAction(serverFilters),
         enabled: !filters.selectedClient,
     });
 
     const hourlyQuery = useQuery({
         queryKey: ['layout-dashboard-hourly', filters],
-        queryFn: () => fetchHourlyData(filters),
+        queryFn: () => fetchLayoutHourlyDataAction(serverFilters),
         enabled: !!filters.selectedClient,
     });
 
     const weeklyQuery = useQuery({
         queryKey: ['layout-dashboard-weekly', filters],
-        queryFn: () => fetchWeeklyData(filters),
+        queryFn: () => fetchLayoutWeeklyDataAction(serverFilters),
         enabled: !!filters.selectedClient,
     });
 
     const tableQuery = useQuery({
         queryKey: ['layout-dashboard-table', filters],
-        queryFn: () => fetchDetailedTable(filters),
+        queryFn: () => fetchLayoutDetailedTableAction(serverFilters),
     });
 
     return {

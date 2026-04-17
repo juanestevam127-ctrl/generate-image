@@ -10,7 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ImageEditor } from "@/components/features/ImageEditor";
 import { CoverPickerModal } from "@/components/features/CoverPickerModal";
-import { supabase, uploadImage, uploadFile } from "@/lib/supabase";
+import { serverUploadImage, serverUploadFile } from "@/app/actions";
+import { 
+    fetchSchedulerImagesAction, 
+    updateSchedulerRecordAction, 
+    deleteSchedulerImageAction, 
+    insertSchedulerPostAction,
+    updateGroupFormatAction 
+} from "@/app/actions/scheduler";
 import { cn } from "@/lib/utils";
 import { 
     fetchAllScheduledPosts, 
@@ -98,19 +105,11 @@ export function PostScheduler({ client }: { client: Client }) {
     const fetchImages = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from("publicacoes_design_online")
-                .select("*")
-                .eq("nome_empresa", client.name)
-                .not("formato", "ilike", "VENDIDO %")
-                .eq("publicado", false)
-                .is("data_agendamento", null)
-                .order("ordem", { ascending: true })
-                .order("created_at", { ascending: true });
+            const result = await fetchSchedulerImagesAction(client.name);
 
-            if (error) throw error;
+            if (!result.success) throw new Error(result.error);
 
-            const rawImages = (data || []) as PostImage[];
+            const rawImages = (result.data || []) as PostImage[];
 
             // Group by veiculo_gerado and formato
             const groups: Record<string, GroupedPost> = {};
@@ -200,14 +199,10 @@ export function PostScheduler({ client }: { client: Client }) {
 
         const post = groupedPosts.find(p => p.id === postId);
         if (post) {
-            const imageIds = post.images.map(img => img.id).filter(id => typeof id === 'number');
+            const imageIds = post.images.map(img => img.id).filter(id => typeof id === 'number') as number[];
             if (imageIds.length > 0) {
-                const { error } = await supabase
-                    .from("publicacoes_design_online")
-                    .update({ descricao: newCaption })
-                    .in("id", imageIds);
-
-                if (error) console.error("Error updating caption in DB:", error);
+                const result = await updateSchedulerRecordAction(imageIds, { descricao: newCaption });
+                if (!result.success) console.error("Error updating caption in server:", result.error);
             }
         }
         setSavingCaptions(prev => ({ ...prev, [postId]: false }));
@@ -238,19 +233,13 @@ export function PostScheduler({ client }: { client: Client }) {
         }
         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, postType: newType } : p));
 
-        // Persist format change to DB
+        // Persist format change via server
         const newFormat = newType === "REELS" ? "REELS" : (post?.formato === "REELS" ? "FEED" : post?.formato || "FEED");
         if (post) {
-            supabase
-                .from("publicacoes_design_online")
-                .update({ formato: newFormat })
-                .eq("nome_empresa", client.name)
-                .eq("veiculo_gerado", post.veiculo_gerado)
-                .eq("formato", post.formato)
-                .then(({ error }) => {
-                    if (error) console.error("Error updating format in DB:", error);
+            updateGroupFormatAction(client.name, post.veiculo_gerado, post.formato, newFormat)
+                .then(result => {
+                    if (!result.success) console.error("Error updating format in server:", result.error);
                     else {
-                        // Update local format to avoid grouping issues on next fetch
                         setGroupedPosts(prev => prev.map(p => p.id === postId ? { ...p, formato: newFormat } : p));
                     }
                 });
@@ -268,13 +257,10 @@ export function PostScheduler({ client }: { client: Client }) {
                 // Update orders in memory
                 const reorderedImages = newImages.map((img, idx) => ({ ...img, ordem: idx }));
 
-                // Persist order to DB
+                // Persist order via server
                 Promise.all(reorderedImages.map(img =>
-                    supabase
-                        .from("publicacoes_design_online")
-                        .update({ ordem: img.ordem })
-                        .eq("id", img.id)
-                )).catch(err => console.error("Error updating order in DB:", err));
+                    updateSchedulerRecordAction(img.id as number, { ordem: img.ordem })
+                )).catch(err => console.error("Error updating order in server:", err));
 
                 return { ...p, images: reorderedImages };
             });
@@ -299,33 +285,33 @@ export function PostScheduler({ client }: { client: Client }) {
         setIsScheduling(true);
         setUploadProgress(prev => ({ ...prev, [postId]: 0 }));
         try {
-            const publicUrl = await uploadFile(file, 'temp-files', '', (progress) => {
-                setUploadProgress(prev => ({ ...prev, [postId]: progress }));
-            });
-            if (publicUrl) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const uploadResult = await serverUploadFile(formData, 'temp-files');
+            
+            if (uploadResult.success && uploadResult.url) {
+                const publicUrl = uploadResult.url;
                 const post = groupedPosts.find(p => p.id === postId);
                 if (!post) return null;
 
                 const nextOrder = customOrder !== undefined ? customOrder : post.images.length;
 
-                const { data: inserted, error } = await supabase
-                    .from("publicacoes_design_online")
-                    .insert([{
-                        nome_empresa: client.name,
-                        imagem: publicUrl,
-                        formato: post.formato,
-                        descricao: isCover ? `REELS_COVER:${publicUrl}` : post.caption,
-                        publicado: false,
-                        veiculo_gerado: post.veiculo_gerado,
-                        adicionado_manualmente: true,
-                        ordem: nextOrder
-                    }])
-                    .select();
+                const result = await insertSchedulerPostAction([{
+                    nome_empresa: client.name,
+                    imagem: publicUrl,
+                    formato: post.formato,
+                    descricao: isCover ? `REELS_COVER:${publicUrl}` : post.caption,
+                    publicado: false,
+                    veiculo_gerado: post.veiculo_gerado,
+                    adicionado_manualmente: true,
+                    ordem: nextOrder
+                }]);
 
-                if (error) throw error;
+                if (!result.success) throw new Error(result.error);
 
-                if (inserted && inserted[0]) {
-                    const dbImg = inserted[0] as PostImage;
+                if (result.data && result.data[0]) {
+                    const dbImg = result.data[0] as PostImage;
                     setGroupedPosts(prev => prev.map(p => {
                         if (p.id === postId) {
                             const newImages = [...p.images, dbImg];
@@ -363,29 +349,25 @@ export function PostScheduler({ client }: { client: Client }) {
             const post = groupedPosts.find(p => p.id === postId);
             if (!post) return;
 
-            const publicUrl = await uploadImage(imageBase64, 'temp-files', '', (progress) => {
-                setUploadProgress(prev => ({ ...prev, [postId]: progress }));
-            });
-            if (publicUrl) {
+            const uploadResult = await serverUploadImage(imageBase64, 'temp-files');
+            if (uploadResult.success && uploadResult.url) {
+                const publicUrl = uploadResult.url;
                 const nextOrder = post.images.length;
-                const { data: inserted, error } = await supabase
-                    .from("publicacoes_design_online")
-                    .insert([{
-                        nome_empresa: client.name,
-                        imagem: publicUrl,
-                        formato: post.formato,
-                        descricao: `REELS_COVER:${publicUrl}`,
-                        publicado: false,
-                        veiculo_gerado: post.veiculo_gerado,
-                        adicionado_manualmente: true,
-                        ordem: nextOrder
-                    }])
-                    .select();
+                const result = await insertSchedulerPostAction([{
+                    nome_empresa: client.name,
+                    imagem: publicUrl,
+                    formato: post.formato,
+                    descricao: `REELS_COVER:${publicUrl}`,
+                    publicado: false,
+                    veiculo_gerado: post.veiculo_gerado,
+                    adicionado_manualmente: true,
+                    ordem: nextOrder
+                }]);
 
-                if (error) throw error;
+                if (!result.success) throw new Error(result.error);
 
-                if (inserted && inserted[0]) {
-                    const dbImg = inserted[0] as PostImage;
+                if (result.data && result.data[0]) {
+                    const dbImg = result.data[0] as PostImage;
                     setGroupedPosts(prev => prev.map(p => {
                         if (p.id === postId) {
                             const newImages = [...p.images, dbImg];
@@ -468,28 +450,26 @@ export function PostScheduler({ client }: { client: Client }) {
 
         setIsScheduling(true); // Loading state
         try {
-            const publicUrl = await uploadImage(croppedBase64, 'temp-files', '');
-            if (publicUrl) {
+            const uploadResult = await serverUploadImage(croppedBase64, 'temp-files');
+            if (uploadResult.success && uploadResult.url) {
+                const publicUrl = uploadResult.url;
                 const nextOrder = post.images.length;
 
-                const { data: inserted, error } = await supabase
-                    .from("publicacoes_design_online")
-                    .insert([{
-                        nome_empresa: client.name,
-                        imagem: publicUrl,
-                        formato: post.formato,
-                        descricao: post.caption,
-                        publicado: false,
-                        veiculo_gerado: post.veiculo_gerado,
-                        adicionado_manualmente: true,
-                        ordem: nextOrder
-                    }])
-                    .select();
+                const result = await insertSchedulerPostAction([{
+                    nome_empresa: client.name,
+                    imagem: publicUrl,
+                    formato: post.formato,
+                    descricao: post.caption,
+                    publicado: false,
+                    veiculo_gerado: post.veiculo_gerado,
+                    adicionado_manualmente: true,
+                    ordem: nextOrder
+                }]);
 
-                if (error) throw error;
+                if (!result.success) throw new Error(result.error);
 
-                if (inserted && inserted[0]) {
-                    const dbImg = inserted[0] as PostImage;
+                if (result.data && result.data[0]) {
+                    const dbImg = result.data[0] as PostImage;
                     setGroupedPosts(prev => prev.map(p => {
                         if (p.id === activePostId) {
                             const newImages = [...p.images, dbImg];
@@ -536,13 +516,9 @@ export function PostScheduler({ client }: { client: Client }) {
 
         // Delete from DB if it has a real ID
         if (typeof imgToDelete.id === 'number') {
-            const { error } = await supabase
-                .from("publicacoes_design_online")
-                .delete()
-                .eq("id", imgToDelete.id);
-
-            if (error) {
-                console.error("Error deleting image from DB:", error);
+            const result = await deleteSchedulerImageAction(imgToDelete.id);
+            if (!result.success) {
+                console.error("Error deleting image from server:", result.error);
                 return;
             }
         }
@@ -645,15 +621,12 @@ export function PostScheduler({ client }: { client: Client }) {
                     .filter(id => typeof id === 'number');
 
                 if (selectedIds.length > 0) {
-                    const { error } = await supabase
-                        .from("publicacoes_design_online")
-                        .update({ 
-                            publicado: true,
-                            descricao: currentPost.caption // Final guarantee
-                        })
-                        .in("id", selectedIds);
+                    const result = await updateSchedulerRecordAction(selectedIds, { 
+                        publicado: true,
+                        descricao: currentPost.caption 
+                    });
 
-                    if (error) console.error("Error updating published status:", error);
+                    if (!result.success) console.error("Error updating published status via server:", result.error);
                 }
             } else {
                 // Scheduling for later: Update DB only
@@ -662,15 +635,12 @@ export function PostScheduler({ client }: { client: Client }) {
                     .filter(id => typeof id === 'number');
 
                 if (selectedIds.length > 0) {
-                    const { error } = await supabase
-                        .from("publicacoes_design_online")
-                        .update({
-                            data_agendamento: scheduledDateTime.toISOString(),
-                            descricao: currentPost.caption // CRITICAL: Update caption when scheduling
-                        })
-                        .in("id", selectedIds);
+                    const result = await updateSchedulerRecordAction(selectedIds, { 
+                        data_agendamento: scheduledDateTime.toISOString(),
+                        descricao: currentPost.caption 
+                    });
 
-                    if (error) throw error;
+                    if (!result.success) throw new Error(result.error);
                 }
             }
 

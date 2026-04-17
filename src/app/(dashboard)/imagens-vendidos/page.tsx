@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { UserManager } from "@/components/features/UserManager";
 import { SoldPostScheduler } from "@/components/features/SoldPostScheduler";
 import AnalyticsView from "@/components/dashboard/AnalyticsView";
+import { serverUploadImage } from "@/app/actions";
 
 export default function SoldDashboardPage() {
     const { user, soldClients } = useStore();
@@ -42,11 +43,10 @@ export default function SoldDashboardPage() {
                 if (e.target?.result) {
                     const base64Str = e.target.result as string;
 
-                    // Upload to 'temp-files' (root) immediately
-                    const { uploadImage } = await import("@/lib/supabase");
-                    const publicUrl = await uploadImage(base64Str, 'temp-files', '');
-
-                    if (publicUrl) {
+                    // Upload to 'temp-files' (root) via Server Action
+                    const uploadResult = await serverUploadImage(base64Str, 'temp-files');
+                    if (uploadResult.success && uploadResult.url) {
+                        const publicUrl = uploadResult.url;
                         setTableData(prev => {
                             const newData = [...prev];
                             const currentRow = { ...newData[row] };
@@ -62,7 +62,7 @@ export default function SoldDashboardPage() {
                             Target: { row, col, index: 0 }
                         });
                     } else {
-                        alert("Erro ao fazer upload da imagem.");
+                        alert("Erro ao fazer upload da imagem via servidor.");
                     }
                 }
             };
@@ -92,11 +92,10 @@ export default function SoldDashboardPage() {
         if (editorState.Target) {
             const { row, col } = editorState.Target;
 
-            // Upload processed image to 'temp-files' bucket (root)
-            const { uploadImage } = await import("@/lib/supabase");
-            const publicUrl = await uploadImage(processedImage, 'temp-files', '');
-
-            if (publicUrl) {
+            // Upload processed image to 'temp-files' bucket via Server Action
+            const uploadResult = await serverUploadImage(processedImage, 'temp-files');
+            if (uploadResult.success && uploadResult.url) {
+                const publicUrl = uploadResult.url;
                 setTableData(prev => {
                     const newData = [...prev];
                     const currentRow = { ...newData[row] };
@@ -105,7 +104,7 @@ export default function SoldDashboardPage() {
                     return newData;
                 });
             } else {
-                alert("Erro ao salvar imagem processada.");
+                alert("Erro ao salvar imagem processada via servidor.");
             }
         }
     };

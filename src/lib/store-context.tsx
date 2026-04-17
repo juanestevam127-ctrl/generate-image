@@ -3,6 +3,19 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { verifyLoginAction, loadInitialDataAction } from "@/app/actions";
+import { 
+    addClientAction, 
+    updateClientAction, 
+    deleteClientAction,
+    addSoldClientAction, 
+    updateSoldClientAction, 
+    deleteSoldClientAction,
+    addLayoutClientAction,
+    updateLayoutClientAction,
+    deleteLayoutClientAction,
+    registerUserAction,
+    removeUserAction
+} from "@/app/actions/clients";
 
 // --- Types ---
 
@@ -231,98 +244,52 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
 
     // User Management Actions
-    const registerUser = async (newUser: UserAccount) => {
-        if (registeredUsers.some(u => u.email.toLowerCase() === newUser.email.toLowerCase())) {
-            alert("Email já cadastrado!");
+    const registerUser = async (data: any) => {
+        const result = await registerUserAction(data);
+        if (!result.success) {
+            alert("Erro ao cadastrar usuário via servidor.");
             return;
         }
-
-        const { error } = await supabase
-            .from("usuarios")
-            .insert([newUser]);
-
-        if (error) {
-            alert("Erro ao cadastrar: " + error.message);
-            return;
-        }
-
-        setRegisteredUsers(prev => [...prev, newUser]);
+        setRegisteredUsers((prev) => [...prev, data]);
     };
 
-    const removeUser = async (email: string) => {
-        const { error } = await supabase
-            .from("usuarios")
-            .delete()
-            .eq("email", email);
-
-        if (error) {
-            alert("Erro ao remover: " + error.message);
+    const removeUser = async (id: string) => {
+        const result = await removeUserAction(id);
+        if (!result.success) {
+            alert("Erro ao remover usuário via servidor.");
             return;
         }
-
-        setRegisteredUsers(prev => prev.filter(u => u.email !== email));
+        setRegisteredUsers((prev) => prev.filter((u) => u.id !== id));
     };
 
     // Client Actions
     const addClient = async (data: Omit<Client, "id">) => {
-        const { data: inserted, error } = await supabase
-            .from("clientes")
-            .insert([{
-                name: data.name,
-                webhook_url: data.webhookUrl,
-                webhook_postagens: data.webhookPostagens,
-                prompt: data.prompt,
-                columns: data.columns,
-                caption_template: data.captionTemplate,
-                id_facebook: data.facebookId,
-                id_instagram: data.instagramId,
-                token: data.token,
-                json_feed: data.jsonFeed,
-                json_stories: data.jsonStories
-            }])
-            .select();
-
-        if (error) {
-            alert("Erro ao adicionar cliente: " + error.message);
+        const result = await addClientAction(data);
+        if (!result.success) {
+            alert("Erro ao adicionar cliente via servidor.");
             return;
         }
 
         const newClient: Client = {
-            id: inserted[0].id,
-            name: inserted[0].name,
-            webhookUrl: inserted[0].webhook_url,
-            webhookPostagens: inserted[0].webhook_postagens,
-            prompt: inserted[0].prompt,
-            columns: inserted[0].columns,
-            captionTemplate: inserted[0].caption_template,
-            facebookId: inserted[0].id_facebook,
-            instagramId: inserted[0].id_instagram,
-            token: inserted[0].token
+            id: result.data.id,
+            name: result.data.name,
+            webhookUrl: result.data.webhook_url,
+            webhookPostagens: result.data.webhook_postagens,
+            prompt: result.data.prompt,
+            columns: result.data.columns,
+            captionTemplate: result.data.caption_template,
+            facebookId: result.data.id_facebook,
+            instagramId: result.data.id_instagram,
+            token: result.data.token
         };
 
         setClients((prev) => [...prev, newClient]);
     };
 
     const updateClient = async (id: string, updates: Partial<Client>) => {
-        // Map camelCase to snake_case for DB
-        const dbUpdates: any = {};
-        if (updates.name) dbUpdates.name = updates.name;
-        if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
-        if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
-        if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
-        if (updates.columns) dbUpdates.columns = updates.columns;
-        if (updates.captionTemplate !== undefined) dbUpdates.caption_template = updates.captionTemplate;
-        if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
-        if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
-        if (updates.token !== undefined) dbUpdates.token = updates.token;
-
-        const { error } = await supabase
-            .from("clientes")
-            .update(dbUpdates)
-            .eq("id", id);
-
-        if (error) {
-            alert("Erro ao atualizar cliente: " + error.message);
+        const result = await updateClientAction(id, updates);
+        if (!result.success) {
+            alert("Erro ao atualizar cliente via servidor.");
             return;
         }
 
@@ -332,13 +299,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
 
     const deleteClient = async (id: string) => {
-        const { error } = await supabase
-            .from("clientes")
-            .delete()
-            .eq("id", id);
-
-        if (error) {
-            alert("Erro ao deletar cliente: " + error.message);
+        const result = await deleteClientAction(id);
+        if (!result.success) {
+            alert("Erro ao deletar cliente via servidor.");
             return;
         }
 
@@ -347,72 +310,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     // Layout Client Actions
     const addLayoutClient = async (data: Omit<LayoutClient, "id">) => {
-        const dbData = {
-            nome_cliente: data.name,
-            webhook_url: data.webhookUrl,
-            webhook_postagens: data.webhookPostagens,
-            prompt: data.prompt,
-            columns: data.columns,
-            instagram_user_id: data.instagramUserId,
-            instagram_token: data.instagramToken,
-            facebook_user_id: data.facebookUserId,
-            facebook_token: data.facebookToken,
-            modelo_feed_id: data.modeloFeedId,
-            modelo_stories_id: data.modeloStoriesId,
-            json_cliente: data.jsonCliente
-        };
-
-        const { data: inserted, error } = await supabase
-            .from("design_online_layouts_clientes")
-            .insert([dbData])
-            .select();
-
-        if (error) {
-            alert("Erro ao adicionar cliente de layout: " + error.message);
+        const result = await addLayoutClientAction(data);
+        if (!result.success) {
+            alert("Erro ao adicionar cliente de layout via servidor.");
             return;
         }
 
         const newClient: LayoutClient = {
-            id: inserted[0].id,
-            name: inserted[0].nome_cliente,
-            webhookUrl: inserted[0].webhook_url,
-            webhookPostagens: inserted[0].webhook_postagens,
-            prompt: inserted[0].prompt,
-            columns: inserted[0].columns || [],
-            instagramUserId: inserted[0].instagram_user_id,
-            instagramToken: inserted[0].instagram_token,
-            facebookUserId: inserted[0].facebook_user_id,
-            facebookToken: inserted[0].facebook_token,
-            modeloFeedId: inserted[0].modelo_feed_id,
-            modeloStoriesId: inserted[0].modelo_stories_id,
-            jsonCliente: inserted[0].json_cliente
+            id: result.data.id,
+            name: result.data.nome_cliente,
+            webhookUrl: result.data.webhook_url,
+            webhookPostagens: result.data.webhook_postagens,
+            prompt: result.data.prompt,
+            columns: result.data.columns || [],
+            instagramUserId: result.data.instagram_user_id,
+            instagramToken: result.data.instagram_token,
+            facebookUserId: result.data.facebook_user_id,
+            facebookToken: result.data.facebook_token,
+            modeloFeedId: result.data.modelo_feed_id,
+            modeloStoriesId: result.data.modelo_stories_id,
+            jsonCliente: result.data.json_cliente
         };
 
         setLayoutClients((prev) => [...prev, newClient]);
     };
 
     const updateLayoutClient = async (id: string, updates: Partial<LayoutClient>) => {
-        const dbUpdates: any = {};
-        if (updates.name) dbUpdates.nome_cliente = updates.name;
-        if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
-        if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
-        if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
-        if (updates.columns) dbUpdates.columns = updates.columns;
-        if (updates.instagramUserId) dbUpdates.instagram_user_id = updates.instagramUserId;
-        if (updates.instagramToken) dbUpdates.instagram_token = updates.instagramToken;
-        if (updates.facebookUserId) dbUpdates.facebook_user_id = updates.facebookUserId;
-        if (updates.facebookToken) dbUpdates.facebook_token = updates.facebookToken;
-        if (updates.modeloFeedId) dbUpdates.modelo_feed_id = updates.modeloFeedId;
-        if (updates.modeloStoriesId) dbUpdates.modelo_stories_id = updates.modeloStoriesId;
-        if (updates.jsonCliente) dbUpdates.json_cliente = updates.jsonCliente;
-
-        const { error } = await supabase
-            .from("design_online_layouts_clientes")
-            .update(dbUpdates)
-            .eq("id", id);
-
-        if (error) {
-            alert("Erro ao atualizar cliente de layout: " + error.message);
+        const result = await updateLayoutClientAction(id, updates);
+        if (!result.success) {
+            alert("Erro ao atualizar cliente de layout via servidor.");
             return;
         }
 
@@ -422,13 +348,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
 
     const deleteLayoutClient = async (id: string) => {
-        const { error } = await supabase
-            .from("design_online_layouts_clientes")
-            .delete()
-            .eq("id", id);
-
-        if (error) {
-            alert("Erro ao deletar cliente de layout: " + error.message);
+        const result = await deleteLayoutClientAction(id);
+        if (!result.success) {
+            alert("Erro ao deletar cliente de layout via servidor.");
             return;
         }
 
@@ -454,65 +376,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 deleteLayoutClient,
                 soldClients,
                 addSoldClient: async (data) => {
-                    const { data: inserted, error } = await supabase
-                        .from("clientes_vendidos")
-                        .insert([{
-                            name: data.name,
-                            webhook_url: data.webhookUrl,
-                            webhook_postagens: data.webhookPostagens,
-                            prompt: data.prompt,
-                            columns: data.columns,
-                            caption_template: data.captionTemplate,
-                            id_facebook: data.facebookId,
-                            id_instagram: data.instagramId,
-                            token: data.token,
-                            json_feed: data.jsonFeed,
-                            json_stories: data.jsonStories
-                        }])
-                        .select();
-
-                    if (error) {
-                        alert("Erro ao adicionar cliente vendido: " + error.message);
+                    const result = await addSoldClientAction(data);
+                    if (!result.success) {
+                        alert("Erro ao adicionar cliente vendido via servidor.");
                         return;
                     }
 
                     const newClient: Client = {
-                        id: inserted[0].id,
-                        name: inserted[0].name,
-                        webhookUrl: inserted[0].webhook_url,
-                        webhookPostagens: inserted[0].webhook_postagens,
-                        prompt: inserted[0].prompt,
-                        columns: inserted[0].columns,
-                        captionTemplate: inserted[0].caption_template,
-                        facebookId: inserted[0].id_facebook,
-                        instagramId: inserted[0].id_instagram,
-                        token: inserted[0].token,
-                        jsonFeed: inserted[0].json_feed,
-                        jsonStories: inserted[0].json_stories
+                        id: result.data.id,
+                        name: result.data.name,
+                        webhookUrl: result.data.webhook_url,
+                        webhookPostagens: result.data.webhook_postagens,
+                        prompt: result.data.prompt,
+                        columns: result.data.columns,
+                        captionTemplate: result.data.caption_template,
+                        facebookId: result.data.id_facebook,
+                        instagramId: result.data.id_instagram,
+                        token: result.data.token,
+                        jsonFeed: result.data.json_feed,
+                        jsonStories: result.data.json_stories
                     };
+
                     setSoldClients((prev) => [...prev, newClient]);
                 },
                 updateSoldClient: async (id, updates) => {
-                    const dbUpdates: any = {};
-                    if (updates.name) dbUpdates.name = updates.name;
-                    if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
-                    if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
-                    if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
-                    if (updates.columns) dbUpdates.columns = updates.columns;
-                    if (updates.captionTemplate !== undefined) dbUpdates.caption_template = updates.captionTemplate;
-                    if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
-                    if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
-                    if (updates.token !== undefined) dbUpdates.token = updates.token;
-                    if (updates.jsonFeed !== undefined) dbUpdates.json_feed = updates.jsonFeed;
-                    if (updates.jsonStories !== undefined) dbUpdates.json_stories = updates.jsonStories;
-
-                    const { error } = await supabase
-                        .from("clientes_vendidos")
-                        .update(dbUpdates)
-                        .eq("id", id);
-
-                    if (error) {
-                        alert("Erro ao atualizar cliente vendido: " + error.message);
+                    const result = await updateSoldClientAction(id, updates);
+                    if (!result.success) {
+                        alert("Erro ao atualizar cliente vendido via servidor.");
                         return;
                     }
 
@@ -521,16 +411,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     );
                 },
                 deleteSoldClient: async (id) => {
-                    const { error } = await supabase
-                        .from("clientes_vendidos")
-                        .delete()
-                        .eq("id", id);
-
-                    if (error) {
-                        alert("Erro ao deletar cliente vendido: " + error.message);
+                    const result = await deleteSoldClientAction(id);
+                    if (!result.success) {
+                        alert("Erro ao deletar cliente vendido via servidor.");
                         return;
                     }
-
                     setSoldClients((prev) => prev.filter((c) => c.id !== id));
                 },
                 isLoaded,

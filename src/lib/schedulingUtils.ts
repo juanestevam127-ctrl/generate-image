@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { fetchAllScheduledPostsAction } from "@/app/actions/scheduler";
 import { addMinutes, isBefore, isAfter, parseISO } from "date-fns";
 
 export const POST_TYPE_CONFIG: Record<string, { delay: number; label: string }> = {
@@ -25,17 +25,8 @@ export function getPostDelay(postType: string): number {
 }
 
 export async function fetchAllScheduledPosts(): Promise<ScheduledPost[]> {
-    const { data, error } = await supabase
-        .from("publicacoes_design_online")
-        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao")
-        .not("data_agendamento", "is", null)
-        .eq("publicado", false)
-        .order("data_agendamento", { ascending: true });
-
-    if (error) {
-        console.error("Error fetching scheduled posts:", error);
-        return [];
-    }
+    const data = await fetchAllScheduledPostsAction();
+    if (!data || data.length === 0) return [];
 
     // Grouping logic similar to components
     // Since we need to know the 'postType' (Carousel, etc)

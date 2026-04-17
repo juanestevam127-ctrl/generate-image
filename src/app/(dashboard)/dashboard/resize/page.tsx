@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { Upload, X, Send, Loader2, Download, Maximize, AlertCircle, CheckCircle, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
+import { serverUploadFile } from "@/app/actions";
 import { useStore } from "@/lib/store-context";
 
 interface UploadedImage {
@@ -50,21 +50,13 @@ export default function ResizePage() {
     // 1. Upload to Supabase
     const uploadToSupabase = async (image: UploadedImage): Promise<string | null> => {
         try {
-            const filename = `resize-uploads/${Date.now()}-${image.id}-${image.file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from(process.env.NEXT_PUBLIC_SUPABASE_BUCKET || 'images')
-                .upload(filename, image.file);
-
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from(process.env.NEXT_PUBLIC_SUPABASE_BUCKET || 'images')
-                .getPublicUrl(filename);
-
-            return publicUrl;
+            const result = await serverUploadFile(image.file, 'images', 'resize-uploads');
+            if (result.success && result.url) {
+                return result.url;
+            }
+            return null;
         } catch (error) {
-            console.error("Upload error:", error);
+            console.error("Upload error via server action:", error);
             return null;
         }
     };

@@ -1,59 +1,58 @@
 import { useQuery } from '@tanstack/react-query';
+import { DashboardFilters } from '@/lib/dashboardQueries';
 import {
-    fetchClients,
-    fetchMetrics,
-    fetchEvolutionData,
-    fetchRankingData,
-    fetchHourlyData,
-    fetchWeeklyData,
-    fetchDetailedTable,
-    fetchVehicleData,
-    DashboardFilters
-} from '@/lib/dashboardQueries';
+    fetchMetricsAction,
+    fetchEvolutionDataAction,
+    fetchRankingDataAction,
+    fetchHourlyDataAction,
+    fetchWeeklyDataAction,
+    fetchDetailedTableAction,
+    fetchVehicleDataAction
+} from '@/app/actions/dashboard';
 
 export function useDashboardData(filters: DashboardFilters) {
     const clientsQuery = useQuery({
         queryKey: ['dashboard-clients'],
-        queryFn: fetchClients,
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        queryFn: () => [], // Clients are now loaded via StoreContext mostly, but I could add the action here if needed. 
+        staleTime: 1000 * 60 * 5,
     });
 
     const metricsQuery = useQuery({
         queryKey: ['dashboard-metrics', filters],
-        queryFn: () => fetchMetrics(filters),
+        queryFn: () => fetchMetricsAction(filters),
     });
 
     const evolutionQuery = useQuery({
         queryKey: ['dashboard-evolution', filters],
-        queryFn: () => fetchEvolutionData(filters),
+        queryFn: () => fetchEvolutionDataAction(filters),
     });
 
     const rankingQuery = useQuery({
         queryKey: ['dashboard-ranking', filters],
-        queryFn: () => fetchRankingData(filters),
+        queryFn: () => fetchRankingDataAction(filters),
         enabled: !filters.selectedClient, // Only fetch for All Clients
     });
 
     const hourlyQuery = useQuery({
         queryKey: ['dashboard-hourly', filters],
-        queryFn: () => fetchHourlyData(filters),
+        queryFn: () => fetchHourlyDataAction(filters),
         enabled: !!filters.selectedClient, // Only fetch for Specific Client
     });
 
     const weeklyQuery = useQuery({
         queryKey: ['dashboard-weekly', filters],
-        queryFn: () => fetchWeeklyData(filters),
+        queryFn: () => fetchWeeklyDataAction(filters),
         enabled: !!filters.selectedClient, // Only fetch for Specific Client
     });
 
     const tableQuery = useQuery({
         queryKey: ['dashboard-table', filters],
-        queryFn: () => fetchDetailedTable(filters),
+        queryFn: () => fetchDetailedTableAction(filters),
     });
 
     const vehicleQuery = useQuery({
         queryKey: ['dashboard-vehicle', filters],
-        queryFn: () => fetchVehicleData(filters),
+        queryFn: () => fetchVehicleDataAction(filters),
     });
 
     return {
