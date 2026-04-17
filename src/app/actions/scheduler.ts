@@ -97,3 +97,19 @@ export async function updateGroupFormatAction(clientName: string, vehicle: strin
         return { success: false, error: error.message };
     }
 }
+
+export async function fetchAllScheduledPostsAction() {
+    const { data, error } = await supabase
+        .from("publicacoes_design_online")
+        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao")
+        .not("data_agendamento", "is", null)
+        .eq("publicado", false)
+        .order("data_agendamento", { ascending: true });
+
+    if (error) {
+        console.error("Error in fetchAllScheduledPostsAction:", error);
+        return [];
+    }
+
+    return data;
+}

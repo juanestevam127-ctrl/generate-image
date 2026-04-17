@@ -16,11 +16,12 @@ import {
     updateSchedulerRecordAction, 
     deleteSchedulerImageAction, 
     insertSchedulerPostAction,
-    updateGroupFormatAction 
+    updateGroupFormatAction,
+    fetchAllScheduledPostsAction 
 } from "@/app/actions/scheduler";
 import { cn } from "@/lib/utils";
 import { 
-    fetchAllScheduledPosts, 
+    processScheduledPosts, 
     checkSchedulingConflicts, 
     ScheduledPost, 
     SchedulingConflict, 
@@ -159,9 +160,10 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         setConflicts([]);
         setIsScheduleModalOpen(true);
         
-        // Fetch all scheduled posts to check for conflicts
-        const posts = await fetchAllScheduledPosts();
-        setAllScheduledPosts(posts);
+        // Fetch all scheduled posts to check for conflicts via server action
+        const rawPosts = await fetchAllScheduledPostsAction();
+        const processedPosts = processScheduledPosts(rawPosts);
+        setAllScheduledPosts(processedPosts);
     };
 
     // Conflict Check Effect

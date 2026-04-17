@@ -1,4 +1,3 @@
-import { fetchAllScheduledPostsAction } from "@/app/actions/scheduler";
 import { addMinutes, isBefore, isAfter, parseISO } from "date-fns";
 
 export const POST_TYPE_CONFIG: Record<string, { delay: number; label: string }> = {
@@ -24,20 +23,19 @@ export function getPostDelay(postType: string): number {
     return POST_TYPE_CONFIG[type]?.delay || 10;
 }
 
-export async function fetchAllScheduledPosts(): Promise<ScheduledPost[]> {
-    const data = await fetchAllScheduledPostsAction();
-    if (!data || data.length === 0) return [];
+export function processScheduledPosts(rawData: any[]): ScheduledPost[] {
+    if (!rawData || rawData.length === 0) return [];
 
     // Grouping logic similar to components
     // Since we need to know the 'postType' (Carousel, etc)
     // We'll process the raw records
     const grouped: Record<string, ScheduledPost> = {};
     
-    (data || []).forEach(row => {
+    (rawData || []).forEach(row => {
         const key = `${row.nome_empresa}-${row.veiculo_gerado}-${row.formato}-${row.data_agendamento}`;
         if (!grouped[key]) {
             // Determine postType for the group
-            const albumSize = data.filter(r => 
+            const albumSize = rawData.filter(r => 
                 r.nome_empresa === row.nome_empresa && 
                 r.veiculo_gerado === row.veiculo_gerado && 
                 r.formato === row.formato && 
