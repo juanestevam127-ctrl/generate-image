@@ -173,7 +173,19 @@ export async function fetchVehicleDataAction(filters: DashboardFilters) {
     const { data, error } = await query;
     if (error) throw error;
 
-    if (!data || data.length === 0) return { summary: { total_veiculos: 0, total_imagens: 0 }, stats: [], clientStats: [] };
+    if (!data || data.length === 0) {
+        return {
+            summary: {
+                total_veiculos: 0,
+                total_imagens: 0,
+                mostImages: null,
+                leastImages: null,
+                mostActiveClient: null
+            },
+            stats: [],
+            clientStats: []
+        };
+    }
 
     const vehicleCounts: Record<string, number> = {};
     const vehicleClientCounts: Record<string, Record<string, number>> = {};
@@ -197,13 +209,29 @@ export async function fetchVehicleDataAction(filters: DashboardFilters) {
         return { veiculo_gerado: name, total_imagens: count, percentual: parseFloat(((count * 100) / totalImagens).toFixed(1)), top_empresa: topClient };
     });
 
+    const sortedClients = Object.entries(clientTotalCounts).sort((a, b) => b[1] - a[1]);
+
+    const clientStats = sortedClients.map(([name, count]) => {
+        const uniqueVehicles = new Set(
+            data.filter(item => (item.nome_empresa || 'Sem Cliente') === name)
+                .map(item => item.veiculo_gerado)
+        ).size;
+        return {
+            nome_empresa: name,
+            total_veiculos: uniqueVehicles,
+            total_imagens: count
+        };
+    });
+
     return {
         summary: {
             total_veiculos: vEntries.length,
             total_imagens: totalImagens,
             mostImages: sortedByCount.length > 0 ? { name: sortedByCount[0][0], count: sortedByCount[0][1] } : null,
-            mostActiveClient: Object.entries(clientTotalCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+            leastImages: sortedByCount.length > 0 ? { name: sortedByCount[sortedByCount.length - 1][0], count: sortedByCount[sortedByCount.length - 1][1] } : null,
+            mostActiveClient: sortedClients.length > 0 ? { name: sortedClients[0][0], count: sortedClients[0][1] } : null
         },
-        stats
+        stats,
+        clientStats
     };
 }
