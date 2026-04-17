@@ -61,7 +61,7 @@ export interface LayoutClient {
 interface StoreContextType {
     // Auth
     user: User | null;
-    login: (email: string, password: string) => boolean;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
 
     // User Management (Admin only)
@@ -200,6 +200,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
             } catch (error) {
                 console.error("Error loading Supabase data:", error);
+                // Log detailed error if available
+                if (error && typeof error === 'object' && 'message' in error) {
+                    console.error("Supabase Error Message:", error.message);
+                }
             } finally {
                 setIsLoaded(true);
             }
@@ -219,15 +223,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }, [user, isLoaded]);
 
     // Auth Actions
-    const login = (email: string, pass: string) => {
-        const foundUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+    const login = async (email: string, pass: string) => {
+        try {
+            // Priority 1: Check in memory (if already loaded)
+            let foundUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
 
-        if (foundUser) {
-            const { password, ...safeUser } = foundUser;
-            setUser(safeUser);
-            return true;
+            // Priority 2: Query Supabase directly (On-demand fallback or fresh check)
+            if (!foundUser) {
+                const { data, error } = await supabase
+                    .from("usuarios")
+                    .select("*")
+                    .eq("email", email.toLowerCase())
+                    .eq("password", pass)
+                    .single();
+
+                if (data && !error) {
+                    foundUser = data;
+                }
+            }
+
+            if (foundUser) {
+                const { password, ...safeUser } = foundUser;
+                setUser(safeUser);
+                return { success: true };
+            }
+
+            return { success: false, error: "Credenciais inválidas." };
+        } catch (e) {
+            console.error("Login verification error:", e);
+            return { success: false, error: "Erro na conexão com o banco de dados." };
         }
-        return false;
     };
 
     const logout = () => {

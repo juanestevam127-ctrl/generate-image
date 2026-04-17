@@ -11,17 +11,26 @@ export default function LoginPage() {
     const router = useRouter();
     const { login } = useStore();
     const [email, setEmail] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-        const success = login(email, password);
-        if (success) {
-            router.push("/dashboard");
-        } else {
-            setError("Credenciais inválidas. Tente novamente.");
+        setIsLoading(true);
+
+        try {
+            const { success, error: loginError } = await login(email, password);
+            if (success) {
+                router.push("/dashboard");
+            } else {
+                setError(loginError || "Credenciais inválidas. Tente novamente.");
+            }
+        } catch (err) {
+            setError("Ocorreu um erro ao tentar entrar. Tente novamente mais tarde.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -71,8 +80,12 @@ export default function LoginPage() {
                         {error && (
                             <p className="text-sm text-red-400 text-center">{error}</p>
                         )}
-                        <Button type="submit" className="w-full !bg-blue-600 hover:!bg-blue-700 !text-white font-bold shadow-lg shadow-blue-900/20">
-                            Entrar
+                        <Button 
+                            type="submit" 
+                            disabled={isLoading}
+                            className="w-full !bg-blue-600 hover:!bg-blue-700 !text-white font-bold shadow-lg shadow-blue-900/20"
+                        >
+                            {isLoading ? "Entrando..." : "Entrar"}
                         </Button>
                     </form>
 
