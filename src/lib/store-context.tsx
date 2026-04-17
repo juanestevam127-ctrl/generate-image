@@ -237,6 +237,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     .eq("password", pass)
                     .single();
 
+                if (error) {
+                    // Check if it's a real connection error (no response)
+                    if (error.message === 'Failed to fetch' || error.code === 'PGRST301') {
+                         return { success: false, error: "Erro de conexão com o banco de dados. Verifique sua internet." };
+                    }
+                    // For other errors (like 406 NOT ACCEPTABLE if the query is malformed), proceed to check if we found a user
+                }
+
                 if (data && !error) {
                     foundUser = data;
                 }
