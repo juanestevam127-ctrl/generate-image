@@ -21,6 +21,7 @@ import {
 export type UserRole = "master" | "common";
 
 export interface User {
+    id?: string;
     email: string;
     role: UserRole;
     name?: string; // Optional name
@@ -252,13 +253,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setRegisteredUsers((prev) => [...prev, data]);
     };
 
-    const removeUser = async (id: string) => {
-        const result = await removeUserAction(id);
+    const removeUser = async (email: string) => {
+        const result = await removeUserAction(email);
         if (!result.success) {
             alert("Erro ao remover usuário via servidor.");
             return;
         }
-        setRegisteredUsers((prev) => prev.filter((u) => u.id !== id));
+        setRegisteredUsers((prev) => prev.filter((u) => u.email !== email));
     };
 
     // Client Actions
