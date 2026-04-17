@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+let supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+const supabaseKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
 
 // Ensure protocol exists (fixes DNS issues if protocol is missing in environment variables)
 if (supabaseUrl && !supabaseUrl.startsWith('http')) {
