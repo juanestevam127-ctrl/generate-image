@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MoveUp, MoveDown, Trash2, Plus, Calendar, Clock, Send, ChevronLeft, ChevronRight, Loader2, Info, LayoutTemplate, Type, History, Filter, Search, MoreVertical, Edit2, Calendar as CalendarIcon, Crop } from "lucide-react";
+import { MoveUp, MoveDown, Trash2, Plus, Calendar as CalendarIcon, Clock, Send, ChevronLeft, ChevronRight, Loader2, Info, LayoutTemplate, Type, History, Filter, Search, MoreVertical, Edit2, Crop } from "lucide-react";
 import { getProxiedUrl } from "@/lib/imageProxy";
 
 import { useStore, Client } from "@/lib/store-context";
