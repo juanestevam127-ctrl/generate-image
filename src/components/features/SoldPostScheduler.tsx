@@ -452,7 +452,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const handleSaveEditedImage = async (croppedBase64: string) => {
         if (!activePostId) return;
 
-        const post = groupedPosts.find(p => p.id === activePostId);
+        const post = groupedPosts.find(p => String(p.id) === String(activePostId));
         if (!post) return;
 
         setIsScheduling(true); // Loading state
@@ -478,7 +478,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 if (result.data && result.data[0]) {
                     const dbImg = result.data[0] as PostImage;
                     setGroupedPosts(prev => prev.map(p => {
-                        if (p.id === activePostId) {
+                        if (String(p.id) === String(activePostId)) {
                             const newImages = [...p.images, dbImg];
                             return {
                                 ...p,
@@ -489,7 +489,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         return p;
                     }));
                     // Show the newly added image (last one)
-                    setCarouselIndices(prev => ({ ...prev, [activePostId]: post.images.length }));
+                    setCarouselIndices(prev => ({ ...prev, [String(activePostId)]: post.images.length }));
                 }
             }
         } catch (error) {
