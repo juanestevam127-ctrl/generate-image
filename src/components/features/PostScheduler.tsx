@@ -487,6 +487,8 @@ export function PostScheduler({ client }: { client: Client }) {
                     // Show the newly added image (last one)
                     setCarouselIndices(prev => ({ ...prev, [activePostId]: post.images.length }));
                 }
+            } else if (uploadResult.success === false) {
+                throw new Error(uploadResult.error || "Erro no upload.");
             }
         } catch (error) {
             console.error("Error saving edited image:", error);

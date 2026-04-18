@@ -31,20 +31,23 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
     };
 
     const handleSave = () => {
-        const cropper = cropperRef.current?.cropper;
-        if (cropper) {
-            // Get canvas at specific resolution - Removed fillColor to preserve transparency
-            const canvas = cropper.getCroppedCanvas({
-                width: outputSize.w,
-                height: outputSize.h,
-                imageSmoothingEnabled: true,
-                imageSmoothingQuality: 'high',
-            });
+        try {
+            const cropper = cropperRef.current?.cropper;
+            if (cropper) {
+                const canvas = cropper.getCroppedCanvas({
+                    width: outputSize.w,
+                    height: outputSize.h,
+                    imageSmoothingEnabled: true,
+                    imageSmoothingQuality: 'high',
+                });
 
-            if (canvas) {
-                onSave(canvas.toDataURL("image/png"));
-                // Parent will handle closing or moving to next
+                if (canvas) {
+                    onSave(canvas.toDataURL("image/png"));
+                }
             }
+        } catch (error) {
+            console.error("Error generating cropped image:", error);
+            alert("Erro ao processar imagem. Tente novamente.");
         }
     };
 
@@ -100,6 +103,7 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
                             responsive={true}
                             autoCropArea={0.8}
                             checkOrientation={false}
+                            crossOrigin="anonymous"
                             ref={cropperRef}
                             crop={onCrop}
                             background={false}
