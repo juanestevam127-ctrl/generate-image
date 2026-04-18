@@ -446,10 +446,18 @@ export function PostScheduler({ client }: { client: Client }) {
     };
 
     const handleSaveEditedImage = async (croppedBase64: string) => {
-        if (!activePostId) return;
+        if (!activePostId) {
+            alert("Debug: activePostId é null!");
+            return;
+        }
 
         const post = groupedPosts.find(p => String(p.id) === String(activePostId));
-        if (!post) return;
+        if (!post) {
+            alert("Debug: Post não encontrado para ID " + activePostId);
+            return;
+        }
+
+        alert("Debug: Iniciando upload para o Post: " + post.veiculo_gerado);
 
         setIsScheduling(true); // Loading state
         try {

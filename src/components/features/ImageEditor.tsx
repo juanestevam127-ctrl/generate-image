@@ -33,21 +33,27 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
     const handleSave = () => {
         try {
             const cropper = cropperRef.current?.cropper;
-            if (cropper) {
-                const canvas = cropper.getCroppedCanvas({
-                    width: outputSize.w,
-                    height: outputSize.h,
-                    imageSmoothingEnabled: true,
-                    imageSmoothingQuality: 'high',
-                });
-
-                if (canvas) {
-                    onSave(canvas.toDataURL("image/png"));
-                }
+            if (!cropper) {
+                alert("Debug: Cropper não encontrado!");
+                return;
             }
-        } catch (error) {
+            const canvas = cropper.getCroppedCanvas({
+                width: outputSize.w,
+                height: outputSize.h,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+
+            if (!canvas) {
+                alert("Debug: Canvas não gerado!");
+                return;
+            }
+
+            const base64 = canvas.toDataURL("image/png");
+            onSave(base64);
+        } catch (error: any) {
             console.error("Error generating cropped image:", error);
-            alert("Erro ao processar imagem. Tente novamente.");
+            alert("Erro no Editor: " + error.message);
         }
     };
 
