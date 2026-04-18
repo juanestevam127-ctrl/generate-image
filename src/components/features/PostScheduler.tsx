@@ -446,22 +446,12 @@ export function PostScheduler({ client }: { client: Client }) {
     };
 
     const handleSaveEditedImage = async (croppedBase64: string) => {
-        alert("DEBUG: Entrou em handleSaveEditedImage. ID Ativo: " + activePostId);
-        
-        if (!activePostId) {
-            alert("Debug: activePostId é null!");
-            return;
-        }
+        if (!activePostId) return;
 
         const post = groupedPosts.find(p => String(p.id) === String(activePostId));
-        if (!post) {
-            alert("Debug: Post não encontrado para ID " + activePostId);
-            return;
-        }
+        if (!post) return;
 
-        alert("Debug: Iniciando upload para o Post: " + post.veiculo_gerado);
-
-        setIsScheduling(true); // Loading state
+        setIsScheduling(true);
         try {
             const uploadResult = await serverUploadImage(croppedBase64, 'temp-files');
             if (uploadResult.success && uploadResult.url) {
@@ -494,7 +484,6 @@ export function PostScheduler({ client }: { client: Client }) {
                         }
                         return p;
                     }));
-                    // Show the newly added image (last one)
                     setCarouselIndices(prev => ({ ...prev, [String(activePostId)]: post.images.length }));
                 }
             } else if (uploadResult.success === false) {
@@ -502,27 +491,24 @@ export function PostScheduler({ client }: { client: Client }) {
             }
         } catch (error: any) {
             console.error("Error saving edited image:", error);
-            alert("Erro ao salvar imagem (PostScheduler): " + error.message);
+            alert("Erro ao salvar imagem: " + error.message);
         } finally {
             setIsScheduling(false);
             
             // Handle queue
             const currentQueue = [...editQueue];
             if (currentQueue.length > 0) {
-                currentQueue.shift(); // Remove processed
+                currentQueue.shift();
                 setEditQueue(currentQueue);
                 
                 if (currentQueue.length > 0) {
-                    alert("Debug: Preparando próxima imagem da fila (Restante: " + currentQueue.length + ")");
                     await prepareNextInQueue(currentQueue[0]);
                 } else {
-                    alert("Debug: Última imagem processada! Fechando editor.");
                     setIsEditorOpen(false);
                     setCurrentEditBase64(null);
                     setActivePostId(null);
                 }
             } else {
-                alert("Debug: Fila vazia! Fechando.");
                 setIsEditorOpen(false);
                 setCurrentEditBase64(null);
                 setActivePostId(null);

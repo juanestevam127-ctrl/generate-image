@@ -29,14 +29,9 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
     const onCrop = () => {
         // We could update inputs here, but we let user drive output size via inputs
     };
-
-    const handleSave = async () => {
-        try {
-            const cropper = cropperRef.current?.cropper;
-            if (!cropper) {
-                alert("Debug: Cropper não encontrado!");
-                return;
-            }
+    const handleSave = () => {
+        const cropper = cropperRef.current?.cropper;
+        if (cropper) {
             const canvas = cropper.getCroppedCanvas({
                 width: outputSize.w,
                 height: outputSize.h,
@@ -44,18 +39,9 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
                 imageSmoothingQuality: 'high',
             });
 
-            if (!canvas) {
-                alert("Debug: Canvas não gerado!");
-                return;
+            if (canvas) {
+                onSave(canvas.toDataURL("image/png"));
             }
-
-            const base64 = canvas.toDataURL("image/png");
-            alert("Debug: Chamando onSave...");
-            await onSave(base64);
-            alert("Debug: onSave finalizado com sucesso.");
-        } catch (error: any) {
-            console.error("Error generating cropped image:", error);
-            alert("Erro no Editor (catch): " + error.message);
         }
     };
 
@@ -189,18 +175,24 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
                     </div>
 
                     {/* Actions Footer */}
-                    <div className="mt-auto flex flex-col gap-3 pt-4 pb-4">
-                        <button
-                            type="button"
-                            className="w-full bg-white text-slate-950 hover:bg-white/90 font-bold py-6 rounded-md shadow-xl transition-all"
-                            onClick={() => {
-                                alert("CLICOU NO BOTÃO!");
-                                handleSave();
-                            }}
+                    <div className="mt-auto flex flex-col gap-3 pt-4">
+                        <Button
+                            className="w-full !bg-white !text-slate-950 hover:!bg-white/90 font-bold py-6 shadow-xl shadow-indigo-900/20"
+                            onClick={handleSave}
                             disabled={isSaving}
                         >
-                            {isSaving ? "Salvando..." : "Confirmar & Salvar"}
-                        </button>
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Salvando...
+                                </>
+                            ) : (
+                                <>
+                                    <Check className="mr-2 h-5 w-5" />
+                                    Confirmar & Salvar
+                                </>
+                            )}
+                        </Button>
                         <Button variant="ghost" className="w-full text-muted-foreground hover:text-white" onClick={onClose}>
                             Cancelar
                         </Button>
