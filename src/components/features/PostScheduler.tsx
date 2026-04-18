@@ -504,14 +504,19 @@ export function PostScheduler({ client }: { client: Client }) {
                 if (currentQueue.length > 0) {
                     await prepareNextInQueue(currentQueue[0]);
                 } else {
+                    // Force close in next tick to avoid race conditions
+                    setTimeout(() => {
+                        setIsEditorOpen(false);
+                        setCurrentEditBase64(null);
+                        setActivePostId(null);
+                    }, 100);
+                }
+            } else {
+                setTimeout(() => {
                     setIsEditorOpen(false);
                     setCurrentEditBase64(null);
                     setActivePostId(null);
-                }
-            } else {
-                setIsEditorOpen(false);
-                setCurrentEditBase64(null);
-                setActivePostId(null);
+                }, 100);
             }
         }
     };
