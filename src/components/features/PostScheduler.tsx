@@ -446,6 +446,8 @@ export function PostScheduler({ client }: { client: Client }) {
     };
 
     const handleSaveEditedImage = async (croppedBase64: string) => {
+        alert("DEBUG: Entrou em handleSaveEditedImage. ID Ativo: " + activePostId);
+        
         if (!activePostId) {
             alert("Debug: activePostId é null!");
             return;

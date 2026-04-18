@@ -30,7 +30,7 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
         // We could update inputs here, but we let user drive output size via inputs
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         try {
             const cropper = cropperRef.current?.cropper;
             if (!cropper) {
@@ -50,10 +50,12 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
             }
 
             const base64 = canvas.toDataURL("image/png");
-            onSave(base64);
+            alert("Debug: Chamando onSave...");
+            await onSave(base64);
+            alert("Debug: onSave finalizado com sucesso.");
         } catch (error: any) {
             console.error("Error generating cropped image:", error);
-            alert("Erro no Editor: " + error.message);
+            alert("Erro no Editor (catch): " + error.message);
         }
     };
 
