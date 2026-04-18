@@ -100,15 +100,6 @@ export function PostScheduler({ client }: { client: Client }) {
     const [savingCaptions, setSavingCaptions] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        // Auto-close when the queue is empty
-        if (isEditorOpen && editQueue.length === 0 && !isScheduling) {
-            setIsEditorOpen(false);
-            setCurrentEditBase64(null);
-            setActivePostId(null);
-        }
-    }, [editQueue.length, isEditorOpen, isScheduling]);
-
-    useEffect(() => {
         fetchImages();
     }, [client.name]);
 
@@ -503,17 +494,23 @@ export function PostScheduler({ client }: { client: Client }) {
         } finally {
             setIsScheduling(false);
             
-            // Just update the queue, the useEffect above will handle closing
-            setEditQueue(prev => {
-                const newQueue = [...prev];
-                newQueue.shift();
-                
-                if (newQueue.length > 0) {
+            // Critical Fix: Always close the editor after an action
+            setIsEditorOpen(false);
+            setCurrentEditBase64(null);
+
+            // Handle the queue progression
+            const newQueue = [...editQueue];
+            newQueue.shift();
+            setEditQueue(newQueue);
+            
+            if (newQueue.length > 0) {
+                // If more images, reopen for the next one after a tiny delay
+                setTimeout(() => {
                     prepareNextInQueue(newQueue[0]);
-                }
-                
-                return newQueue;
-            });
+                }, 100);
+            } else {
+                setActivePostId(null);
+            }
         }
     };
 

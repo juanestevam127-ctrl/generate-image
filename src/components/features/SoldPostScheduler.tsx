@@ -101,15 +101,6 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const [savingCaptions, setSavingCaptions] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        // Auto-close when the queue is empty
-        if (isEditorOpen && editQueue.length === 0 && !isScheduling) {
-            setIsEditorOpen(false);
-            setCurrentEditBase64(null);
-            setActivePostId(null);
-        }
-    }, [editQueue.length, isEditorOpen, isScheduling]);
-
-    useEffect(() => {
         fetchImages();
     }, [client.name]);
 
@@ -505,19 +496,22 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             alert("Erro ao salvar imagem.");
         } finally {
             setIsScheduling(false);
+            
+            // Critical Fix: Always close the editor after an action
+            setIsEditorOpen(false);
+            setCurrentEditBase64(null);
 
-            // Handle queue
-            const remainingQueue = [...editQueue];
-            remainingQueue.shift(); // Remove processed
-            setEditQueue(remainingQueue);
-
-            if (remainingQueue.length > 0) {
-                // Prepare next
-                await prepareNextInQueue(remainingQueue[0]);
+            // Handle the queue progression
+            const newQueue = [...editQueue];
+            newQueue.shift();
+            setEditQueue(newQueue);
+            
+            if (newQueue.length > 0) {
+                // If more images, reopen for the next one after a tiny delay
+                setTimeout(() => {
+                    prepareNextInQueue(newQueue[0]);
+                }, 100);
             } else {
-                // Done
-                setIsEditorOpen(false);
-                setCurrentEditBase64(null);
                 setActivePostId(null);
             }
         }
