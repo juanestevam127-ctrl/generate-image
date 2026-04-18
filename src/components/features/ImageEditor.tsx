@@ -187,24 +187,18 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
                     </div>
 
                     {/* Actions Footer */}
-                    <div className="mt-auto flex flex-col gap-3 pt-4">
-                        <Button
-                            className="w-full !bg-white !text-slate-950 hover:!bg-white/90 font-bold py-6 shadow-xl shadow-indigo-900/20"
-                            onClick={handleSave}
+                    <div className="mt-auto flex flex-col gap-3 pt-4 pb-4">
+                        <button
+                            type="button"
+                            className="w-full bg-white text-slate-950 hover:bg-white/90 font-bold py-6 rounded-md shadow-xl transition-all"
+                            onClick={() => {
+                                alert("CLICOU NO BOTÃO!");
+                                handleSave();
+                            }}
                             disabled={isSaving}
                         >
-                            {isSaving ? (
-                                <>
-                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                    Salvando...
-                                </>
-                            ) : (
-                                <>
-                                    <Check className="mr-2 h-5 w-5" />
-                                    Confirmar & Salvar
-                                </>
-                            )}
-                        </Button>
+                            {isSaving ? "Salvando..." : "Confirmar & Salvar"}
+                        </button>
                         <Button variant="ghost" className="w-full text-muted-foreground hover:text-white" onClick={onClose}>
                             Cancelar
                         </Button>
