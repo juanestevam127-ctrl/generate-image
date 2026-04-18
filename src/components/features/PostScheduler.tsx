@@ -500,22 +500,29 @@ export function PostScheduler({ client }: { client: Client }) {
             } else if (uploadResult.success === false) {
                 throw new Error(uploadResult.error || "Erro no upload.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving edited image:", error);
-            alert("Erro ao salvar imagem.");
+            alert("Erro ao salvar imagem (PostScheduler): " + error.message);
         } finally {
             setIsScheduling(false);
-
+            
             // Handle queue
-            const remainingQueue = [...editQueue];
-            remainingQueue.shift(); // Remove processed
-            setEditQueue(remainingQueue);
-
-            if (remainingQueue.length > 0) {
-                // Prepare next
-                await prepareNextInQueue(remainingQueue[0]);
+            const currentQueue = [...editQueue];
+            if (currentQueue.length > 0) {
+                currentQueue.shift(); // Remove processed
+                setEditQueue(currentQueue);
+                
+                if (currentQueue.length > 0) {
+                    alert("Debug: Preparando próxima imagem da fila (Restante: " + currentQueue.length + ")");
+                    await prepareNextInQueue(currentQueue[0]);
+                } else {
+                    alert("Debug: Última imagem processada! Fechando editor.");
+                    setIsEditorOpen(false);
+                    setCurrentEditBase64(null);
+                    setActivePostId(null);
+                }
             } else {
-                // Done
+                alert("Debug: Fila vazia! Fechando.");
                 setIsEditorOpen(false);
                 setCurrentEditBase64(null);
                 setActivePostId(null);
