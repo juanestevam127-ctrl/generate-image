@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Check, X, Expand, Lock, Unlock, Loader2 } from "lucide-react";
+import { getProxiedUrl } from "@/lib/imageProxy";
 
 interface ImageEditorProps {
     isOpen: boolean;
@@ -88,7 +89,7 @@ export function ImageEditor({ isOpen, onClose, imageUrl, onSave, isSaving = fals
                         <p className="text-gray-500">Carregando...</p>
                     ) : (
                         <Cropper
-                            src={imageUrl}
+                            src={getProxiedUrl(imageUrl!)}
                             style={{ height: "100%", width: "100%" }}
                             // Cropper.js Options
                             initialAspectRatio={NaN} // START FREE

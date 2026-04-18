@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Check, Loader2, Send, Plus, Trash2, MoveUp, MoveDown, Crop } from "lucide-react";
+import { MoveUp, MoveDown, Trash2, Plus, Calendar, Clock, Send, ChevronLeft, ChevronRight, Loader2, Info, LayoutTemplate, Type, History, Filter, Search, MoreVertical, Edit2 } from "lucide-react";
+import { getProxiedUrl } from "@/lib/imageProxy";
 
 import { useStore, Client } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
@@ -755,14 +756,14 @@ export function PostScheduler({ client }: { client: Client }) {
                                     {post.images[currentIndex] ? (
                                         isVideo(post.images[currentIndex].imagem) ? (
                                             <video
-                                                src={post.images[currentIndex].imagem}
+                                                src={getProxiedUrl(post.images[currentIndex].imagem)}
                                                 className="w-full h-full object-contain"
                                                 controls
                                                 playsInline
                                             />
                                         ) : (
                                             <img
-                                                src={post.images[currentIndex].imagem}
+                                                src={getProxiedUrl(post.images[currentIndex].imagem)}
                                                 alt="Post"
                                                 className="w-full h-full object-contain"
                                             />
