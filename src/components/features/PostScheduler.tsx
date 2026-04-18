@@ -100,7 +100,15 @@ export function PostScheduler({ client }: { client: Client }) {
     const [savingCaptions, setSavingCaptions] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
+        // Auto-close when the queue is empty
+        if (isEditorOpen && editQueue.length === 0 && !isScheduling) {
+            setIsEditorOpen(false);
+            setCurrentEditBase64(null);
+            setActivePostId(null);
+        }
+    }, [editQueue.length, isEditorOpen, isScheduling]);
 
+    useEffect(() => {
         fetchImages();
     }, [client.name]);
 
@@ -495,29 +503,17 @@ export function PostScheduler({ client }: { client: Client }) {
         } finally {
             setIsScheduling(false);
             
-            // Handle queue
-            const currentQueue = [...editQueue];
-            if (currentQueue.length > 0) {
-                currentQueue.shift();
-                setEditQueue(currentQueue);
+            // Just update the queue, the useEffect above will handle closing
+            setEditQueue(prev => {
+                const newQueue = [...prev];
+                newQueue.shift();
                 
-                if (currentQueue.length > 0) {
-                    await prepareNextInQueue(currentQueue[0]);
-                } else {
-                    // Force close in next tick to avoid race conditions
-                    setTimeout(() => {
-                        setIsEditorOpen(false);
-                        setCurrentEditBase64(null);
-                        setActivePostId(null);
-                    }, 100);
+                if (newQueue.length > 0) {
+                    prepareNextInQueue(newQueue[0]);
                 }
-            } else {
-                setTimeout(() => {
-                    setIsEditorOpen(false);
-                    setCurrentEditBase64(null);
-                    setActivePostId(null);
-                }, 100);
-            }
+                
+                return newQueue;
+            });
         }
     };
 

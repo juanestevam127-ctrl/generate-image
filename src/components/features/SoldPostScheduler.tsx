@@ -101,7 +101,15 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const [savingCaptions, setSavingCaptions] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
+        // Auto-close when the queue is empty
+        if (isEditorOpen && editQueue.length === 0 && !isScheduling) {
+            setIsEditorOpen(false);
+            setCurrentEditBase64(null);
+            setActivePostId(null);
+        }
+    }, [editQueue.length, isEditorOpen, isScheduling]);
 
+    useEffect(() => {
         fetchImages();
     }, [client.name]);
 
