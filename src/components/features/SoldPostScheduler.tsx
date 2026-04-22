@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ImageEditor } from "@/components/features/ImageEditor";
 import { CoverPickerModal } from "@/components/features/CoverPickerModal";
-import { serverUploadImage, serverUploadFile } from "@/app/actions";
+import { serverUploadImage } from "@/app/actions";
+import { uploadFile } from "@/lib/supabase";
 import { 
     fetchSchedulerImagesAction, 
     updateSchedulerRecordAction, 
@@ -291,18 +292,12 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         setIsScheduling(true);
         setUploadProgress(prev => ({ ...prev, [postId]: 0 }));
         try {
-            const getBase64 = (f: File): Promise<string> => new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = error => reject(error);
-                reader.readAsDataURL(f);
+            // Use client-side direct upload to bypass Next.js 1MB Server Action payload limit for large videos
+            const publicUrl = await uploadFile(file, 'temp-files', '', (progress) => {
+                setUploadProgress(prev => ({ ...prev, [postId]: progress }));
             });
             
-            const base64Str = await getBase64(file);
-            const uploadResult = await serverUploadImage(base64Str, 'temp-files');
-            
-            if (uploadResult.success && uploadResult.url) {
-                const publicUrl = uploadResult.url;
+            if (publicUrl) {
                 const post = groupedPosts.find(p => p.id === postId);
                 if (!post) return null;
 
