@@ -103,6 +103,8 @@ export default function SoldDashboardPage() {
                     newData[row] = currentRow;
                     return newData;
                 });
+                // Fecha o editor após salvar com sucesso
+                setEditorState({ isOpen: false, imageUrl: null, Target: null });
             } else {
                 alert("Erro ao salvar imagem processada via servidor.");
             }
