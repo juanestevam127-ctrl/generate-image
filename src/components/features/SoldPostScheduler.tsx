@@ -392,6 +392,11 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             alert("Erro ao salvar a capa do Reels.");
         } finally {
             setIsScheduling(false);
+            setUploadProgress(prev => {
+                const n = { ...prev };
+                delete n[postId];
+                return n;
+            });
         }
     };
 
