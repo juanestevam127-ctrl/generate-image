@@ -287,10 +287,15 @@ export function PostScheduler({ client }: { client: Client }) {
         setIsScheduling(true);
         setUploadProgress(prev => ({ ...prev, [postId]: 0 }));
         try {
-            const formData = new FormData();
-            formData.append('file', file);
+            const getBase64 = (f: File): Promise<string> => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(f);
+            });
             
-            const uploadResult = await serverUploadFile(formData, 'temp-files');
+            const base64Str = await getBase64(file);
+            const uploadResult = await serverUploadImage(base64Str, 'temp-files');
             
             if (uploadResult.success && uploadResult.url) {
                 const publicUrl = uploadResult.url;
