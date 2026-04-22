@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { Upload, X, Send, Loader2, Download, Maximize, AlertCircle, CheckCircle, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { serverUploadFile } from "@/app/actions";
+import { serverUploadImage } from "@/app/actions";
 import { useStore } from "@/lib/store-context";
 
 interface UploadedImage {
@@ -47,20 +47,29 @@ export default function ResizePage() {
         setImages(prev => prev.filter(img => img.id !== id));
     };
 
-    // 1. Upload to Supabase
+    // 1. Upload to Supabase — converte para base64 e usa serverUploadImage (que funciona de forma confiável)
     const uploadToSupabase = async (image: UploadedImage): Promise<string | null> => {
-        try {
-            const formData = new FormData();
-            formData.append('file', image.file);
-            const result = await serverUploadFile(formData, 'images', 'resize-uploads');
-            if (result.success && result.url) {
-                return result.url;
-            }
-            return null;
-        } catch (error) {
-            console.error("Upload error via server action:", error);
-            return null;
-        }
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const base64Str = e.target?.result as string;
+                    if (!base64Str) { resolve(null); return; }
+                    const result = await serverUploadImage(base64Str, 'temp-files');
+                    if (result.success && result.url) {
+                        resolve(result.url);
+                    } else {
+                        console.error("Upload error:", result.error);
+                        resolve(null);
+                    }
+                } catch (error) {
+                    console.error("Upload error via server action:", error);
+                    resolve(null);
+                }
+            };
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(image.file);
+        });
     };
 
     const handleProcessImages = async () => {
