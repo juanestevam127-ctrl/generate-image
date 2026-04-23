@@ -118,23 +118,27 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             const groups: Record<string, GroupedPost> = {};
 
             rawImages.forEach(img => {
-                const vehicle = img.veiculo_gerado || "Sem Veículo";
                 const originalFormat = img.formato || "FEED";
                 // Map VENDIDO FEED -> FEED and VENDIDO STORIES -> STORY for UI filtering
                 const uiFormat = (originalFormat === 'VENDIDO STORIES' || originalFormat === 'STORIES' || originalFormat === 'STORY') ? 'STORY' : (originalFormat === 'VENDIDO REELS' || originalFormat === 'REELS' ? 'REELS' : 'FEED');
-                const key = `${vehicle}-${originalFormat}`;
+                
+                // If the image has no vehicle, we use its own ID to ensure it stays separate from others.
+                // This satisfies the requirement that each row in the generator (which has no vehicle by default) 
+                // becomes its own individual post.
+                const groupingVehicle = img.veiculo_gerado || `ID:${img.id}`;
+                const key = `${groupingVehicle}-${originalFormat}`;
 
                 if (!groups[key]) {
                     groups[key] = {
                         id: key,
-                        veiculo_gerado: vehicle,
+                        veiculo_gerado: img.veiculo_gerado || "Sem Veículo",
                         formato: originalFormat, // Keep original for webhook
                         images: [],
                         caption: img.descricao || "",
                         postType: originalFormat === "VENDIDO REELS" || originalFormat === "REELS"
                             ? "REELS"
                             : (uiFormat === "FEED"
-                                ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
+                                ? (rawImages.filter(i => (i.veiculo_gerado || `ID:${i.id}`) === groupingVehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
                                 : "IMAGEM"),
                         created_at: img.created_at
                     };
@@ -243,7 +247,9 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         // Persist format change via server
         const newFormat = newType === "REELS" ? "VENDIDO REELS" : (post?.formato === "VENDIDO REELS" ? "VENDIDO FEED" : post?.formato || "VENDIDO FEED");
         if (post) {
-            updateGroupFormatAction(client.name, post.veiculo_gerado, post.formato, newFormat)
+            // If the post is grouped by ID (no real vehicle), we must use that ID name for the update criteria
+            const vehicleQuery = post.veiculo_gerado === "Sem Veículo" ? `ID:${post.images[0]?.id}` : post.veiculo_gerado;
+            updateGroupFormatAction(client.name, vehicleQuery, post.formato, newFormat)
                 .then(result => {
                     if (!result.success) console.error("Error updating format in server:", result.error);
                     else {
@@ -309,7 +315,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     formato: post.formato,
                     descricao: isCover ? `REELS_COVER:${publicUrl}` : post.caption,
                     publicado: false,
-                    veiculo_gerado: post.veiculo_gerado,
+                    // If the post has no vehicle, we link the new image to the first image of the post
+                    veiculo_gerado: post.veiculo_gerado === "Sem Veículo" ? `ID:${post.images[0]?.id}` : post.veiculo_gerado,
                     adicionado_manualmente: true,
                     ordem: nextOrder
                 }]);
@@ -365,7 +372,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     formato: post.formato,
                     descricao: `REELS_COVER:${publicUrl}`,
                     publicado: false,
-                    veiculo_gerado: post.veiculo_gerado,
+                    veiculo_gerado: post.veiculo_gerado === "Sem Veículo" ? `ID:${post.images[0]?.id}` : post.veiculo_gerado,
                     adicionado_manualmente: true,
                     ordem: nextOrder
                 }]);
@@ -472,7 +479,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     formato: post.formato,
                     descricao: post.caption,
                     publicado: false,
-                    veiculo_gerado: post.veiculo_gerado,
+                    veiculo_gerado: post.veiculo_gerado === "Sem Veículo" ? `ID:${post.images[0]?.id}` : post.veiculo_gerado,
                     adicionado_manualmente: true,
                     ordem: nextOrder
                 }]);
@@ -750,7 +757,9 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-white leading-none">{client.name}</p>
-                                            <p className="text-[10px] text-gray-400 mt-1">{post.veiculo_gerado}</p>
+                                            <p className="text-[10px] text-gray-400 mt-1">
+                                                {post.veiculo_gerado === "Sem Veículo" ? "Postagem de Venda" : post.veiculo_gerado}
+                                            </p>
                                         </div>
                                     </div>
                                     <Button
