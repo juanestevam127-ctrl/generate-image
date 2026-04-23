@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { getNextDivisaoAction } from "@/app/actions/clients";
 
 export function ClientManager() {
     const { clients, addClient, updateClient, deleteClient } = useStore();
@@ -24,6 +25,7 @@ export function ClientManager() {
     const [instagramId, setInstagramId] = useState("");
     const [token, setToken] = useState("");
     const [columns, setColumns] = useState<ColumnDefinition[]>([]);
+    const [nextDivisao, setNextDivisao] = useState<number | null>(null);
 
     const openNewClientModal = () => {
         setEditingClient(null);
@@ -37,6 +39,11 @@ export function ClientManager() {
         setToken("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
+        
+        // Fetch next division for display
+        getNextDivisaoAction().then(res => {
+            if (res.success) setNextDivisao(res.data);
+        });
     };
 
     const openEditClientModal = (client: Client) => {
@@ -134,17 +141,26 @@ export function ClientManager() {
                             <p className="text-xs text-muted-foreground truncate mb-4" title={client.webhookUrl}>
                                 Webhook: {client.webhookUrl}
                             </p>
-                            <div className="flex flex-wrap gap-2">
-                                {client.columns.map((col) => (
-                                    <span key={col.id} className="inline-flex items-center px-2 py-1 rounded-md bg-white/5 text-xs text-gray-300 border border-white/10">
-                                        {col.type === "image" ? <ImageIcon size={10} className="mr-1 text-purple-400" /> :
-                                            col.type === "checkbox" ? <CheckSquare size={10} className="mr-1 text-green-400" /> :
-                                                <Type size={10} className="mr-1 text-blue-400" />}
-                                        {col.name}
-                                    </span>
-                                ))}
-                            </div>
-                        </CardContent>
+                             <div className="flex flex-wrap gap-2 mb-4">
+                                 {client.columns.map((col) => (
+                                     <span key={col.id} className="inline-flex items-center px-2 py-1 rounded-md bg-white/5 text-xs text-gray-300 border border-white/10">
+                                         {col.type === "image" ? <ImageIcon size={10} className="mr-1 text-purple-400" /> :
+                                             col.type === "checkbox" ? <CheckSquare size={10} className="mr-1 text-green-400" /> :
+                                                 <Type size={10} className="mr-1 text-blue-400" />}
+                                         {col.name}
+                                     </span>
+                                 ))}
+                             </div>
+                             
+                             {client.divisao_developrs && (
+                                 <div className="pt-3 border-t border-white/5 flex justify-between items-center">
+                                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Divisão Developers</span>
+                                     <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20">
+                                         Grupo {client.divisao_developrs}
+                                     </span>
+                                 </div>
+                             )}
+                         </CardContent>
                     </Card>
                 ))}
                 {clients.length === 0 && (
@@ -158,10 +174,18 @@ export function ClientManager() {
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title={editingClient ? "Editar Cliente user" : "Novo Cliente"}
-                className="max-w-2xl h-[90vh]" // Added specific height constraint
+                title={editingClient ? "Editar Cliente" : "Novo Cliente"}
+                className="max-w-2xl h-[90vh]"
             >
                 <div className="space-y-6 h-full overflow-y-auto pr-2 custom-scrollbar">
+                    {!editingClient && nextDivisao && (
+                        <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-3 flex items-center justify-between">
+                            <span className="text-sm text-indigo-300 font-medium tracking-tight">Este cliente será adicionado ao grupo:</span>
+                            <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-indigo-900/20 animate-pulse">
+                                Grupo {nextDivisao}
+                            </span>
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Nome do Cliente</label>

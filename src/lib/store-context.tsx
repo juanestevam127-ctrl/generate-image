@@ -54,6 +54,7 @@ export interface Client {
     token?: string;
     jsonFeed?: string;
     jsonStories?: string;
+    divisao_developrs?: number;
 }
 
 export interface LayoutClient {
@@ -151,7 +152,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     captionTemplate: c.caption_template,
                     facebookId: c.id_facebook,
                     instagramId: c.id_instagram,
-                    token: c.token
+                    token: c.token,
+                    divisao_developrs: c.divisao_developrs
                 }));
                 setClients(formattedClients);
 

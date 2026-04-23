@@ -3,7 +3,49 @@
 import { supabase } from "@/lib/supabase";
 
 // --- Regular Clients (Table: clientes) ---
+async function getNextDivisao() {
+    // Get the highest group number currently in use
+    const { data, error } = await supabase
+        .from("clientes")
+        .select("divisao_developrs")
+        .order("divisao_developrs", { ascending: false })
+        .limit(1);
+    
+    if (error) throw error;
+    
+    // Default to 1 if no clients exist
+    if (!data || data.length === 0) return 1;
+    
+    const currentMax = data[0].divisao_developrs || 1;
+
+    // Count how many clients are in this group
+    const { count, error: countError } = await supabase
+        .from("clientes")
+        .select("*", { count: "exact", head: true })
+        .eq("divisao_developrs", currentMax);
+    
+    if (countError) throw countError;
+    
+    // If we have 10 or more, move to next
+    if (count !== null && count >= 10) {
+        return currentMax + 1;
+    }
+    
+    return currentMax;
+}
+
+export async function getNextDivisaoAction() {
+    try {
+        const next = await getNextDivisao();
+        return { success: true, data: next };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
 export async function addClientAction(data: any) {
+    const nextDivisao = await getNextDivisao();
+
     const dbData = {
         name: data.name,
         webhook_url: data.webhookUrl,
@@ -15,7 +57,8 @@ export async function addClientAction(data: any) {
         id_instagram: data.instagramId,
         token: data.token,
         json_feed: data.jsonFeed,
-        json_stories: data.jsonStories
+        json_stories: data.jsonStories,
+        divisao_developrs: nextDivisao
     };
 
     const { data: inserted, error } = await supabase
