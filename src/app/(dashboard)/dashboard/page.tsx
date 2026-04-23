@@ -115,6 +115,18 @@ export default function DashboardPage() {
         if (!activeClient) return;
         if (tableData.length === 0) return alert("A tabela está vazia.");
 
+        // Validar se todos os checkboxes de todas as linhas estão preenchidos
+        const checkboxCols = activeClient.columns.filter(col => col.type === "checkbox");
+        for (let i = 0; i < tableData.length; i++) {
+            const row = tableData[i];
+            for (const col of checkboxCols) {
+                const value = row[col.id];
+                if (!value || String(value).trim() === "") {
+                    return alert(`Erro na linha ${i + 1}: Você precisa selecionar pelo menos uma opção na coluna "${col.name}".`);
+                }
+            }
+        }
+
         setIsSubmitting(true);
         setSubmitStatus("idle");
 
