@@ -10,10 +10,7 @@ export function getProxiedUrl(url: string): string {
     return url;
   }
 
-  // Only proxy external URLs (likely Supabase)
-  if (url.startsWith('http')) {
-    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
-  }
+
 
   return url;
 }

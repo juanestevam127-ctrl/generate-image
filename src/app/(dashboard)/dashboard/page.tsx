@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { UserManager } from "@/components/features/UserManager";
 import { PostScheduler } from "@/components/features/PostScheduler";
 import AnalyticsView from "@/components/dashboard/AnalyticsView";
-import { serverUploadImage } from "@/app/actions";
+import { uploadImage } from "@/lib/supabase";
 
 export default function DashboardPage() {
     const { user, clients } = useStore();
@@ -43,10 +43,9 @@ export default function DashboardPage() {
                 if (e.target?.result) {
                     const base64Str = e.target.result as string;
 
-                    // Upload to 'temp-files' (root) via Server Action
-                    const uploadResult = await serverUploadImage(base64Str, 'temp-files');
-                    if (uploadResult.success && uploadResult.url) {
-                        const publicUrl = uploadResult.url;
+                    // Upload to 'temp-files' (root) via client-side Supabase
+                    const publicUrl = await uploadImage(base64Str, 'temp-files');
+                    if (publicUrl) {
                         setTableData(prev => {
                             const newData = [...prev];
                             const currentRow = { ...newData[row] };
@@ -92,10 +91,9 @@ export default function DashboardPage() {
         if (editorState.Target) {
             const { row, col } = editorState.Target;
 
-            // Upload processed image to 'temp-files' bucket via Server Action
-            const uploadResult = await serverUploadImage(processedImage, 'temp-files');
-            if (uploadResult.success && uploadResult.url) {
-                const publicUrl = uploadResult.url;
+            // Upload processed image to 'temp-files' bucket via client-side Supabase
+            const publicUrl = await uploadImage(processedImage, 'temp-files');
+            if (publicUrl) {
                 setTableData(prev => {
                     const newData = [...prev];
                     const currentRow = { ...newData[row] };

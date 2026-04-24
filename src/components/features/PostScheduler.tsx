@@ -11,8 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ImageEditor } from "@/components/features/ImageEditor";
 import { CoverPickerModal } from "@/components/features/CoverPickerModal";
-import { serverUploadImage } from "@/app/actions";
-import { uploadFile } from "@/lib/supabase";
+import { uploadFile, uploadImage } from "@/lib/supabase";
 import { 
     fetchSchedulerImagesAction, 
     updateSchedulerRecordAction, 
@@ -351,9 +350,8 @@ export function PostScheduler({ client }: { client: Client }) {
             const post = groupedPosts.find(p => p.id === postId);
             if (!post) return;
 
-            const uploadResult = await serverUploadImage(imageBase64, 'temp-files');
-            if (uploadResult.success && uploadResult.url) {
-                const publicUrl = uploadResult.url;
+            const publicUrl = await uploadImage(imageBase64, 'temp-files');
+            if (publicUrl) {
                 const nextOrder = post.images.length;
                 const result = await insertSchedulerPostAction([{
                     nome_empresa: client.name,
@@ -457,9 +455,8 @@ export function PostScheduler({ client }: { client: Client }) {
 
         setIsScheduling(true);
         try {
-            const uploadResult = await serverUploadImage(croppedBase64, 'temp-files');
-            if (uploadResult.success && uploadResult.url) {
-                const publicUrl = uploadResult.url;
+            const publicUrl = await uploadImage(croppedBase64, 'temp-files');
+            if (publicUrl) {
                 const nextOrder = post.images.length;
 
                 const result = await insertSchedulerPostAction([{
@@ -490,8 +487,8 @@ export function PostScheduler({ client }: { client: Client }) {
                     }));
                     setCarouselIndices(prev => ({ ...prev, [String(activePostId)]: post.images.length }));
                 }
-            } else if (uploadResult.success === false) {
-                throw new Error(uploadResult.error || "Erro no upload.");
+            } else {
+                throw new Error("Erro no upload.");
             }
         } catch (error: any) {
             console.error("Error saving edited image:", error);

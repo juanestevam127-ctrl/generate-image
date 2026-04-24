@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { Upload, X, Send, Loader2, Download, Maximize, AlertCircle, CheckCircle, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { serverUploadImage } from "@/app/actions";
+import { uploadFile } from "@/lib/supabase";
 import { useStore } from "@/lib/store-context";
 
 interface UploadedImage {
@@ -47,29 +47,14 @@ export default function ResizePage() {
         setImages(prev => prev.filter(img => img.id !== id));
     };
 
-    // 1. Upload to Supabase — converte para base64 e usa serverUploadImage (que funciona de forma confiável)
+    // 1. Upload to Supabase — usa uploadFile direto do cliente
     const uploadToSupabase = async (image: UploadedImage): Promise<string | null> => {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const base64Str = e.target?.result as string;
-                    if (!base64Str) { resolve(null); return; }
-                    const result = await serverUploadImage(base64Str, 'temp-files');
-                    if (result.success && result.url) {
-                        resolve(result.url);
-                    } else {
-                        console.error("Upload error:", result.error);
-                        resolve(null);
-                    }
-                } catch (error) {
-                    console.error("Upload error via server action:", error);
-                    resolve(null);
-                }
-            };
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(image.file);
-        });
+        try {
+            return await uploadFile(image.file, 'temp-files');
+        } catch (error) {
+            console.error("Upload error via supabase client:", error);
+            return null;
+        }
     };
 
     const handleProcessImages = async () => {
