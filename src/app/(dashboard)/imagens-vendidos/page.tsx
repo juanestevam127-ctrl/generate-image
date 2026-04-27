@@ -250,7 +250,7 @@ export default function SoldDashboardPage() {
                                         >
                                             <option value="" disabled>-- Escolha uma empresa --</option>
                                             {[...soldClients]
-                                                .filter(c => c.cliente_ativo !== false)
+                                                .filter(c => c.clienteAtivo !== false)
                                                 .sort((a, b) => a.name.localeCompare(b.name))
                                                 .map(c => (
                                                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -304,7 +304,7 @@ export default function SoldDashboardPage() {
                                         >
                                             <option value="" disabled>-- Escolha uma empresa --</option>
                                             {[...soldClients]
-                                                .filter(c => c.cliente_ativo !== false)
+                                                .filter(c => c.clienteAtivo !== false)
                                                 .sort((a, b) => a.name.localeCompare(b.name))
                                                 .map(c => (
                                                     <option key={c.id} value={c.id}>{c.name}</option>

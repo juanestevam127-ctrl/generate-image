@@ -168,7 +168,7 @@ export function SoldClientManager() {
                             <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-semibold text-lg text-white">{client.name}</h3>
-                                    {client.cliente_ativo === false && (
+                                    {client.clienteAtivo === false && (
                                         <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 uppercase font-bold">Inativo</span>
                                     )}
                                 </div>
