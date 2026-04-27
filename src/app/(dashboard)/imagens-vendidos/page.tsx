@@ -16,6 +16,7 @@ import { uploadImage } from "@/lib/supabase";
 export default function SoldDashboardPage() {
     const { user, soldClients } = useStore();
     const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin">("analytics");
+    const [previewImage, setPreviewImage] = useState<{ url: string, title: string } | null>(null);
 
     // Generator State
     const [selectedClientId, setSelectedClientId] = useState<string>("");
@@ -320,24 +321,24 @@ export default function SoldDashboardPage() {
                                         <p className="text-xs text-green-300 bg-green-500/10 px-2 py-1 rounded inline-block self-start">
                                             Webhook Ativo: ...{activeClient.webhookUrl.slice(-15)}
                                         </p>
-                                        {(activeClient.guide_stories || activeClient.guide_feed) && (
+                                        {(activeClient.guideStories || activeClient.guideFeed) && (
                                             <div className="flex gap-2 mt-1">
-                                                {activeClient.guide_stories && (
+                                                {activeClient.guideStories && (
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
                                                         className="h-7 text-[10px] bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/20"
-                                                        onClick={() => window.open(activeClient.guide_stories, '_blank')}
+                                                        onClick={() => setPreviewImage({ url: activeClient.guideStories!, title: `Guia Stories - ${activeClient.name}` })}
                                                     >
                                                         <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
                                                     </Button>
                                                 )}
-                                                {activeClient.guide_feed && (
+                                                {activeClient.guideFeed && (
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
                                                         className="h-7 text-[10px] bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/20"
-                                                        onClick={() => window.open(activeClient.guide_feed, '_blank')}
+                                                        onClick={() => setPreviewImage({ url: activeClient.guideFeed!, title: `Guia Feed - ${activeClient.name}` })}
                                                     >
                                                         <ImageIcon className="w-3 h-3 mr-1" /> Guia Feed
                                                     </Button>
@@ -392,6 +393,25 @@ export default function SoldDashboardPage() {
                 imageUrl={editorState.imageUrl}
                 onSave={handleEditorSave}
             />
+            <Modal
+                isOpen={!!previewImage}
+                onClose={() => setPreviewImage(null)}
+                title={previewImage?.title || "Visualizar Guia"}
+                className="max-w-4xl"
+            >
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-full relative overflow-hidden rounded-lg border border-border bg-black/40">
+                        {previewImage && (
+                            <img 
+                                src={previewImage.url} 
+                                alt={previewImage.title} 
+                                className="max-h-[70vh] w-auto mx-auto object-contain"
+                            />
+                        )}
+                    </div>
+                    <Button onClick={() => setPreviewImage(null)}>Fechar</Button>
+                </div>
+            </Modal>
         </div>
     );
 }

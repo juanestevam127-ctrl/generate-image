@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Card, CardContent } from "@/components/ui/card";
+import { uploadFile } from "@/lib/supabase";
+import { Loader2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getNextDivisaoAction } from "@/app/actions/clients";
 
@@ -29,6 +31,7 @@ export function ClientManager() {
     const [guideStories, setGuideStories] = useState("");
     const [guideFeed, setGuideFeed] = useState("");
     const [clienteAtivo, setClienteAtivo] = useState(true);
+    const [isUploading, setIsUploading] = useState<{ stories: boolean; feed: boolean }>({ stories: false, feed: false });
 
     const openNewClientModal = () => {
         setEditingClient(null);
@@ -66,6 +69,7 @@ export function ClientManager() {
         setGuideFeed(client.guide_feed || "");
         setClienteAtivo(client.cliente_ativo ?? true);
         setColumns([...client.columns]);
+        setIsUploading({ stories: false, feed: false });
         setIsModalOpen(true);
     };
 
@@ -87,12 +91,36 @@ export function ClientManager() {
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
-        if (editingClient) {
-            updateClient(editingClient.id, clientData);
-        } else {
-            addClient(clientData);
+        try {
+            if (editingClient) {
+                await updateClient(editingClient.id, clientData);
+            } else {
+                await addClient(clientData);
+            }
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error("Save Client Error:", error);
+            alert("Erro ao salvar cliente.");
         }
-        setIsModalOpen(false);
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'stories' | 'feed') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(prev => ({ ...prev, [type]: true }));
+        try {
+            const url = await uploadFile(file, 'imagens-sem-exclusao');
+            if (url) {
+                if (type === 'stories') setGuideStories(url);
+                else setGuideFeed(url);
+            }
+        } catch (error) {
+            console.error("Upload Error:", error);
+            alert("Erro ao subir imagem.");
+        } finally {
+            setIsUploading(prev => ({ ...prev, [type]: false }));
+        }
     };
 
     // Column Management
@@ -272,20 +300,54 @@ export function ClientManager() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Stories (URL)</label>
-                            <Input
-                                value={guideStories}
-                                onChange={(e) => setGuideStories(e.target.value)}
-                                placeholder="https://..."
-                            />
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Stories</label>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 relative h-10 border-dashed border-indigo-500/30 hover:border-indigo-500/60"
+                                    disabled={isUploading.stories}
+                                    onClick={() => document.getElementById('upload-guide-stories')?.click()}
+                                >
+                                    {isUploading.stories ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" /> {guideStories ? 'Alterar Imagem' : 'Subir Imagem'}</>}
+                                </Button>
+                                <input
+                                    type="file"
+                                    id="upload-guide-stories"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileUpload(e, 'stories')}
+                                />
+                                {guideStories && (
+                                    <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideStories, '_blank')}>
+                                        <img src={guideStories} alt="Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Feed (URL)</label>
-                            <Input
-                                value={guideFeed}
-                                onChange={(e) => setGuideFeed(e.target.value)}
-                                placeholder="https://..."
-                            />
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Feed</label>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 relative h-10 border-dashed border-indigo-500/30 hover:border-indigo-500/60"
+                                    disabled={isUploading.feed}
+                                    onClick={() => document.getElementById('upload-guide-feed')?.click()}
+                                >
+                                    {isUploading.feed ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" /> {guideFeed ? 'Alterar Imagem' : 'Subir Imagem'}</>}
+                                </Button>
+                                <input
+                                    type="file"
+                                    id="upload-guide-feed"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileUpload(e, 'feed')}
+                                />
+                                {guideFeed && (
+                                    <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideFeed, '_blank')}>
+                                        <img src={guideFeed} alt="Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <div className="space-y-2 col-span-2 flex items-center gap-2">
                             <input
