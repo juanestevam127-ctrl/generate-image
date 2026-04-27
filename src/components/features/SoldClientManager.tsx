@@ -81,9 +81,9 @@ export function SoldClientManager() {
             token,
             jsonFeed,
             jsonStories,
-            guide_stories: guideStories,
-            guide_feed: guideFeed,
-            cliente_ativo: clienteAtivo,
+            guideStories,
+            guideFeed,
+            clienteAtivo,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 

@@ -55,9 +55,9 @@ export interface Client {
     jsonFeed?: string;
     jsonStories?: string;
     divisao_developrs?: number;
-    guide_stories?: string;
-    guide_feed?: string;
-    cliente_ativo?: boolean;
+    guideStories?: string;
+    guideFeed?: string;
+    clienteAtivo?: boolean;
 }
 
 export interface LayoutClient {
@@ -157,9 +157,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     instagramId: c.id_instagram,
                     token: c.token,
                     divisao_developrs: c.divisao_developrs,
-                    guide_stories: c.guide_stories,
-                    guide_feed: c.guide_feed,
-                    cliente_ativo: c.cliente_ativo ?? true
+                    guideStories: c.guide_stories,
+                    guideFeed: c.guide_feed,
+                    clienteAtivo: c.cliente_ativo ?? true
                 }));
                 setClients(formattedClients);
 
@@ -198,9 +198,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     token: c.token,
                     jsonFeed: c.json_feed,
                     jsonStories: c.json_stories,
-                    guide_stories: c.guide_stories,
-                    guide_feed: c.guide_feed,
-                    cliente_ativo: c.cliente_ativo ?? true
+                    guideStories: c.guide_stories,
+                    guideFeed: c.guide_feed,
+                    clienteAtivo: c.cliente_ativo ?? true
                 }));
                 setSoldClients(formattedSold);
 
@@ -292,9 +292,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             facebookId: result.data.id_facebook,
             instagramId: result.data.id_instagram,
             token: result.data.token,
-            guide_stories: result.data.guide_stories,
-            guide_feed: result.data.guide_feed,
-            cliente_ativo: result.data.cliente_ativo ?? true
+            guideStories: result.data.guide_stories,
+            guideFeed: result.data.guide_feed,
+            clienteAtivo: result.data.cliente_ativo ?? true
         };
 
         setClients((prev) => [...prev, newClient]);
@@ -409,9 +409,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                         token: result.data.token,
                         jsonFeed: result.data.json_feed,
                         jsonStories: result.data.json_stories,
-                        guide_stories: result.data.guide_stories,
-                        guide_feed: result.data.guide_feed,
-                        cliente_ativo: result.data.cliente_ativo ?? true
+                        guideStories: result.data.guide_stories,
+                        guideFeed: result.data.guide_feed,
+                        clienteAtivo: result.data.cliente_ativo ?? true
                     };
 
                     setSoldClients((prev) => [...prev, newClient]);

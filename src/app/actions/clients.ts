@@ -59,18 +59,23 @@ export async function addClientAction(data: any) {
         json_feed: data.jsonFeed,
         json_stories: data.jsonStories,
         divisao_developrs: nextDivisao,
-        guide_stories: data.guide_stories,
-        guide_feed: data.guide_feed,
-        cliente_ativo: data.cliente_ativo
+        guide_stories: data.guideStories,
+        guide_feed: data.guideFeed,
+        cliente_ativo: data.clienteAtivo
     };
 
-    const { data: inserted, error } = await supabase
-        .from("clientes")
-        .insert([dbData])
-        .select();
+    try {
+        const { data: inserted, error } = await supabase
+            .from("clientes")
+            .insert([dbData])
+            .select();
 
-    if (error) throw error;
-    return { success: true, data: inserted[0] };
+        if (error) throw error;
+        return { success: true, data: inserted[0] };
+    } catch (e: any) {
+        console.error("Add Client Error:", e);
+        return { success: false, error: e.message };
+    }
 }
 
 export async function updateClientAction(id: string, updates: any) {
@@ -84,17 +89,22 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
     if (updates.token !== undefined) dbUpdates.token = updates.token;
-    if (updates.guide_stories !== undefined) dbUpdates.guide_stories = updates.guide_stories;
-    if (updates.guide_feed !== undefined) dbUpdates.guide_feed = updates.guide_feed;
-    if (updates.cliente_ativo !== undefined) dbUpdates.cliente_ativo = updates.cliente_ativo;
+    if (updates.guideStories !== undefined) dbUpdates.guide_stories = updates.guideStories;
+    if (updates.guideFeed !== undefined) dbUpdates.guide_feed = updates.guideFeed;
+    if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;
 
-    const { error } = await supabase
-        .from("clientes")
-        .update(dbUpdates)
-        .eq("id", id);
+    try {
+        const { error } = await supabase
+            .from("clientes")
+            .update(dbUpdates)
+            .eq("id", id);
 
-    if (error) throw error;
-    return { success: true };
+        if (error) throw error;
+        return { success: true };
+    } catch (e: any) {
+        console.error("Update Client Error:", e);
+        return { success: false, error: e.message };
+    }
 }
 
 export async function deleteClientAction(id: string) {
@@ -120,18 +130,23 @@ export async function addSoldClientAction(data: any) {
         id_instagram: data.instagramId,
         token: data.token,
         json_stories: data.jsonStories,
-        guide_stories: data.guide_stories,
-        guide_feed: data.guide_feed,
-        cliente_ativo: data.cliente_ativo
+        guide_stories: data.guideStories,
+        guide_feed: data.guideFeed,
+        cliente_ativo: data.clienteAtivo
     };
 
-    const { data: inserted, error } = await supabase
-        .from("clientes_vendidos")
-        .insert([dbData])
-        .select();
+    try {
+        const { data: inserted, error } = await supabase
+            .from("clientes_vendidos")
+            .insert([dbData])
+            .select();
 
-    if (error) throw error;
-    return { success: true, data: inserted[0] };
+        if (error) throw error;
+        return { success: true, data: inserted[0] };
+    } catch (e: any) {
+        console.error("Add Sold Client Error:", e);
+        return { success: false, error: e.message };
+    }
 }
 
 export async function updateSoldClientAction(id: string, updates: any) {
@@ -145,17 +160,22 @@ export async function updateSoldClientAction(id: string, updates: any) {
     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
     if (updates.token !== undefined) dbUpdates.token = updates.token;
-    if (updates.guide_stories !== undefined) dbUpdates.guide_stories = updates.guide_stories;
-    if (updates.guide_feed !== undefined) dbUpdates.guide_feed = updates.guide_feed;
-    if (updates.cliente_ativo !== undefined) dbUpdates.cliente_ativo = updates.cliente_ativo;
+    if (updates.guideStories !== undefined) dbUpdates.guide_stories = updates.guideStories;
+    if (updates.guideFeed !== undefined) dbUpdates.guide_feed = updates.guideFeed;
+    if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;
 
-    const { error } = await supabase
-        .from("clientes_vendidos")
-        .update(dbUpdates)
-        .eq("id", id);
+    try {
+        const { error } = await supabase
+            .from("clientes_vendidos")
+            .update(dbUpdates)
+            .eq("id", id);
 
-    if (error) throw error;
-    return { success: true };
+        if (error) throw error;
+        return { success: true };
+    } catch (e: any) {
+        console.error("Update Sold Client Error:", e);
+        return { success: false, error: e.message };
+    }
 }
 
 export async function deleteSoldClientAction(id: string) {

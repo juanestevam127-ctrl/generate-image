@@ -81,9 +81,9 @@ export function ClientManager() {
             facebookId,
             instagramId,
             token,
-            guide_stories: guideStories,
-            guide_feed: guideFeed,
-            cliente_ativo: clienteAtivo,
+            guideStories,
+            guideFeed,
+            clienteAtivo,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
