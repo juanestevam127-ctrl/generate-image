@@ -6,7 +6,7 @@ import { SoldClientManager } from "@/components/features/SoldClientManager";
 import { DynamicTable } from "@/components/features/DynamicTable";
 import { ImageEditor } from "@/components/features/ImageEditor";
 import { Button } from "@/components/ui/button";
-import { Settings, Send, Loader2, Sparkles, CheckCircle, AlertCircle, BarChart3 } from "lucide-react";
+import { Settings, Send, Loader2, Sparkles, CheckCircle, AlertCircle, BarChart3, Image as ImageIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { UserManager } from "@/components/features/UserManager";
 import { SoldPostScheduler } from "@/components/features/SoldPostScheduler";
