@@ -12,6 +12,7 @@ import { UserManager } from "@/components/features/UserManager";
 import { SoldPostScheduler } from "@/components/features/SoldPostScheduler";
 import AnalyticsView from "@/components/dashboard/AnalyticsView";
 import { uploadImage } from "@/lib/supabase";
+import { Modal } from "@/components/ui/modal";
 
 export default function SoldDashboardPage() {
     const { user, soldClients } = useStore();
