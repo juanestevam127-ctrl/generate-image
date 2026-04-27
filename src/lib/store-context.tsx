@@ -84,14 +84,14 @@ interface StoreContextType {
 
     // User Management (Admin only)
     registeredUsers: UserAccount[]; // In a real app, we wouldn't expose passwords, but for this MVP client-side store it's needed for management listing/checking
-    registerUser: (user: UserAccount) => void;
-    removeUser: (email: string) => void;
+    registerUser: (user: UserAccount) => Promise<void>;
+    removeUser: (email: string) => Promise<void>;
 
     // Data
     clients: Client[];
-    addClient: (client: Omit<Client, "id">) => void;
-    updateClient: (id: string, updates: Partial<Client>) => void;
-    deleteClient: (id: string) => void;
+    addClient: (client: Omit<Client, "id">) => Promise<void>;
+    updateClient: (id: string, updates: Partial<Client>) => Promise<void>;
+    deleteClient: (id: string) => Promise<void>;
 
     // Layout Clients
     layoutClients: LayoutClient[];

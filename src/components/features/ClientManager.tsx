@@ -73,7 +73,7 @@ export function ClientManager() {
         setIsModalOpen(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!name || !webhookUrl) return alert("Preencha nome e webhook");
 
         const clientData = {

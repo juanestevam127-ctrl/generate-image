@@ -22,10 +22,10 @@ export function UserManager() {
     const [newUserRole, setNewUserRole] = useState<UserRole>("common");
     const [newUserName, setNewUserName] = useState("");
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
         if (!newUserEmail || !newUserPass) return alert("Email e Senha obrigatórios");
 
-        registerUser({
+        await registerUser({
             email: newUserEmail,
             password: newUserPass,
             role: newUserRole,
@@ -43,13 +43,13 @@ export function UserManager() {
         setNewUserName("");
     };
 
-    const handleDelete = (email: string) => {
+    const handleDelete = async (email: string) => {
         if (email === currentUser?.email) {
             alert("Você não pode remover seu próprio usuário!");
             return;
         }
         if (confirm(`Tem certeza que deseja remover ${email}?`)) {
-            removeUser(email);
+            await removeUser(email);
         }
     };
 
