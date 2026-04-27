@@ -58,7 +58,10 @@ export async function addClientAction(data: any) {
         token: data.token,
         json_feed: data.jsonFeed,
         json_stories: data.jsonStories,
-        divisao_developrs: nextDivisao
+        divisao_developrs: nextDivisao,
+        guide_stories: data.guide_stories,
+        guide_feed: data.guide_feed,
+        cliente_ativo: data.cliente_ativo
     };
 
     const { data: inserted, error } = await supabase
@@ -81,6 +84,9 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
     if (updates.token !== undefined) dbUpdates.token = updates.token;
+    if (updates.guide_stories !== undefined) dbUpdates.guide_stories = updates.guide_stories;
+    if (updates.guide_feed !== undefined) dbUpdates.guide_feed = updates.guide_feed;
+    if (updates.cliente_ativo !== undefined) dbUpdates.cliente_ativo = updates.cliente_ativo;
 
     const { error } = await supabase
         .from("clientes")
@@ -113,8 +119,10 @@ export async function addSoldClientAction(data: any) {
         id_facebook: data.facebookId,
         id_instagram: data.instagramId,
         token: data.token,
-        json_feed: data.jsonFeed,
-        json_stories: data.jsonStories
+        json_stories: data.jsonStories,
+        guide_stories: data.guide_stories,
+        guide_feed: data.guide_feed,
+        cliente_ativo: data.cliente_ativo
     };
 
     const { data: inserted, error } = await supabase
@@ -137,6 +145,9 @@ export async function updateSoldClientAction(id: string, updates: any) {
     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
     if (updates.token !== undefined) dbUpdates.token = updates.token;
+    if (updates.guide_stories !== undefined) dbUpdates.guide_stories = updates.guide_stories;
+    if (updates.guide_feed !== undefined) dbUpdates.guide_feed = updates.guide_feed;
+    if (updates.cliente_ativo !== undefined) dbUpdates.cliente_ativo = updates.cliente_ativo;
 
     const { error } = await supabase
         .from("clientes_vendidos")

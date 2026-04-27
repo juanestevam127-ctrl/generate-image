@@ -26,6 +26,9 @@ export function ClientManager() {
     const [token, setToken] = useState("");
     const [columns, setColumns] = useState<ColumnDefinition[]>([]);
     const [nextDivisao, setNextDivisao] = useState<number | null>(null);
+    const [guideStories, setGuideStories] = useState("");
+    const [guideFeed, setGuideFeed] = useState("");
+    const [clienteAtivo, setClienteAtivo] = useState(true);
 
     const openNewClientModal = () => {
         setEditingClient(null);
@@ -37,6 +40,9 @@ export function ClientManager() {
         setFacebookId("");
         setInstagramId("");
         setToken("");
+        setGuideStories("");
+        setGuideFeed("");
+        setClienteAtivo(true);
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
         
@@ -56,6 +62,9 @@ export function ClientManager() {
         setFacebookId(client.facebookId || "");
         setInstagramId(client.instagramId || "");
         setToken(client.token || "");
+        setGuideStories(client.guide_stories || "");
+        setGuideFeed(client.guide_feed || "");
+        setClienteAtivo(client.cliente_ativo ?? true);
         setColumns([...client.columns]);
         setIsModalOpen(true);
     };
@@ -72,6 +81,9 @@ export function ClientManager() {
             facebookId,
             instagramId,
             token,
+            guide_stories: guideStories,
+            guide_feed: guideFeed,
+            cliente_ativo: clienteAtivo,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
@@ -126,7 +138,12 @@ export function ClientManager() {
                     <Card key={client.id} className="relative group overflow-hidden border-white/5 hover:border-indigo-500/50 transition-colors">
                         <CardContent className="p-5">
                             <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-semibold text-lg text-white">{client.name}</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-lg text-white">{client.name}</h3>
+                                    {client.cliente_ativo === false && (
+                                        <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 uppercase font-bold">Inativo</span>
+                                    )}
+                                </div>
                                 <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-blue-400" onClick={() => openEditClientModal(client)}>
                                         <Edit size={16} />
@@ -253,6 +270,32 @@ export function ClientManager() {
                                 className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 placeholder="EAAB..."
                             />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Stories (URL)</label>
+                            <Input
+                                value={guideStories}
+                                onChange={(e) => setGuideStories(e.target.value)}
+                                placeholder="https://..."
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Feed (URL)</label>
+                            <Input
+                                value={guideFeed}
+                                onChange={(e) => setGuideFeed(e.target.value)}
+                                placeholder="https://..."
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-2 flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="clienteAtivo"
+                                checked={clienteAtivo}
+                                onChange={(e) => setClienteAtivo(e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 bg-background"
+                            />
+                            <label htmlFor="clienteAtivo" className="text-xs uppercase text-muted-foreground font-bold cursor-pointer">Cliente Ativo</label>
                         </div>
                     </div>
 

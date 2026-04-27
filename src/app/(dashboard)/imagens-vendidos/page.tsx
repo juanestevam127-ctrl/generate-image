@@ -248,9 +248,12 @@ export default function SoldDashboardPage() {
                                             onChange={(e) => setSelectedClientId(e.target.value)}
                                         >
                                             <option value="" disabled>-- Escolha uma empresa --</option>
-                                            {[...soldClients].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
+                                            {[...soldClients]
+                                                .filter(c => c.cliente_ativo !== false)
+                                                .sort((a, b) => a.name.localeCompare(b.name))
+                                                .map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
                                         </select>
                                         <div className="absolute right-3 top-3 pointer-events-none text-gray-400">
                                             <Settings size={14} />
@@ -299,9 +302,12 @@ export default function SoldDashboardPage() {
                                             }}
                                         >
                                             <option value="" disabled>-- Escolha uma empresa --</option>
-                                            {[...soldClients].sort((a, b) => a.name.localeCompare(b.name)).map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
+                                            {[...soldClients]
+                                                .filter(c => c.cliente_ativo !== false)
+                                                .sort((a, b) => a.name.localeCompare(b.name))
+                                                .map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
                                         </select>
                                         <div className="absolute right-3 top-3 pointer-events-none text-gray-400">
                                             <Settings size={14} />
@@ -310,10 +316,34 @@ export default function SoldDashboardPage() {
                                 </div>
 
                                 {activeClient && (
-                                    <div className="flex-1 pb-1">
-                                        <p className="text-xs text-green-300 bg-green-500/10 px-2 py-1 rounded inline-block">
+                                    <div className="flex-1 pb-1 flex flex-col gap-1">
+                                        <p className="text-xs text-green-300 bg-green-500/10 px-2 py-1 rounded inline-block self-start">
                                             Webhook Ativo: ...{activeClient.webhookUrl.slice(-15)}
                                         </p>
+                                        {(activeClient.guide_stories || activeClient.guide_feed) && (
+                                            <div className="flex gap-2 mt-1">
+                                                {activeClient.guide_stories && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 text-[10px] bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/20"
+                                                        onClick={() => window.open(activeClient.guide_stories, '_blank')}
+                                                    >
+                                                        <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
+                                                    </Button>
+                                                )}
+                                                {activeClient.guide_feed && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 text-[10px] bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/20"
+                                                        onClick={() => window.open(activeClient.guide_feed, '_blank')}
+                                                    >
+                                                        <ImageIcon className="w-3 h-3 mr-1" /> Guia Feed
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

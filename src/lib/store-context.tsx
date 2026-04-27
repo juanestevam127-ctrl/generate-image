@@ -55,6 +55,9 @@ export interface Client {
     jsonFeed?: string;
     jsonStories?: string;
     divisao_developrs?: number;
+    guide_stories?: string;
+    guide_feed?: string;
+    cliente_ativo?: boolean;
 }
 
 export interface LayoutClient {
@@ -153,7 +156,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     facebookId: c.id_facebook,
                     instagramId: c.id_instagram,
                     token: c.token,
-                    divisao_developrs: c.divisao_developrs
+                    divisao_developrs: c.divisao_developrs,
+                    guide_stories: c.guide_stories,
+                    guide_feed: c.guide_feed,
+                    cliente_ativo: c.cliente_ativo ?? true
                 }));
                 setClients(formattedClients);
 
@@ -191,7 +197,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     instagramId: c.id_instagram,
                     token: c.token,
                     jsonFeed: c.json_feed,
-                    jsonStories: c.json_stories
+                    jsonStories: c.json_stories,
+                    guide_stories: c.guide_stories,
+                    guide_feed: c.guide_feed,
+                    cliente_ativo: c.cliente_ativo ?? true
                 }));
                 setSoldClients(formattedSold);
 
@@ -282,7 +291,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             captionTemplate: result.data.caption_template,
             facebookId: result.data.id_facebook,
             instagramId: result.data.id_instagram,
-            token: result.data.token
+            token: result.data.token,
+            guide_stories: result.data.guide_stories,
+            guide_feed: result.data.guide_feed,
+            cliente_ativo: result.data.cliente_ativo ?? true
         };
 
         setClients((prev) => [...prev, newClient]);
@@ -396,7 +408,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                         instagramId: result.data.id_instagram,
                         token: result.data.token,
                         jsonFeed: result.data.json_feed,
-                        jsonStories: result.data.json_stories
+                        jsonStories: result.data.json_stories,
+                        guide_stories: result.data.guide_stories,
+                        guide_feed: result.data.guide_feed,
+                        cliente_ativo: result.data.cliente_ativo ?? true
                     };
 
                     setSoldClients((prev) => [...prev, newClient]);
