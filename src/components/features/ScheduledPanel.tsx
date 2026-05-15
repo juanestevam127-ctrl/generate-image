@@ -7,7 +7,16 @@ import { getProxiedUrl } from "@/lib/imageProxy";
 import { Client } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { fetchScheduledPanelPostsAction, cancelScheduledPostAction, updateSchedulerRecordAction } from "@/app/actions/scheduler";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { fetchScheduledPanelPostsAction, cancelScheduledPostAction, updateSchedulerRecordAction, fetchAllScheduledPostsAction } from "@/app/actions/scheduler";
+import { 
+    processScheduledPosts, 
+    checkSchedulingConflicts, 
+    ScheduledPost, 
+    SchedulingConflict, 
+    POST_TYPE_CONFIG 
+} from "@/lib/scheduler-utils";
 
 interface PostImage {
     id: number;
@@ -41,6 +50,14 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
     const [groupedPosts, setGroupedPosts] = useState<GroupedScheduledPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+    // Edit Schedule State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingPost, setEditingPost] = useState<GroupedScheduledPost | null>(null);
+    const [scheduleDate, setScheduleDate] = useState("");
+    const [scheduleTime, setScheduleTime] = useState("");
+    const [allScheduledPosts, setAllScheduledPosts] = useState<ScheduledPost[]>([]);
+    const [conflicts, setConflicts] = useState<SchedulingConflict[]>([]);
 
     const checkIsVideo = (url: string) => {
         if (!url) return false;
@@ -117,6 +134,71 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
             alert("Erro ao cancelar agendamento.");
         } finally {
             setActionLoading(null);
+        }
+    };
+
+    const handleOpenEditModal = async (post: GroupedScheduledPost) => {
+        setEditingPost(post);
+        const dt = new Date(post.data_agendamento);
+        // Format to local timezone YYYY-MM-DD and HH:mm
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        const hh = String(dt.getHours()).padStart(2, '0');
+        const min = String(dt.getMinutes()).padStart(2, '0');
+        setScheduleDate(`${yyyy}-${mm}-${dd}`);
+        setScheduleTime(`${hh}:${min}`);
+        setConflicts([]);
+        setIsEditModalOpen(true);
+        
+        const rawPosts = await fetchAllScheduledPostsAction();
+        const processedPosts = processScheduledPosts(rawPosts);
+        setAllScheduledPosts(processedPosts);
+    };
+
+    useEffect(() => {
+        if (editingPost && scheduleDate && scheduleTime) {
+            const proposedTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
+            const currentPostIds = editingPost.images.map(img => img.id);
+            const foundConflicts = checkSchedulingConflicts(
+                proposedTime,
+                editingPost.postType,
+                allScheduledPosts,
+                currentPostIds
+            );
+            setConflicts(foundConflicts);
+        } else {
+            setConflicts([]);
+        }
+    }, [scheduleDate, scheduleTime, editingPost, allScheduledPosts]);
+
+    const handleSaveSchedule = async () => {
+        if (!editingPost) return;
+        if (!scheduleDate || !scheduleTime) {
+            alert("Selecione data e hora.");
+            return;
+        }
+
+        setActionLoading(editingPost.id);
+        setIsEditModalOpen(false);
+        try {
+            const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
+            const selectedIds = editingPost.images.map(img => img.id);
+
+            const result = await updateSchedulerRecordAction(selectedIds, { 
+                data_agendamento: scheduledDateTime.toISOString()
+            });
+
+            if (!result.success) throw new Error(result.error);
+            
+            alert("Horário atualizado com sucesso!");
+            fetchPosts();
+        } catch (error) {
+            console.error("Update schedule error:", error);
+            alert("Erro ao atualizar o horário: " + (error as Error).message);
+        } finally {
+            setActionLoading(null);
+            setEditingPost(null);
         }
     };
 
@@ -257,15 +339,26 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                                 </div>
 
                                 <div className="mt-auto space-y-2 pt-2">
-                                    <Button 
-                                        variant="outline" 
-                                        className="w-full h-8 text-xs border-white/10 hover:bg-white/10"
-                                        onClick={() => handleCancelSchedule(post)}
-                                        disabled={actionLoading === post.id}
-                                    >
-                                        {actionLoading === post.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Trash2 className="w-3 h-3 mr-1 text-red-400" />}
-                                        Cancelar Agendamento
-                                    </Button>
+                                    <div className="flex space-x-2">
+                                        <Button 
+                                            variant="outline" 
+                                            className="w-1/2 h-8 text-[10px] sm:text-xs border-white/10 hover:bg-white/10 px-1"
+                                            onClick={() => handleCancelSchedule(post)}
+                                            disabled={actionLoading === post.id}
+                                        >
+                                            {actionLoading === post.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Trash2 className="w-3 h-3 mr-1 text-red-400" />}
+                                            Cancelar
+                                        </Button>
+                                        <Button 
+                                            variant="outline" 
+                                            className="w-1/2 h-8 text-[10px] sm:text-xs border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 px-1"
+                                            onClick={() => handleOpenEditModal(post)}
+                                            disabled={actionLoading === post.id}
+                                        >
+                                            <Clock className="w-3 h-3 mr-1" />
+                                            Horário
+                                        </Button>
+                                    </div>
                                     <Button 
                                         className="w-full h-8 text-xs !bg-indigo-600 hover:!bg-indigo-700 !text-white"
                                         onClick={() => handleResendWebhook(post)}
@@ -280,6 +373,99 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                     );
                 })}
             </div>
+
+            {/* Edit Schedule Modal */}
+            <Modal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                title="Mudar Horário do Agendamento"
+                className="max-w-md"
+            >
+                <div className="space-y-6">
+                    {editingPost && (
+                        <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                            <p className="text-sm text-gray-300 mb-2 font-medium">Resumo do Post</p>
+                            <div className="flex items-center space-x-4">
+                                <div className="w-16 h-16 rounded-md overflow-hidden bg-zinc-800 border border-white/10 shrink-0">
+                                    {checkIsVideo(editingPost.images[0].imagem) ? (
+                                        <video src={editingPost.images[0].imagem} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <img src={editingPost.images[0].imagem} className="w-full h-full object-cover" />
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="text-white font-bold text-sm truncate w-48">{editingPost.veiculo_gerado}</p>
+                                    <p className="text-xs text-indigo-400 font-bold">{editingPost.formato} • {editingPost.postType} • {editingPost.images.length} item(ns)</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-300">Nova Data</label>
+                            <Input
+                                type="date"
+                                value={scheduleDate}
+                                onChange={(e) => setScheduleDate(e.target.value)}
+                                className="bg-black/20"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-300">Novo Horário</label>
+                            <Input
+                                type="time"
+                                value={scheduleTime}
+                                onChange={(e) => setScheduleTime(e.target.value)}
+                                className="bg-black/20"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Conflict Warnings */}
+                    {conflicts.length > 0 && (
+                        <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg space-y-2">
+                            <p className="text-red-400 text-xs font-bold uppercase tracking-wider flex items-center">
+                                <Clock className="w-3 h-3 mr-2" />
+                                Conflito de Horário Detectado
+                            </p>
+                            {conflicts.map((conflict, idx) => (
+                                <p key={idx} className="text-gray-300 text-[11px] leading-relaxed">
+                                    {conflict.reason}
+                                </p>
+                            ))}
+                            <p className="text-red-400/80 text-[10px] italic mt-2">
+                                Para evitar bloqueios da Meta, escolha um horário com maior intervalo.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Delay Info */}
+                    <div className="bg-indigo-500/5 border border-indigo-500/20 p-4 rounded-lg">
+                        <p className="text-indigo-400 text-[10px] font-bold uppercase tracking-wider mb-2">Intervalos Recomendados</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-gray-400">
+                            {Object.entries(POST_TYPE_CONFIG).filter(([key]) => ["CARROSSEL", "REELS", "ESTATICA"].includes(key)).map(([key, cfg]) => (
+                                <div key={key} className="flex justify-between border-b border-white/5 py-1">
+                                    <span>{cfg.label}:</span>
+                                    <span className="text-indigo-300 font-bold">{cfg.delay} min</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4 space-x-3">
+                        <Button variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+                        <Button
+                            onClick={handleSaveSchedule}
+                            disabled={actionLoading === editingPost?.id}
+                            className="!bg-indigo-600 hover:!bg-indigo-700 !text-white font-bold"
+                        >
+                            {actionLoading === editingPost?.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                            Salvar Horário
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
