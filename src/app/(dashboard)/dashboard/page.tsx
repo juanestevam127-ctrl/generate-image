@@ -13,10 +13,11 @@ import { PostScheduler } from "@/components/features/PostScheduler";
 import AnalyticsView from "@/components/dashboard/AnalyticsView";
 import { uploadImage } from "@/lib/supabase";
 import { Modal } from "@/components/ui/modal";
+import { ScheduledPanel } from "@/components/features/ScheduledPanel";
 
 export default function DashboardPage() {
     const { user, clients } = useStore();
-    const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin">("analytics");
+    const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin" | "scheduled_panel">("analytics");
     const [previewImage, setPreviewImage] = useState<{ url: string, title: string } | null>(null);
 
     // Generator State
@@ -160,11 +161,12 @@ export default function DashboardPage() {
                         {viewMode === "analytics" ? "Dashboard" :
                             viewMode === "admin" ? "Adminstração" :
                                 viewMode === "scheduler" ? "Agendar Postagens" :
-                                    "Gerenciamento de Imagens"}
+                                    viewMode === "scheduled_panel" ? "Painel de Postagens" :
+                                        "Gerenciamento de Imagens"}
                         {viewMode === "generator" && <Sparkles className="ml-2 text-yellow-400 w-6 h-6 animate-pulse" />}
                     </h1>
                     <p className="text-muted-foreground">
-                        {viewMode === "analytics" ? "Métricas e performance." : viewMode === "admin" ? "Gerencie seus clientes e a estrutura de dados." : viewMode === "scheduler" ? "Agendar e organizar postagens." : "Automação e gestão de imagens."}
+                        {viewMode === "analytics" ? "Métricas e performance." : viewMode === "admin" ? "Gerencie seus clientes e a estrutura de dados." : viewMode === "scheduler" ? "Agendar e organizar postagens." : viewMode === "scheduled_panel" ? "Acompanhe e gerencie as postagens agendadas." : "Automação e gestão de imagens."}
                     </p>
                 </div>
 
@@ -188,6 +190,12 @@ export default function DashboardPage() {
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "scheduler" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                     >
                         Agendar
+                    </button>
+                    <button
+                        onClick={() => setViewMode("scheduled_panel")}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "scheduled_panel" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        Painel
                     </button>
                     {user.role === "master" && (
                         <button
@@ -242,6 +250,42 @@ export default function DashboardPage() {
                         ) : (
                             <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
                                 <p>Selecione um cliente para visualizar as imagens.</p>
+                            </div>
+                        )}
+                    </div>
+                ) : viewMode === "scheduled_panel" ? (
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <Card className="p-6 bg-gradient-to-r from-blue-900/20 to-indigo-900/20 border-blue-500/20">
+                            <div className="flex flex-col md:flex-row gap-4 items-end">
+                                <div className="w-full md:w-1/3">
+                                    <label className="text-sm font-medium text-gray-300 mb-2 block">Selecione o Cliente</label>
+                                    <div className="relative">
+                                        <select
+                                            className="w-full bg-black/40 border border-white/10 rounded-md h-10 px-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                                            value={selectedClientId}
+                                            onChange={(e) => setSelectedClientId(e.target.value)}
+                                        >
+                                            <option value="" disabled>-- Escolha uma empresa --</option>
+                                            {[...clients]
+                                                .filter(c => c.clienteAtivo !== false)
+                                                .sort((a, b) => a.name.localeCompare(b.name))
+                                                .map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                        </select>
+                                        <div className="absolute right-3 top-3 pointer-events-none text-gray-400">
+                                            <Settings size={14} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+
+                        {selectedClientId && activeClient ? (
+                            <ScheduledPanel client={activeClient} isSold={false} />
+                        ) : (
+                            <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
+                                <p>Selecione um cliente para visualizar o painel.</p>
                             </div>
                         )}
                     </div>

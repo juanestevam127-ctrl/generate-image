@@ -113,3 +113,44 @@ export async function fetchAllScheduledPostsAction() {
 
     return data;
 }
+
+export async function fetchScheduledPanelPostsAction(clientName: string, isSold: boolean = false) {
+    try {
+        let query = supabase
+            .from("publicacoes_design_online")
+            .select("*")
+            .eq("nome_empresa", clientName)
+            .not("data_agendamento", "is", null);
+
+        if (isSold) {
+            query = query.ilike("formato", "VENDIDO %");
+        } else {
+            query = query.not("formato", "ilike", "VENDIDO %");
+        }
+
+        const { data, error } = await query
+            .order("data_agendamento", { ascending: false })
+            .order("ordem", { ascending: true });
+
+        if (error) throw error;
+        return { success: true, data: data || [] };
+    } catch (error: any) {
+        console.error("fetchScheduledPanelPostsAction Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function cancelScheduledPostAction(ids: number[]) {
+    try {
+        const { error } = await supabase
+            .from("publicacoes_design_online")
+            .update({ data_agendamento: null, publicado: false })
+            .in("id", ids);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error("cancelScheduledPostAction Error:", error);
+        return { success: false, error: error.message };
+    }
+}

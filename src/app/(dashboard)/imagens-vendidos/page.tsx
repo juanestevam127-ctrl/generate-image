@@ -13,10 +13,11 @@ import { SoldPostScheduler } from "@/components/features/SoldPostScheduler";
 import AnalyticsView from "@/components/dashboard/AnalyticsView";
 import { uploadImage } from "@/lib/supabase";
 import { Modal } from "@/components/ui/modal";
+import { ScheduledPanel } from "@/components/features/ScheduledPanel";
 
 export default function SoldDashboardPage() {
     const { user, soldClients } = useStore();
-    const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin">("analytics");
+    const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin" | "scheduled_panel">("analytics");
     const [previewImage, setPreviewImage] = useState<{ url: string, title: string } | null>(null);
 
     // Generator State
@@ -182,7 +183,8 @@ export default function SoldDashboardPage() {
                         {viewMode === "analytics" ? "Dashboard Vendidos" :
                             viewMode === "admin" ? "Configuração Vendidos" :
                                 viewMode === "scheduler" ? "Agendar Vendidos" :
-                                    "Gerenciamento de Imagens Vendidos"}
+                                    viewMode === "scheduled_panel" ? "Painel de Vendidos" :
+                                        "Gerenciamento de Imagens Vendidos"}
                         {viewMode === "generator" && <Sparkles className="ml-2 text-green-400 w-6 h-6 animate-pulse" />}
                     </h1>
                     <p className="text-muted-foreground">
@@ -192,7 +194,9 @@ export default function SoldDashboardPage() {
                                 ? "Gerencie seus clientes de vendas e a estrutura de dados."
                                 : viewMode === "scheduler"
                                     ? "Organize e publique o conteúdo de vendas gerado."
-                                    : "Automação e gestão completa de imagens para vendas."}
+                                    : viewMode === "scheduled_panel"
+                                        ? "Acompanhe e gerencie as postagens de vendas agendadas."
+                                        : "Automação e gestão completa de imagens para vendas."}
                     </p>
                 </div>
 
@@ -216,6 +220,12 @@ export default function SoldDashboardPage() {
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "scheduler" ? "bg-green-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
                     >
                         Agendar
+                    </button>
+                    <button
+                        onClick={() => setViewMode("scheduled_panel")}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "scheduled_panel" ? "bg-green-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        Painel
                     </button>
                     {user.role === "master" && (
                         <button
@@ -284,6 +294,42 @@ export default function SoldDashboardPage() {
                         ) : (
                             <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
                                 <p>Selecione um cliente para visualizar as imagens.</p>
+                            </div>
+                        )}
+                    </div>
+                ) : viewMode === "scheduled_panel" ? (
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <Card className="p-6 bg-gradient-to-r from-teal-900/20 to-green-900/20 border-teal-500/20">
+                            <div className="flex flex-col md:flex-row gap-4 items-end">
+                                <div className="w-full md:w-1/3">
+                                    <label className="text-sm font-medium text-gray-300 mb-2 block">Selecione o Cliente</label>
+                                    <div className="relative">
+                                        <select
+                                            className="w-full bg-black/40 border border-white/10 rounded-md h-10 px-3 text-sm text-white focus:ring-2 focus:ring-teal-500 outline-none appearance-none"
+                                            value={selectedClientId}
+                                            onChange={(e) => setSelectedClientId(e.target.value)}
+                                        >
+                                            <option value="" disabled>-- Escolha uma empresa --</option>
+                                            {[...soldClients]
+                                                .filter(c => c.clienteAtivo !== false)
+                                                .sort((a, b) => a.name.localeCompare(b.name))
+                                                .map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                        </select>
+                                        <div className="absolute right-3 top-3 pointer-events-none text-gray-400">
+                                            <Settings size={14} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </Card>
+
+                        {selectedClientId && activeClient ? (
+                            <ScheduledPanel client={activeClient} isSold={true} />
+                        ) : (
+                            <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
+                                <p>Selecione um cliente para visualizar o painel.</p>
                             </div>
                         )}
                     </div>

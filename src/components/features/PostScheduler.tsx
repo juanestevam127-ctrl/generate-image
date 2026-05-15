@@ -630,7 +630,10 @@ export function PostScheduler({ client }: { client: Client }) {
 
                 if (selectedIds.length > 0) {
                     const result = await updateSchedulerRecordAction(selectedIds, { 
-                        publicado: true,
+                        data_agendamento: scheduledDateTime.toISOString(),
+                        publicado: false,
+                        postado: false,
+                        publicado_instagram: false,
                         descricao: currentPost.caption 
                     });
 
@@ -645,6 +648,9 @@ export function PostScheduler({ client }: { client: Client }) {
                 if (selectedIds.length > 0) {
                     const result = await updateSchedulerRecordAction(selectedIds, { 
                         data_agendamento: scheduledDateTime.toISOString(),
+                        publicado: false,
+                        postado: false,
+                        publicado_instagram: false,
                         descricao: currentPost.caption 
                     });
 
