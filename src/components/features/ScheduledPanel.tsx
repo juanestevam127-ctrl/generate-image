@@ -8,7 +8,6 @@ import { Client } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { fetchScheduledPanelPostsAction, cancelScheduledPostAction, updateSchedulerRecordAction } from "@/app/actions/scheduler";
-import { isVideo } from "@/lib/utils"; // Assuming this or I'll implement locally
 
 interface PostImage {
     id: number;
