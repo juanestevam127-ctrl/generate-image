@@ -116,15 +116,21 @@ export async function fetchAllScheduledPostsAction() {
 
 export async function fetchGlobalScheduledPostsAction() {
     try {
-        // Fetch posts from today up to the future
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Obter data atual no fuso horário do Brasil
+        const now = new Date();
+        const brazilTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+        
+        // Criar string ISO para o início do dia no Brasil (assumindo -03:00)
+        const yyyy = brazilTime.getFullYear();
+        const mm = String(brazilTime.getMonth() + 1).padStart(2, '0');
+        const dd = String(brazilTime.getDate()).padStart(2, '0');
+        const startOfDayBrazil = new Date(`${yyyy}-${mm}-${dd}T00:00:00-03:00`);
 
         const { data, error } = await supabase
             .from("publicacoes_design_online")
             .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, publicado, publicado_instagram")
             .not("data_agendamento", "is", null)
-            .gte("data_agendamento", today.toISOString())
+            .gte("data_agendamento", startOfDayBrazil.toISOString())
             .order("data_agendamento", { ascending: true })
             .limit(100);
 
