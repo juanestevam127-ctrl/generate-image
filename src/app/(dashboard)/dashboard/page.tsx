@@ -14,6 +14,7 @@ import AnalyticsView from "@/components/dashboard/AnalyticsView";
 import { uploadImage } from "@/lib/supabase";
 import { Modal } from "@/components/ui/modal";
 import { ScheduledPanel } from "@/components/features/ScheduledPanel";
+import GlobalScheduleWidget from '@/components/dashboard/GlobalScheduleWidget';
 
 export default function DashboardPage() {
     const { user, clients } = useStore();
@@ -284,9 +285,7 @@ export default function DashboardPage() {
                         {selectedClientId && activeClient ? (
                             <ScheduledPanel client={activeClient} isSold={false} />
                         ) : (
-                            <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
-                                <p>Selecione um cliente para visualizar o painel.</p>
-                            </div>
+                            <GlobalScheduleWidget />
                         )}
                     </div>
                 ) : (

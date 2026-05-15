@@ -15,7 +15,6 @@ import HourlyDistribution from '@/components/dashboard/HourlyDistribution';
 import WeeklyTrend from '@/components/dashboard/WeeklyTrend';
 import DetailedTable from '@/components/dashboard/DetailedTable';
 import VehicleAnalysis from '@/components/dashboard/VehicleAnalysis';
-import GlobalScheduleWidget from '@/components/dashboard/GlobalScheduleWidget';
 
 interface AnalyticsViewProps {
     isSold?: boolean;
@@ -116,13 +115,8 @@ export default function AnalyticsView({ isSold }: AnalyticsViewProps) {
                 ) : (
                     <>
                         {/* All Clients View: Ranking takes full width to match row 1 width aesthetics */}
-                        <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2">
-                                <ClientRanking data={ranking} isLoading={isLoading} />
-                            </div>
-                            <div className="lg:col-span-1">
-                                <GlobalScheduleWidget />
-                            </div>
+                        <div className="lg:col-span-3">
+                            <ClientRanking data={ranking} isLoading={isLoading} />
                         </div>
                     </>
                 )}

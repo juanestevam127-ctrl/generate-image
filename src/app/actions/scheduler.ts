@@ -116,15 +116,15 @@ export async function fetchAllScheduledPostsAction() {
 
 export async function fetchGlobalScheduledPostsAction() {
     try {
-        // Fetch posts from 1 day ago up to the future
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+        // Fetch posts from today up to the future
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
         const { data, error } = await supabase
             .from("publicacoes_design_online")
             .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, publicado, publicado_instagram")
             .not("data_agendamento", "is", null)
-            .gte("data_agendamento", yesterday.toISOString())
+            .gte("data_agendamento", today.toISOString())
             .order("data_agendamento", { ascending: true })
             .limit(100);
 
