@@ -545,6 +545,10 @@ export function PostScheduler({ client }: { client: Client }) {
     };
 
     const handleCreateManualPost = () => {
+        if (!newPostVehicle.trim()) {
+            alert("O nome do veículo / título é obrigatório.");
+            return;
+        }
         const id = `manual-${Date.now()}`;
         const newPost: GroupedPost = {
             id,

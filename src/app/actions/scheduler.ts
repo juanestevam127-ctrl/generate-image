@@ -114,6 +114,28 @@ export async function fetchAllScheduledPostsAction() {
     return data;
 }
 
+export async function fetchGlobalScheduledPostsAction() {
+    try {
+        // Fetch posts from 1 day ago up to the future
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const { data, error } = await supabase
+            .from("publicacoes_design_online")
+            .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, publicado, publicado_instagram")
+            .not("data_agendamento", "is", null)
+            .gte("data_agendamento", yesterday.toISOString())
+            .order("data_agendamento", { ascending: true })
+            .limit(100);
+
+        if (error) throw error;
+        return { success: true, data: data || [] };
+    } catch (error: any) {
+        console.error("fetchGlobalScheduledPostsAction Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function fetchScheduledPanelPostsAction(clientName: string, isSold: boolean = false) {
     try {
         let query = supabase
