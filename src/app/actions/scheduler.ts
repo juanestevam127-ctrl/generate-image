@@ -114,25 +114,33 @@ export async function fetchAllScheduledPostsAction() {
     return data;
 }
 
-export async function fetchGlobalScheduledPostsAction() {
+export async function fetchGlobalScheduledPostsAction(selectedDate?: string) {
     try {
-        // Obter data atual no fuso horário do Brasil
-        const now = new Date();
-        const brazilTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-        
-        // Criar string ISO para o início do dia no Brasil (assumindo -03:00)
-        const yyyy = brazilTime.getFullYear();
-        const mm = String(brazilTime.getMonth() + 1).padStart(2, '0');
-        const dd = String(brazilTime.getDate()).padStart(2, '0');
-        const startOfDayBrazil = new Date(`${yyyy}-${mm}-${dd}T00:00:00-03:00`);
+        // Obter a data de referência (Brasil -03:00)
+        let startISO: string;
+        let endISO: string;
+
+        if (selectedDate) {
+            // selectedDate: "YYYY-MM-DD" no fuso do Brasil
+            startISO = new Date(`${selectedDate}T00:00:00-03:00`).toISOString();
+            endISO   = new Date(`${selectedDate}T23:59:59-03:00`).toISOString();
+        } else {
+            const now = new Date();
+            const brazilTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+            const yyyy = brazilTime.getFullYear();
+            const mm = String(brazilTime.getMonth() + 1).padStart(2, '0');
+            const dd = String(brazilTime.getDate()).padStart(2, '0');
+            startISO = new Date(`${yyyy}-${mm}-${dd}T00:00:00-03:00`).toISOString();
+            endISO   = new Date(`${yyyy}-${mm}-${dd}T23:59:59-03:00`).toISOString();
+        }
 
         const { data, error } = await supabase
             .from("publicacoes_design_online")
             .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, publicado, publicado_instagram")
             .not("data_agendamento", "is", null)
-            .gte("data_agendamento", startOfDayBrazil.toISOString())
-            .order("data_agendamento", { ascending: true })
-            .limit(100);
+            .gte("data_agendamento", startISO)
+            .lte("data_agendamento", endISO)
+            .order("data_agendamento", { ascending: true });
 
         if (error) throw error;
         return { success: true, data: data || [] };
