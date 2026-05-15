@@ -16,7 +16,7 @@ import {
     ScheduledPost, 
     SchedulingConflict, 
     POST_TYPE_CONFIG 
-} from "@/lib/scheduler-utils";
+} from "@/lib/schedulingUtils";
 
 interface PostImage {
     id: number;
