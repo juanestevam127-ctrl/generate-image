@@ -26,7 +26,6 @@ interface PostImage {
     formato: string;
     descricao: string | null;
     publicado: boolean;
-    postado?: boolean;
     publicado_instagram?: boolean;
     veiculo_gerado: string | null;
     data_agendamento: string | null;
@@ -42,7 +41,6 @@ interface GroupedScheduledPost {
     caption: string;
     postType: string;
     publicado: boolean;
-    postado: boolean;
     publicado_instagram: boolean;
 }
 
@@ -98,7 +96,6 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                                 ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === formatStr && i.data_agendamento === img.data_agendamento).length > 1 ? "CARROSSEL" : "ESTATICA")
                                 : "IMAGEM"),
                         publicado: img.publicado || false,
-                        postado: img.postado || false,
                         publicado_instagram: img.publicado_instagram || false,
                     };
                 }
@@ -248,10 +245,8 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
 
             const selectedIds = post.images.map(img => img.id);
 
-            // Update to indicate we triggered webhook again
             await updateSchedulerRecordAction(selectedIds, { 
-                publicado: true,
-                postado: false, // Reset status to check again if it posts
+                publicado: false, // Reset so webhook logic can update it
                 publicado_instagram: false
             });
 
@@ -316,20 +311,13 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                             <div className="p-4 flex-1 flex flex-col space-y-3">
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="bg-white/5 rounded p-2 text-center">
-                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Gatilho (Webhook)</p>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Facebook</p>
                                         <div className="flex items-center justify-center mt-1">
-                                            {post.publicado ? <CheckCircle2 className="w-4 h-4 text-green-500 mr-1" /> : <Clock className="w-4 h-4 text-yellow-500 mr-1" />}
-                                            <span className="text-xs font-medium text-white">{post.publicado ? "Disparado" : "Aguardando"}</span>
+                                            {post.publicado ? <CheckCircle2 className="w-4 h-4 text-green-500 mr-1" /> : (isPast ? <XCircle className="w-4 h-4 text-red-500 mr-1" /> : <Clock className="w-4 h-4 text-yellow-500 mr-1" />)}
+                                            <span className="text-xs font-medium text-white">{post.publicado ? "Postado" : (isPast ? "Falhou" : "Aguardando")}</span>
                                         </div>
                                     </div>
                                     <div className="bg-white/5 rounded p-2 text-center">
-                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Facebook</p>
-                                        <div className="flex items-center justify-center mt-1">
-                                            {post.postado ? <CheckCircle2 className="w-4 h-4 text-green-500 mr-1" /> : (isPast && post.publicado ? <XCircle className="w-4 h-4 text-red-500 mr-1" /> : <Clock className="w-4 h-4 text-gray-500 mr-1" />)}
-                                            <span className="text-xs font-medium text-white">{post.postado ? "Postado" : (isPast && post.publicado ? "Falhou" : "Pendente")}</span>
-                                        </div>
-                                    </div>
-                                    <div className="bg-white/5 rounded p-2 text-center col-span-2">
                                         <p className="text-[10px] text-gray-400 uppercase font-bold">Instagram</p>
                                         <div className="flex items-center justify-center mt-1">
                                             {post.publicado_instagram ? <CheckCircle2 className="w-4 h-4 text-green-500 mr-1" /> : (isPast && post.publicado ? <XCircle className="w-4 h-4 text-red-500 mr-1" /> : <Clock className="w-4 h-4 text-gray-500 mr-1" />)}

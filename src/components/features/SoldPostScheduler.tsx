@@ -644,7 +644,6 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     const result = await updateSchedulerRecordAction(selectedIds, { 
                         data_agendamento: scheduledDateTime.toISOString(),
                         publicado: false,
-                        postado: false,
                         publicado_instagram: false,
                         descricao: currentPost.caption 
                     });
@@ -661,7 +660,6 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     const result = await updateSchedulerRecordAction(selectedIds, { 
                         data_agendamento: scheduledDateTime.toISOString(),
                         publicado: false,
-                        postado: false,
                         publicado_instagram: false,
                         descricao: currentPost.caption 
                     });
