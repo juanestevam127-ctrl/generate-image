@@ -201,7 +201,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
 
     return (
         <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white uppercase tracking-wider mb-4">Painel de Controle de Postagens</h2>
+            <h2 className="text-xl font-bold text-white uppercase tracking-wider mb-4">Estatísticas das Postagens</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {groupedPosts.map(post => {
@@ -267,7 +267,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                                         Cancelar Agendamento
                                     </Button>
                                     <Button 
-                                        className="w-full h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                                        className="w-full h-8 text-xs !bg-indigo-600 hover:!bg-indigo-700 !text-white"
                                         onClick={() => handleResendWebhook(post)}
                                         disabled={actionLoading === post.id}
                                     >
