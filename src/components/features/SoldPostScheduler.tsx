@@ -426,10 +426,19 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
         // Handle multiple files
         if (filesArray.length > 0) {
+            // Carrossel só aceita imagens — rejeitar vídeos
+            if (post.postType === "CARROSSEL") {
+                const hasVideos = filesArray.some(f => isVideo(f.name));
+                if (hasVideos) {
+                    alert("Carrossel aceita apenas imagens. Remova os vídeos selecionados.");
+                    return;
+                }
+            }
+
             const images = filesArray.filter(f => !isVideo(f.name));
             const videos = filesArray.filter(f => isVideo(f.name));
 
-            // 1. Process videos (upload directly)
+            // 1. Process videos (upload directly) — apenas para tipos não-carrossel
             if (videos.length > 0) {
                 setIsScheduling(true);
                 setUploadProgress(prev => ({ ...prev, [postId]: 0 }));
@@ -559,10 +568,21 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             alert("O nome do veículo / título é obrigatório.");
             return;
         }
+
+        // Validar unicidade do nome do veículo na lista de posts existentes
+        const vehicleTrimmed = newPostVehicle.trim().toLowerCase();
+        const isDuplicate = groupedPosts.some(
+            p => p.veiculo_gerado.trim().toLowerCase() === vehicleTrimmed
+        );
+        if (isDuplicate) {
+            alert(`Já existe uma postagem com o veículo "${newPostVehicle.trim()}". O nome do veículo deve ser único.`);
+            return;
+        }
+
         const id = `manual-${Date.now()}`;
         const newPost: GroupedPost = {
             id,
-            veiculo_gerado: newPostVehicle || "Nova Postagem",
+            veiculo_gerado: newPostVehicle.trim(),
             formato: newPostFormat === "REELS" ? "VENDIDO REELS" : (newPostFormat === "STORY" ? "VENDIDO STORIES" : "VENDIDO FEED"),
             images: [],
             caption: client.captionTemplate || "",
@@ -905,7 +925,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                                 <input
                                                     type="file"
                                                     className="hidden"
-                                                    accept="image/*,video/*"
+                                                    accept={post.postType === "CARROSSEL" ? "image/*" : "image/*,video/*"}
                                                     multiple={post.postType === "CARROSSEL"}
                                                     onChange={(e) => handleAddImage(post.id, e.target.files)}
                                                 />
