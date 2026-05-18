@@ -4,7 +4,7 @@ import { ptBR } from "date-fns/locale";
 import { Loader2, Trash2, Send, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { getProxiedUrl } from "@/lib/imageProxy";
 
-import { Client } from "@/lib/store-context";
+import { useStore, Client } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ interface GroupedScheduledPost {
 }
 
 export function ScheduledPanel({ client, isSold = false }: { client: Client; isSold?: boolean }) {
+    const { clients } = useStore();
     const [groupedPosts, setGroupedPosts] = useState<GroupedScheduledPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -202,10 +203,32 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
     const handleResendWebhook = async (post: GroupedScheduledPost) => {
         if (!confirm("Tem certeza que deseja tentar postar novamente agora?")) return;
 
-        const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
-        
-        if (!client.facebookId || !client.instagramId || !client.token) {
-            alert("Não tem todas informações de ids e token necessarias para fazer a publicação.");
+        // Webhook: sold posts use a different endpoint
+        const webhookAgendar = isSold
+            ? "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos"
+            : "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
+
+        // For sold posts, credentials (facebookId/instagramId/token) must be looked up
+        // from the regular clients list (Gerenciar Imagens), NOT from the sold client.
+        let facebookId: string | undefined;
+        let instagramId: string | undefined;
+        let token: string | undefined;
+
+        if (isSold) {
+            const regularClient = clients.find(
+                (c) => c.name.toLowerCase() === client.name.toLowerCase()
+            );
+            facebookId = regularClient?.facebookId;
+            instagramId = regularClient?.instagramId;
+            token = regularClient?.token;
+        } else {
+            facebookId = client.facebookId;
+            instagramId = client.instagramId;
+            token = client.token;
+        }
+
+        if (!facebookId || !instagramId || !token) {
+            alert("Não tem todas informações de ids e token necessarias para fazer a publicação. Configure-as no Gerenciar Imagens.");
             return;
         }
 
@@ -215,9 +238,9 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
 
             const payload = {
                 client: client.name,
-                facebook_id: client.facebookId,
-                instagram_id: client.instagramId,
-                token: client.token,
+                facebook_id: facebookId,
+                instagram_id: instagramId,
+                token: token,
                 images: post.images.map(img => img.imagem),
                 video: post.images.find(img => checkIsVideo(img.imagem))?.imagem,
                 reels_cover: post.images.find(img => !checkIsVideo(img.imagem))?.imagem,

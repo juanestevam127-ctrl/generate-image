@@ -44,7 +44,7 @@ export default function AnalyticsView({ isSold }: AnalyticsViewProps) {
     } = useDashboardData({
         dateRange,
         selectedClient,
-        formats: isSold ? ['VENDIDO FEED', 'VENDIDO STORIES'] : undefined
+        formats: isSold ? ['VENDIDO FEED', 'VENDIDO STORIES', 'VENDIDO REELS'] : ['FEED', 'STORIES', 'STORY', 'REELS']
     });
 
     return (
