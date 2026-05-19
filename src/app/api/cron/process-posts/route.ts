@@ -91,13 +91,6 @@ export async function GET(request: Request) {
                 });
 
                 if (res.ok) {
-                    // Mark as published
-                    const ids = posts.map(p => p.id);
-                    await supabase
-                        .from('publicacoes_design_online')
-                        .update({ publicado: true })
-                        .in('id', ids);
-
                     results.push({ key, status: 'success' });
                 } else {
                     results.push({ key, status: 'failed', error: await res.text() });
