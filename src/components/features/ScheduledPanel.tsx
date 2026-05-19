@@ -184,7 +184,8 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
             const selectedIds = editingPost.images.map(img => img.id);
 
             const result = await updateSchedulerRecordAction(selectedIds, { 
-                data_agendamento: scheduledDateTime.toISOString()
+                data_agendamento: scheduledDateTime.toISOString(),
+                enviado_webhook: false
             });
 
             if (!result.success) throw new Error(result.error);
@@ -270,7 +271,8 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
 
             await updateSchedulerRecordAction(selectedIds, { 
                 publicado: false, // Reset so webhook logic can update it
-                publicado_instagram: false
+                publicado_instagram: false,
+                enviado_webhook: true
             });
 
             alert("Webhook enviado com sucesso para tentar a postagem novamente!");

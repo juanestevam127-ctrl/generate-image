@@ -18,6 +18,7 @@ export async function GET(request: Request) {
             .from('publicacoes_design_online')
             .select('*')
             .eq('publicado', false)
+            .or('enviado_webhook.is.null,enviado_webhook.eq.false')
             .lte('data_agendamento', now)
             .not('data_agendamento', 'is', null);
 
@@ -91,6 +92,12 @@ export async function GET(request: Request) {
                 });
 
                 if (res.ok) {
+                    const ids = posts.map(p => p.id);
+                    await supabase
+                        .from('publicacoes_design_online')
+                        .update({ enviado_webhook: true })
+                        .in('id', ids);
+
                     results.push({ key, status: 'success' });
                 } else {
                     results.push({ key, status: 'failed', error: await res.text() });

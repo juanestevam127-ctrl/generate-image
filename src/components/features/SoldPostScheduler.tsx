@@ -669,6 +669,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         data_agendamento: scheduledDateTime.toISOString(),
                         publicado: false,
                         publicado_instagram: false,
+                        enviado_webhook: false,
                         descricao: currentPost.caption 
                     });
 
@@ -685,6 +686,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         data_agendamento: scheduledDateTime.toISOString(),
                         publicado: false,
                         publicado_instagram: false,
+                        enviado_webhook: false,
                         descricao: currentPost.caption 
                     });
 
