@@ -31,12 +31,12 @@ export async function fetchSchedulerImagesAction(clientName: string, isSold: boo
 
 export async function updateSchedulerRecordAction(id: number | number[], updates: any) {
     try {
-        const query = supabase.from("publicacoes_design_online").update(updates);
+        let query = supabase.from("publicacoes_design_online").update(updates);
         
         if (Array.isArray(id)) {
-            query.in("id", id);
+            query = query.in("id", id);
         } else {
-            query.eq("id", id);
+            query = query.eq("id", id);
         }
 
         const { error } = await query;
