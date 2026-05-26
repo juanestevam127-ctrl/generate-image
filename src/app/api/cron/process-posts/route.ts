@@ -37,19 +37,55 @@ export async function GET(request: Request) {
         });
 
         const results = [];
-        const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
 
         // 3. Process each group
         for (const [key, posts] of Object.entries(groups)) {
             const firstPost = posts[0];
             const clientName = firstPost.nome_empresa;
+            const isSold = firstPost.formato && firstPost.formato.toUpperCase().startsWith("VENDIDO ");
+
+            const webhookUrl = isSold
+                ? "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos"
+                : "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
 
             // Fetch client details
-            const { data: client, error: clientError } = await supabase
-                .from('clientes')
-                .select('*')
-                .eq('name', clientName)
-                .single();
+            let client: any = null;
+            let clientError: any = null;
+
+            if (isSold) {
+                const { data, error } = await supabase
+                    .from('clientes_vendidos')
+                    .select('*')
+                    .eq('name', clientName)
+                    .single();
+                client = data;
+                clientError = error;
+
+                // Fallback to 'clientes' if credentials are missing
+                if (client && (!client.id_facebook || !client.id_instagram || !client.token)) {
+                    const { data: standardClient } = await supabase
+                        .from('clientes')
+                        .select('*')
+                        .eq('name', clientName)
+                        .single();
+                    if (standardClient) {
+                        client = {
+                            ...client,
+                            id_facebook: client.id_facebook || standardClient.id_facebook,
+                            id_instagram: client.id_instagram || standardClient.id_instagram,
+                            token: client.token || standardClient.token
+                        };
+                    }
+                }
+            } else {
+                const { data, error } = await supabase
+                    .from('clientes')
+                    .select('*')
+                    .eq('name', clientName)
+                    .single();
+                client = data;
+                clientError = error;
+            }
 
             if (clientError || !client) {
                 console.error(`Client not found for post group ${key}:`, clientError);
@@ -85,7 +121,7 @@ export async function GET(request: Request) {
 
             // Call Webhook
             try {
-                const res = await fetch(webhookAgendar, {
+                const res = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
