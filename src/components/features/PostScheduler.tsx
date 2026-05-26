@@ -112,10 +112,16 @@ export function PostScheduler({ client }: { client: Client }) {
 
             const rawImages = (result.data || []) as PostImage[];
 
+            // Enforce strict client-side filtering to exclude sold posts
+            const filteredImages = rawImages.filter(img => {
+                const isSoldFormat = img.formato && img.formato.toUpperCase().startsWith("VENDIDO ");
+                return !isSoldFormat;
+            });
+
             // Group by veiculo_gerado and formato
             const groups: Record<string, GroupedPost> = {};
 
-            rawImages.forEach(img => {
+            filteredImages.forEach(img => {
                 const vehicle = img.veiculo_gerado || "Sem Veículo";
                 const format = img.formato || "FEED";
                 const key = `${vehicle}-${format}`;
@@ -130,7 +136,7 @@ export function PostScheduler({ client }: { client: Client }) {
                         postType: format === "REELS" || format === "VENDIDO REELS" 
                             ? "REELS"
                             : (format === "FEED" || format === "VENDIDO FEED"
-                                ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
+                                ? (filteredImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
                                 : "IMAGEM"),
                         created_at: img.created_at
                     };

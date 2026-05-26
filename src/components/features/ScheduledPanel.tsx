@@ -72,10 +72,16 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
 
             const rawImages = (result.data || []) as PostImage[];
 
+            // Enforce strict client-side filtering to prevent statistics leakage
+            const filteredImages = rawImages.filter(img => {
+                const isSoldFormat = img.formato && img.formato.toUpperCase().startsWith("VENDIDO ");
+                return isSold ? isSoldFormat : !isSoldFormat;
+            });
+
             // Group by data_agendamento, veiculo_gerado, formato
             const groups: Record<string, GroupedScheduledPost> = {};
 
-            rawImages.forEach(img => {
+            filteredImages.forEach(img => {
                 if (!img.data_agendamento) return;
                 
                 const vehicle = img.veiculo_gerado || "Sem Veículo";
@@ -94,7 +100,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                         postType: formatStr === "REELS" || formatStr === "VENDIDO REELS" 
                             ? "REELS"
                             : (formatStr.includes("FEED")
-                                ? (rawImages.filter(i => i.veiculo_gerado === vehicle && i.formato === formatStr && i.data_agendamento === img.data_agendamento).length > 1 ? "CARROSSEL" : "ESTATICA")
+                                ? (filteredImages.filter(i => i.veiculo_gerado === vehicle && i.formato === formatStr && i.data_agendamento === img.data_agendamento).length > 1 ? "CARROSSEL" : "ESTATICA")
                                 : "IMAGEM"),
                         publicado: img.publicado || false,
                         publicado_instagram: img.publicado_instagram || false,

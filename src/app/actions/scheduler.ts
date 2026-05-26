@@ -190,3 +190,27 @@ export async function cancelScheduledPostAction(ids: number[]) {
         return { success: false, error: error.message };
     }
 }
+
+export async function checkVehicleNameUniquenessAction(clientName: string, vehicleName: string, excludeIds: number[]) {
+    try {
+        let query = supabase
+            .from("publicacoes_design_online")
+            .select("id")
+            .eq("nome_empresa", clientName)
+            .eq("veiculo_gerado", vehicleName)
+            .eq("publicado", false);
+
+        if (excludeIds && excludeIds.length > 0) {
+            query = query.not("id", "in", `(${excludeIds.join(",")})`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        return { success: true, isUnique: !data || data.length === 0 };
+    } catch (error: any) {
+        console.error("checkVehicleNameUniquenessAction Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+

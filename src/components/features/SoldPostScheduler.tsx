@@ -18,7 +18,8 @@ import {
     deleteSchedulerImageAction, 
     insertSchedulerPostAction,
     updateGroupFormatAction,
-    fetchAllScheduledPostsAction 
+    fetchAllScheduledPostsAction,
+    checkVehicleNameUniquenessAction
 } from "@/app/actions/scheduler";
 import { cn } from "@/lib/utils";
 import { 
@@ -100,6 +101,10 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     // Caption Saving State
     const [savingCaptions, setSavingCaptions] = useState<Record<string, boolean>>({});
 
+    // Vehicle Saving State
+    const [savingVehicle, setSavingVehicle] = useState<Record<string, boolean>>({});
+    const [vehicleErrors, setVehicleErrors] = useState<Record<string, string>>({});
+
     useEffect(() => {
         fetchImages();
     }, [client.name]);
@@ -113,10 +118,15 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
             const rawImages = (result.data || []) as PostImage[];
 
+            // Enforce strict client-side filtering to only include sold posts
+            const filteredImages = rawImages.filter(img => {
+                return img.formato && img.formato.toUpperCase().startsWith("VENDIDO ");
+            });
+
             // Group by veiculo_gerado and formato
             const groups: Record<string, GroupedPost> = {};
 
-            rawImages.forEach(img => {
+            filteredImages.forEach(img => {
                 const originalFormat = img.formato || "FEED";
                 // Map VENDIDO FEED -> FEED and VENDIDO STORIES -> STORY for UI filtering
                 const uiFormat = (originalFormat === 'VENDIDO STORIES' || originalFormat === 'STORIES' || originalFormat === 'STORY') ? 'STORY' : (originalFormat === 'VENDIDO REELS' || originalFormat === 'REELS' ? 'REELS' : 'FEED');
@@ -137,7 +147,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         postType: originalFormat === "VENDIDO REELS" || originalFormat === "REELS"
                             ? "REELS"
                             : (uiFormat === "FEED"
-                                ? (rawImages.filter(i => (i.veiculo_gerado || `ID:${i.id}`) === groupingVehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
+                                ? (filteredImages.filter(i => (i.veiculo_gerado || `ID:${i.id}`) === groupingVehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
                                 : "IMAGEM"),
                         created_at: img.created_at
                     };
@@ -154,6 +164,87 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             console.error("Error fetching images:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBlurVehicleName = async (post: GroupedPost, newName: string) => {
+        const trimmed = newName.trim();
+        const oldName = post.veiculo_gerado;
+
+        // If it didn't change, do nothing
+        if (trimmed === (oldName === "Sem Veículo" ? "" : oldName)) {
+            return;
+        }
+
+        if (!trimmed) {
+            setVehicleErrors(prev => ({ ...prev, [post.id]: "O nome do veículo é obrigatório." }));
+            return;
+        }
+
+        if (trimmed.toLowerCase() === "sem veículo") {
+            setVehicleErrors(prev => ({ ...prev, [post.id]: "Nome inválido." }));
+            return;
+        }
+
+        setSavingVehicle(prev => ({ ...prev, [post.id]: true }));
+        setVehicleErrors(prev => ({ ...prev, [post.id]: "" }));
+
+        try {
+            const imageIds = post.images.map(img => img.id).filter(id => typeof id === 'number') as number[];
+
+            // 1. Check uniqueness locally
+            const isDuplicateLocal = groupedPosts.some(
+                p => p.id !== post.id && p.veiculo_gerado.trim().toLowerCase() === trimmed.toLowerCase()
+            );
+
+            if (isDuplicateLocal) {
+                setVehicleErrors(prev => ({ ...prev, [post.id]: "Este nome já está em uso localmente." }));
+                setSavingVehicle(prev => ({ ...prev, [post.id]: false }));
+                return;
+            }
+
+            // 2. Check uniqueness in database (excluding these image IDs)
+            if (imageIds.length > 0) {
+                const uniqueCheck = await checkVehicleNameUniquenessAction(client.name, trimmed, imageIds);
+                if (!uniqueCheck.success) {
+                    setVehicleErrors(prev => ({ ...prev, [post.id]: "Erro ao verificar no banco." }));
+                    setSavingVehicle(prev => ({ ...prev, [post.id]: false }));
+                    return;
+                }
+
+                if (!uniqueCheck.isUnique) {
+                    setVehicleErrors(prev => ({ ...prev, [post.id]: "Este veículo já existe no banco." }));
+                    setSavingVehicle(prev => ({ ...prev, [post.id]: false }));
+                    return;
+                }
+            }
+
+            // 3. If unique, update database
+            if (imageIds.length > 0) {
+                const result = await updateSchedulerRecordAction(imageIds, { veiculo_gerado: trimmed });
+                if (!result.success) {
+                    setVehicleErrors(prev => ({ ...prev, [post.id]: "Erro ao salvar no banco." }));
+                    setSavingVehicle(prev => ({ ...prev, [post.id]: false }));
+                    return;
+                }
+            }
+
+            // Update state locally
+            setGroupedPosts(prev => prev.map(p => {
+                if (p.id === post.id) {
+                    return { ...p, veiculo_gerado: trimmed };
+                }
+                return p;
+            }));
+
+            // Force reload to regroup properly
+            await fetchImages();
+
+        } catch (error) {
+            console.error("Error saving vehicle name:", error);
+            setVehicleErrors(prev => ({ ...prev, [post.id]: "Erro ao salvar." }));
+        } finally {
+            setSavingVehicle(prev => ({ ...prev, [post.id]: false }));
         }
     };
 
@@ -792,7 +883,13 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                     <Button
                                         onClick={() => handleOpenModal(post)}
                                         size="sm"
-                                        className="h-8 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-bold px-4"
+                                        disabled={post.veiculo_gerado === "Sem Veículo"}
+                                        className={cn(
+                                            "h-8 font-bold px-4 transition-all duration-300",
+                                            post.veiculo_gerado === "Sem Veículo"
+                                                ? "bg-gray-600/50 cursor-not-allowed opacity-50 text-gray-400 border border-white/5"
+                                                : "!bg-indigo-600 hover:!bg-indigo-700 !text-white"
+                                        )}
                                     >
                                         Agendar
                                     </Button>
@@ -957,6 +1054,49 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                                         <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
                                             {format(new Date(post.created_at), "dd MMM yyyy", { locale: ptBR })}
                                         </div>
+                                    </div>
+
+                                    {/* Vehicle Name input */}
+                                    <div className="space-y-1.5 bg-white/5 border border-white/5 rounded-lg p-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                                Nome do Veículo
+                                            </label>
+                                            {post.veiculo_gerado === "Sem Veículo" && (
+                                                <span className="text-red-400 font-extrabold text-[9px] animate-pulse">
+                                                    ⚠️ OBRIGATÓRIO & ÚNICO
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="relative flex items-center">
+                                            <Input
+                                                type="text"
+                                                defaultValue={post.veiculo_gerado === "Sem Veículo" ? "" : post.veiculo_gerado}
+                                                placeholder="Digite o nome do veículo (ex: CRETA 2024)"
+                                                onBlur={(e) => handleBlurVehicleName(post, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        (e.target as HTMLInputElement).blur();
+                                                    }
+                                                }}
+                                                className={cn(
+                                                    "bg-black/40 border text-sm text-white focus:ring-1 focus:ring-indigo-500 h-9 pr-8",
+                                                    post.veiculo_gerado === "Sem Veículo" 
+                                                        ? "border-red-500/50 hover:border-red-500 focus:border-red-500" 
+                                                        : "border-white/10"
+                                                )}
+                                            />
+                                            {savingVehicle[post.id] && (
+                                                <div className="absolute right-2.5">
+                                                    <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        {vehicleErrors[post.id] && (
+                                            <p className="text-red-400 text-[10px] font-bold mt-1">
+                                                {vehicleErrors[post.id]}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="relative">
