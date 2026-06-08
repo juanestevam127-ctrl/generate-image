@@ -224,6 +224,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user, isLoaded]);
 
+    // Warn user before closing/reloading the website
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = ""; // Standard requirement for modern browsers
+            return "";
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, []);
+
     // Auth Actions
     const login = async (email: string, pass: string) => {
         try {

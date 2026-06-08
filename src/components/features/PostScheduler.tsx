@@ -55,6 +55,7 @@ interface GroupedPost {
 }
 
 export function PostScheduler({ client }: { client: Client }) {
+    const { user } = useStore();
     const [groupedPosts, setGroupedPosts] = useState<GroupedPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewFilter, setViewFilter] = useState<"FEED" | "STORY" | "REELS">("FEED");
@@ -126,13 +127,19 @@ export function PostScheduler({ client }: { client: Client }) {
                 const format = img.formato || "FEED";
                 const key = `${vehicle}-${format}`;
 
+                let cleanCaption = img.descricao || "";
+                const match = cleanCaption.match(/\[AGENDADO_POR:\s*([^\]]+)\]/);
+                if (match) {
+                    cleanCaption = cleanCaption.replace(/\[AGENDADO_POR:\s*[^\]]+\]/, "").trim();
+                }
+
                 if (!groups[key]) {
                     groups[key] = {
                         id: key,
                         veiculo_gerado: vehicle,
                         formato: format,
                         images: [],
-                        caption: img.descricao || "",
+                        caption: cleanCaption,
                         postType: format === "REELS" || format === "VENDIDO REELS" 
                             ? "REELS"
                             : (format === "FEED" || format === "VENDIDO FEED"
@@ -640,7 +647,8 @@ export function PostScheduler({ client }: { client: Client }) {
                     timezone: "America/Sao_Paulo",
                     timezone_offset: scheduledDateTime.getTimezoneOffset(),
                     is_carousel: currentPost.postType === "CARROSSEL",
-                    veiculo_gerado: currentPost.veiculo_gerado
+                    veiculo_gerado: currentPost.veiculo_gerado,
+                    usuario_log: `Usuário ${user?.email || "desconhecido"} enviou a webhook agora para a postagem do cliente ${client.name} e veículo ${currentPost.veiculo_gerado || "Sem Veículo"}`
                 };
 
                 const res = await fetch("/api/proxy-webhook", {
@@ -664,7 +672,7 @@ export function PostScheduler({ client }: { client: Client }) {
                         publicado: false,
                         publicado_instagram: false,
                         enviado_webhook: false,
-                        descricao: currentPost.caption 
+                        descricao: currentPost.caption + (user?.email ? `\n\n[AGENDADO_POR: ${user.email}]` : "")
                     });
 
                     if (!result.success) console.error("Error updating published status via server:", result.error);
@@ -681,7 +689,7 @@ export function PostScheduler({ client }: { client: Client }) {
                         publicado: false,
                         publicado_instagram: false,
                         enviado_webhook: false,
-                        descricao: currentPost.caption 
+                        descricao: currentPost.caption + (user?.email ? `\n\n[AGENDADO_POR: ${user.email}]` : "")
                     });
 
                     if (!result.success) throw new Error(result.error);

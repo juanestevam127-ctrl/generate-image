@@ -45,7 +45,7 @@ interface GroupedScheduledPost {
 }
 
 export function ScheduledPanel({ client, isSold = false }: { client: Client; isSold?: boolean }) {
-    const { clients } = useStore();
+    const { clients, user } = useStore();
     const [groupedPosts, setGroupedPosts] = useState<GroupedScheduledPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -89,6 +89,12 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                 // Group key based on time and vehicle and format
                 const key = `${img.data_agendamento}-${vehicle}-${formatStr}`;
 
+                let cleanCaption = img.descricao || "";
+                const match = cleanCaption.match(/\[AGENDADO_POR:\s*([^\]]+)\]/);
+                if (match) {
+                    cleanCaption = cleanCaption.replace(/\[AGENDADO_POR:\s*[^\]]+\]/, "").trim();
+                }
+
                 if (!groups[key]) {
                     groups[key] = {
                         id: key,
@@ -96,7 +102,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                         formato: formatStr,
                         data_agendamento: img.data_agendamento,
                         images: [],
-                        caption: img.descricao || "",
+                        caption: cleanCaption,
                         postType: formatStr === "REELS" || formatStr === "VENDIDO REELS" 
                             ? "REELS"
                             : (formatStr.includes("FEED")
@@ -259,7 +265,8 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                 timezone: "America/Sao_Paulo",
                 timezone_offset: scheduledDateTime.getTimezoneOffset(),
                 is_carousel: post.postType === "CARROSSEL",
-                veiculo_gerado: post.veiculo_gerado
+                veiculo_gerado: post.veiculo_gerado,
+                usuario_log: `Usuário ${user?.email || "desconhecido"} reenviou a webhook agora para a postagem do cliente ${client.name} e veículo ${post.veiculo_gerado || "Sem Veículo"}`
             };
 
             const res = await fetch("/api/proxy-webhook", {

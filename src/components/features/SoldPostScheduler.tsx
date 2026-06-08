@@ -56,7 +56,7 @@ interface GroupedPost {
 }
 
 export function SoldPostScheduler({ client }: { client: Client }) {
-    const { clients } = useStore();
+    const { clients, user } = useStore();
     const [groupedPosts, setGroupedPosts] = useState<GroupedPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewFilter, setViewFilter] = useState<"FEED" | "STORY" | "REELS">("FEED");
@@ -137,13 +137,19 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 const groupingVehicle = img.veiculo_gerado || `ID:${img.id}`;
                 const key = `${groupingVehicle}-${originalFormat}`;
 
+                let cleanCaption = img.descricao || "";
+                const match = cleanCaption.match(/\[AGENDADO_POR:\s*([^\]]+)\]/);
+                if (match) {
+                    cleanCaption = cleanCaption.replace(/\[AGENDADO_POR:\s*[^\]]+\]/, "").trim();
+                }
+
                 if (!groups[key]) {
                     groups[key] = {
                         id: key,
                         veiculo_gerado: img.veiculo_gerado || "Sem Veículo",
                         formato: originalFormat, // Keep original for webhook
                         images: [],
-                        caption: img.descricao || "",
+                        caption: cleanCaption,
                         postType: originalFormat === "VENDIDO REELS" || originalFormat === "REELS"
                             ? "REELS"
                             : (uiFormat === "FEED"
@@ -737,7 +743,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     timezone: "America/Sao_Paulo",
                     timezone_offset: scheduledDateTime.getTimezoneOffset(),
                     is_carousel: currentPost.postType === "CARROSSEL",
-                    veiculo_gerado: currentPost.veiculo_gerado
+                    veiculo_gerado: currentPost.veiculo_gerado,
+                    usuario_log: `Usuário ${user?.email || "desconhecido"} enviou a webhook agora para a postagem do cliente ${client.name} e veículo ${currentPost.veiculo_gerado || "Sem Veículo"}`
                 };
 
                 const res = await fetch("/api/proxy-webhook", {
@@ -761,7 +768,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         publicado: false,
                         publicado_instagram: false,
                         enviado_webhook: false,
-                        descricao: currentPost.caption 
+                        descricao: currentPost.caption + (user?.email ? `\n\n[AGENDADO_POR: ${user.email}]` : "")
                     });
 
                     if (!result.success) console.error("Error updating published status via server:", result.error);
@@ -778,7 +785,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         publicado: false,
                         publicado_instagram: false,
                         enviado_webhook: false,
-                        descricao: currentPost.caption 
+                        descricao: currentPost.caption + (user?.email ? `\n\n[AGENDADO_POR: ${user.email}]` : "")
                     });
 
                     if (!result.success) throw new Error(result.error);

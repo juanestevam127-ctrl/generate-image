@@ -127,7 +127,8 @@ export default function DashboardPage() {
             const payload = {
                 client: activeClient.name,
                 data: tableData,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                usuario_log: `Usuário ${user?.email || "desconhecido"} enviou a webhook para a criação das imagens do cliente ${activeClient.name}`
             };
 
             const res = await fetch("/api/proxy-webhook", {

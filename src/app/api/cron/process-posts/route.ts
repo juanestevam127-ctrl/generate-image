@@ -96,6 +96,14 @@ export async function GET(request: Request) {
             const videoExtensions = ['.mp4', '.mov', '.webm', '.ogg', '.m4v'];
             const isVideo = (url: string) => url && videoExtensions.some(ext => url.toLowerCase().endsWith(ext));
 
+            let cleanDescription = firstPost.descricao || "";
+            let scheduledBy = "";
+            const scheduledByMatch = cleanDescription.match(/\[AGENDADO_POR:\s*([^\]]+)\]/);
+            if (scheduledByMatch) {
+                scheduledBy = scheduledByMatch[1].trim();
+                cleanDescription = cleanDescription.replace(/\[AGENDADO_POR:\s*[^\]]+\]/, "").trim();
+            }
+
             const payload = {
                 client: client.name,
                 facebook_id: client.id_facebook,
@@ -104,7 +112,7 @@ export async function GET(request: Request) {
                 images: posts.map(p => p.imagem),
                 video: posts.find(p => isVideo(p.imagem))?.imagem,
                 reels_cover: posts.find(p => !isVideo(p.imagem))?.imagem,
-                description: firstPost.descricao,
+                description: cleanDescription,
                 format: firstPost.formato,
                 post_type: isReels 
                     ? 'REELS' 
@@ -116,7 +124,10 @@ export async function GET(request: Request) {
                 timezone: "America/Sao_Paulo",
                 timezone_offset: -180, // Approximate for BRT
                 is_carousel: !isReels && posts.length > 1,
-                veiculo_gerado: firstPost.veiculo_gerado
+                veiculo_gerado: firstPost.veiculo_gerado,
+                usuario_log: scheduledBy 
+                    ? `Usuário ${scheduledBy} agendou a postagem do cliente ${client.name} e veículo ${firstPost.veiculo_gerado || "Sem Veículo"}`
+                    : `Postagem agendada automaticamente ou por sistema para o cliente ${client.name} e veículo ${firstPost.veiculo_gerado || "Sem Veículo"}`
             };
 
             // Call Webhook

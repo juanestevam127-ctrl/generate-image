@@ -136,7 +136,8 @@ export default function SoldDashboardPage() {
             const payload = {
                 client: activeClient.name,
                 data: processedData,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                usuario_log: `Usuário ${user?.email || "desconhecido"} enviou a webhook para a criação das imagens do cliente ${activeClient.name}`
             };
 
             console.log("2. Sending to proxy API...", activeClient.webhookUrl);
