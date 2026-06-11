@@ -56,7 +56,7 @@ interface GroupedPost {
 }
 
 export function SoldPostScheduler({ client }: { client: Client }) {
-    const { clients, user } = useStore();
+    const { clients } = useStore();
     const [groupedPosts, setGroupedPosts] = useState<GroupedPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewFilter, setViewFilter] = useState<"FEED" | "STORY" | "REELS">("FEED");
@@ -138,10 +138,6 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 const key = `${groupingVehicle}-${originalFormat}`;
 
                 let cleanCaption = img.descricao || "";
-                const match = cleanCaption.match(/\[AGENDADO_POR:\s*([^\]]+)\]/);
-                if (match) {
-                    cleanCaption = cleanCaption.replace(/\[AGENDADO_POR:\s*[^\]]+\]/, "").trim();
-                }
 
                 if (!groups[key]) {
                     groups[key] = {
@@ -743,8 +739,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     timezone: "America/Sao_Paulo",
                     timezone_offset: scheduledDateTime.getTimezoneOffset(),
                     is_carousel: currentPost.postType === "CARROSSEL",
-                    veiculo_gerado: currentPost.veiculo_gerado,
-                    usuario_log: `Usuário ${user?.email || "desconhecido"} enviou a webhook agora para a postagem do cliente ${client.name} e veículo ${currentPost.veiculo_gerado || "Sem Veículo"}`
+                    veiculo_gerado: currentPost.veiculo_gerado
                 };
 
                 const res = await fetch("/api/proxy-webhook", {
@@ -768,7 +763,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         publicado: false,
                         publicado_instagram: false,
                         enviado_webhook: false,
-                        descricao: currentPost.caption + (user?.email ? `\n\n[AGENDADO_POR: ${user.email}]` : "")
+                        descricao: currentPost.caption
                     });
 
                     if (!result.success) console.error("Error updating published status via server:", result.error);
@@ -785,7 +780,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         publicado: false,
                         publicado_instagram: false,
                         enviado_webhook: false,
-                        descricao: currentPost.caption + (user?.email ? `\n\n[AGENDADO_POR: ${user.email}]` : "")
+                        descricao: currentPost.caption
                     });
 
                     if (!result.success) throw new Error(result.error);

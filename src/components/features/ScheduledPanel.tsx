@@ -45,7 +45,7 @@ interface GroupedScheduledPost {
 }
 
 export function ScheduledPanel({ client, isSold = false }: { client: Client; isSold?: boolean }) {
-    const { clients, user } = useStore();
+    const { clients } = useStore();
     const [groupedPosts, setGroupedPosts] = useState<GroupedScheduledPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -89,11 +89,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                 // Group key based on time and vehicle and format
                 const key = `${img.data_agendamento}-${vehicle}-${formatStr}`;
 
-                let cleanCaption = img.descricao || "";
-                const match = cleanCaption.match(/\[AGENDADO_POR:\s*([^\]]+)\]/);
-                if (match) {
-                    cleanCaption = cleanCaption.replace(/\[AGENDADO_POR:\s*[^\]]+\]/, "").trim();
-                }
+                const cleanCaption = img.descricao || "";
 
                 if (!groups[key]) {
                     groups[key] = {
@@ -265,8 +261,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                 timezone: "America/Sao_Paulo",
                 timezone_offset: scheduledDateTime.getTimezoneOffset(),
                 is_carousel: post.postType === "CARROSSEL",
-                veiculo_gerado: post.veiculo_gerado,
-                usuario_log: `Usuário ${user?.email || "desconhecido"} reenviou a webhook agora para a postagem do cliente ${client.name} e veículo ${post.veiculo_gerado || "Sem Veículo"}`
+                veiculo_gerado: post.veiculo_gerado
             };
 
             const res = await fetch("/api/proxy-webhook", {
