@@ -127,7 +127,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
             const groups: Record<string, GroupedPost> = {};
 
             filteredImages.forEach(img => {
-                const originalFormat = img.formato || "FEED";
+                const originalFormat = img.formato || "VENDIDO FEED";
                 // Map VENDIDO FEED -> FEED and VENDIDO STORIES -> STORY for UI filtering
                 const uiFormat = (originalFormat === 'VENDIDO STORIES' || originalFormat === 'STORIES' || originalFormat === 'STORY') ? 'STORY' : (originalFormat === 'VENDIDO REELS' || originalFormat === 'REELS' ? 'REELS' : 'FEED');
                 
@@ -762,7 +762,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         data_agendamento: scheduledDateTime.toISOString(),
                         publicado: false,
                         publicado_instagram: false,
-                        enviado_webhook: false,
+                        enviado_webhook: true,
                         descricao: currentPost.caption
                     });
 
