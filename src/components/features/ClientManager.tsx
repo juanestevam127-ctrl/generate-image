@@ -27,7 +27,7 @@ export function ClientManager() {
     const [instagramId, setInstagramId] = useState("");
     const [token, setToken] = useState("");
     const [columns, setColumns] = useState<ColumnDefinition[]>([]);
-    const [nextDivisao, setNextDivisao] = useState<number | null>(null);
+    const [nextGroupAndSchedule, setNextGroupAndSchedule] = useState<{ divisao_developrs: number; horario_developers: string } | null>(null);
     const [guideStories, setGuideStories] = useState("");
     const [guideFeed, setGuideFeed] = useState("");
     const [clienteAtivo, setClienteAtivo] = useState(true);
@@ -51,7 +51,7 @@ export function ClientManager() {
         
         // Fetch next division for display
         getNextDivisaoAction().then(res => {
-            if (res.success) setNextDivisao(res.data);
+            if (res.success && res.data) setNextGroupAndSchedule(res.data);
         });
     };
 
@@ -200,9 +200,16 @@ export function ClientManager() {
                              {client.divisao_developrs && (
                                  <div className="pt-3 border-t border-white/5 flex justify-between items-center">
                                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Divisão Developers</span>
-                                     <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20">
-                                         Grupo {client.divisao_developrs}
-                                     </span>
+                                     <div className="flex gap-2">
+                                         <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20">
+                                             Grupo {client.divisao_developrs}
+                                         </span>
+                                         {client.horario_developers && (
+                                             <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
+                                                 {client.horario_developers}
+                                             </span>
+                                         )}
+                                     </div>
                                  </div>
                              )}
                          </CardContent>
@@ -223,12 +230,17 @@ export function ClientManager() {
                 className="max-w-2xl h-[90vh]"
             >
                 <div className="space-y-6 h-full overflow-y-auto pr-2 custom-scrollbar">
-                    {!editingClient && nextDivisao && (
+                    {!editingClient && nextGroupAndSchedule && (
                         <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-3 flex items-center justify-between">
-                            <span className="text-sm text-indigo-300 font-medium tracking-tight">Este cliente será adicionado ao grupo:</span>
-                            <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-indigo-900/20 animate-pulse">
-                                Grupo {nextDivisao}
-                            </span>
+                            <span className="text-sm text-indigo-300 font-medium tracking-tight">Este cliente será adicionado ao:</span>
+                            <div className="flex gap-2">
+                                <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-indigo-900/20 animate-pulse">
+                                    Grupo {nextGroupAndSchedule.divisao_developrs}
+                                </span>
+                                <span className="bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-emerald-900/20 animate-pulse">
+                                    {nextGroupAndSchedule.horario_developers}
+                                </span>
+                            </div>
                         </div>
                     )}
                     <div className="grid grid-cols-2 gap-4">

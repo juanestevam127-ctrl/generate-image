@@ -55,6 +55,7 @@ export interface Client {
     jsonFeed?: string;
     jsonStories?: string;
     divisao_developrs?: number;
+    horario_developers?: string;
     guideStories?: string;
     guideFeed?: string;
     clienteAtivo?: boolean;
@@ -157,6 +158,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     instagramId: c.id_instagram,
                     token: c.token,
                     divisao_developrs: c.divisao_developrs,
+                    horario_developers: c.horario_developers,
                     guideStories: c.guide_stories,
                     guideFeed: c.guide_feed,
                     clienteAtivo: c.cliente_ativo ?? true
@@ -306,6 +308,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             facebookId: result.data.id_facebook,
             instagramId: result.data.id_instagram,
             token: result.data.token,
+            divisao_developrs: result.data.divisao_developrs,
+            horario_developers: result.data.horario_developers,
             guideStories: result.data.guide_stories,
             guideFeed: result.data.guide_feed,
             clienteAtivo: result.data.cliente_ativo ?? true
@@ -321,8 +325,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
+        const mappedUpdates: Partial<Client> = { ...updates };
+        if (result.data) {
+            mappedUpdates.divisao_developrs = result.data.divisao_developrs;
+            mappedUpdates.horario_developers = result.data.horario_developers;
+        }
+
         setClients((prev) =>
-            prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+            prev.map((c) => (c.id === id ? { ...c, ...mappedUpdates } : c))
         );
     };
 

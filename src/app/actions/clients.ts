@@ -3,40 +3,35 @@
 import { supabase } from "@/lib/supabase";
 
 // --- Regular Clients (Table: clientes) ---
-async function getNextDivisao() {
-    // Get the highest group number currently in use
-    const { data, error } = await supabase
+async function getNextGroupAndSchedule() {
+    // Query all clients with non-null divisao_developrs
+    const { data: clients, error } = await supabase
         .from("clientes")
-        .select("divisao_developrs")
-        .order("divisao_developrs", { ascending: false })
-        .limit(1);
+        .select("divisao_developrs, horario_developers")
+        .not("divisao_developrs", "is", null);
     
     if (error) throw error;
-    
-    // Default to 1 if no clients exist
-    if (!data || data.length === 0) return 1;
-    
-    const currentMax = data[0].divisao_developrs || 1;
 
-    // Count how many clients are in this group
-    const { count, error: countError } = await supabase
-        .from("clientes")
-        .select("*", { count: "exact", head: true })
-        .eq("divisao_developrs", currentMax);
+    const activeClients = clients || [];
+    const hours = ["13h", "14h", "15h", "16h", "17h"];
     
-    if (countError) throw countError;
-    
-    // If we have 10 or more, move to next
-    if (count !== null && count >= 10) {
-        return currentMax + 1;
+    let group = 1;
+    while (true) {
+        const groupClients = activeClients.filter(c => c.divisao_developrs === group);
+        
+        if (groupClients.length < 5) {
+            const usedHours = groupClients.map(c => c.horario_developers);
+            const freeHour = hours.find(h => !usedHours.includes(h)) || "13h";
+            return { divisao_developrs: group, horario_developers: freeHour };
+        }
+        
+        group++;
     }
-    
-    return currentMax;
 }
 
 export async function getNextDivisaoAction() {
     try {
-        const next = await getNextDivisao();
+        const next = await getNextGroupAndSchedule();
         return { success: true, data: next };
     } catch (e: any) {
         return { success: false, error: e.message };
@@ -44,7 +39,14 @@ export async function getNextDivisaoAction() {
 }
 
 export async function addClientAction(data: any) {
-    const nextDivisao = await getNextDivisao();
+    let nextDivisao = null;
+    let nextHorario = null;
+
+    if (data.clienteAtivo !== false) {
+        const groupAndSchedule = await getNextGroupAndSchedule();
+        nextDivisao = groupAndSchedule.divisao_developrs;
+        nextHorario = groupAndSchedule.horario_developers;
+    }
 
     const dbData = {
         name: data.name,
@@ -59,6 +61,7 @@ export async function addClientAction(data: any) {
         json_feed: data.jsonFeed,
         json_stories: data.jsonStories,
         divisao_developrs: nextDivisao,
+        horario_developers: nextHorario,
         guide_stories: data.guideStories,
         guide_feed: data.guideFeed,
         cliente_ativo: data.clienteAtivo
@@ -94,13 +97,34 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;
 
     try {
-        const { error } = await supabase
+        // If activation status is specified, we check if we need to assign or clear group/schedule
+        if (updates.clienteAtivo !== undefined) {
+            const { data: currentClient, error: getError } = await supabase
+                .from("clientes")
+                .select("cliente_ativo, divisao_developrs")
+                .eq("id", id)
+                .single();
+
+            if (!getError && currentClient) {
+                if (updates.clienteAtivo === true && (!currentClient.cliente_ativo || !currentClient.divisao_developrs)) {
+                    const groupAndSchedule = await getNextGroupAndSchedule();
+                    dbUpdates.divisao_developrs = groupAndSchedule.divisao_developrs;
+                    dbUpdates.horario_developers = groupAndSchedule.horario_developers;
+                } else if (updates.clienteAtivo === false) {
+                    dbUpdates.divisao_developrs = null;
+                    dbUpdates.horario_developers = null;
+                }
+            }
+        }
+
+        const { data: updated, error } = await supabase
             .from("clientes")
             .update(dbUpdates)
-            .eq("id", id);
+            .eq("id", id)
+            .select();
 
         if (error) throw error;
-        return { success: true };
+        return { success: true, data: updated ? updated[0] : null };
     } catch (e: any) {
         console.error("Update Client Error:", e);
         return { success: false, error: e.message };
