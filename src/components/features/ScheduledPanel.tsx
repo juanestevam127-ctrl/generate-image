@@ -212,8 +212,10 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
     const handleResendWebhook = async (post: GroupedScheduledPost) => {
         if (!confirm("Tem certeza que deseja tentar postar novamente agora?")) return;
 
+        const isPostSold = isSold || (post.formato && post.formato.toUpperCase().startsWith("VENDIDO "));
+
         // Webhook: sold posts use a different endpoint
-        const webhookAgendar = isSold
+        const webhookAgendar = isPostSold
             ? "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos"
             : "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
 
@@ -223,7 +225,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
         let instagramId: string | undefined;
         let token: string | undefined;
 
-        if (isSold) {
+        if (isPostSold) {
             const regularClient = clients.find(
                 (c) => c.name.toLowerCase() === client.name.toLowerCase()
             );

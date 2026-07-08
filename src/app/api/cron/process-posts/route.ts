@@ -42,7 +42,15 @@ export async function GET(request: Request) {
         for (const [key, posts] of Object.entries(groups)) {
             const firstPost = posts[0];
             const clientName = firstPost.nome_empresa;
-            const isSold = firstPost.formato && firstPost.formato.toUpperCase().startsWith("VENDIDO ");
+            
+            // Check if format starts with "VENDIDO " OR if client exists in clientes_vendidos table
+            const { count: isSoldClientCount } = await supabase
+                .from('clientes_vendidos')
+                .select('*', { count: 'exact', head: true })
+                .eq('name', clientName);
+
+            const isSold = (firstPost.formato && firstPost.formato.toUpperCase().startsWith("VENDIDO ")) || 
+                           (isSoldClientCount !== null && isSoldClientCount > 0);
 
             const webhookUrl = isSold
                 ? "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos"
