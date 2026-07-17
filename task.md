@@ -1,0 +1,5 @@
+- [x] Implementar a paginação automática helper `fetchAllRows` em `src/app/actions/dashboard.ts`
+- [x] Otimizar `fetchMetricsAction` para fazer consultas de contagem separadas e incluir formatos de Story/Reels corretos
+- [x] Atualizar as demais ações de busca do dashboard em `src/app/actions/dashboard.ts` para usar a paginação e evitar o limite de 1000 linhas
+- [x] Validar a compilação do TypeScript do projeto
+- [x] Fazer commit e push das alterações para o GitHub

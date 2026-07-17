@@ -12,70 +12,112 @@ export interface DashboardFiltersSerialized {
     formats?: string[];
 }
 
+// Helper to paginate and fetch all rows from Supabase to bypass the 1000-row limit
+async function fetchAllRows(buildQuery: () => any) {
+    let allData: any[] = [];
+    let from = 0;
+    const step = 1000;
+    while (true) {
+        const { data, error } = await buildQuery().range(from, from + step - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData = allData.concat(data);
+        if (data.length < step) break;
+        from += step;
+    }
+    return allData;
+}
+
 export async function fetchClientsAction() {
-    const { data, error } = await supabase
+    const buildQuery = () => supabase
         .from(TABLE_NAME)
         .select('nome_empresa')
         .order('nome_empresa');
 
-    if (error) throw error;
+    const data = await fetchAllRows(buildQuery);
     const uniqueClients = Array.from(new Set(data?.map(item => item.nome_empresa).filter(Boolean)));
     return uniqueClients as string[];
 }
 
 export async function fetchMetricsAction(filters: DashboardFiltersSerialized) {
-    let query = supabase
-        .from(TABLE_NAME)
-        .select('formato', { count: 'exact' });
+    const getBaseQuery = () => {
+        let query = supabase
+            .from(TABLE_NAME)
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', filters.dateRange.from)
+            .lte('created_at', filters.dateRange.to);
 
-    query = query
-        .gte('created_at', filters.dateRange.from)
-        .lte('created_at', filters.dateRange.to);
+        if (filters.selectedClient) {
+            query = query.eq('nome_empresa', filters.selectedClient);
+        }
+        return query;
+    };
 
-    if (filters.selectedClient) {
-        query = query.eq('nome_empresa', filters.selectedClient);
-    }
-
+    // 1. Total Count (respecting formats filter if passed)
+    let totalQuery = getBaseQuery();
     if (filters.formats && filters.formats.length > 0) {
-        query = query.in('formato', filters.formats);
+        totalQuery = totalQuery.in('formato', filters.formats);
+    }
+    const { count: total, error: errTotal } = await totalQuery;
+    if (errTotal) throw errTotal;
+
+    // 2. Feed Count
+    const feedFormats = ['FEED', 'VENDIDO FEED'];
+    const allowedFeedFormats = filters.formats 
+        ? filters.formats.filter(f => feedFormats.includes(f))
+        : feedFormats;
+
+    let feedCount = 0;
+    if (!filters.formats || allowedFeedFormats.length > 0) {
+        const { count, error: errFeed } = await getBaseQuery().in('formato', allowedFeedFormats);
+        if (errFeed) throw errFeed;
+        feedCount = count || 0;
     }
 
-    const { data, error, count } = await query;
-    if (error) throw error;
+    // 3. Stories/Vertical Count
+    const storiesFormats = ['STORIES', 'VENDIDO STORIES', 'STORY', 'REELS', 'VENDIDO REELS'];
+    const allowedStoriesFormats = filters.formats 
+        ? filters.formats.filter(f => storiesFormats.includes(f))
+        : storiesFormats;
 
-    const total = count || 0;
-    const feedCount = data?.filter(i => i.formato === 'FEED' || i.formato === 'VENDIDO FEED').length || 0;
-    const storiesCount = data?.filter(i => i.formato === 'STORIES' || i.formato === 'VENDIDO STORIES').length || 0;
+    let storiesCount = 0;
+    if (!filters.formats || allowedStoriesFormats.length > 0) {
+        const { count, error: errStories } = await getBaseQuery().in('formato', allowedStoriesFormats);
+        if (errStories) throw errStories;
+        storiesCount = count || 0;
+    }
+
+    const finalTotal = total || 0;
 
     return {
-        total,
+        total: finalTotal,
         feed: feedCount,
         stories: storiesCount,
-        percentFeed: total > 0 ? Math.round((feedCount / total) * 100) : 0,
-        percentStories: total > 0 ? Math.round((storiesCount / total) * 100) : 0,
+        percentFeed: finalTotal > 0 ? Math.round((feedCount / finalTotal) * 100) : 0,
+        percentStories: finalTotal > 0 ? Math.round((storiesCount / finalTotal) * 100) : 0,
     };
 }
 
 export async function fetchEvolutionDataAction(filters: DashboardFiltersSerialized) {
-    let query = supabase
-        .from(TABLE_NAME)
-        .select('created_at, formato');
+    const buildQuery = () => {
+        let query = supabase
+            .from(TABLE_NAME)
+            .select('created_at, formato')
+            .gte('created_at', filters.dateRange.from)
+            .lte('created_at', filters.dateRange.to)
+            .order('created_at');
 
-    query = query
-        .gte('created_at', filters.dateRange.from)
-        .lte('created_at', filters.dateRange.to)
-        .order('created_at');
+        if (filters.selectedClient) {
+            query = query.eq('nome_empresa', filters.selectedClient);
+        }
 
-    if (filters.selectedClient) {
-        query = query.eq('nome_empresa', filters.selectedClient);
-    }
+        if (filters.formats && filters.formats.length > 0) {
+            query = query.in('formato', filters.formats);
+        }
+        return query;
+    };
 
-    if (filters.formats && filters.formats.length > 0) {
-        query = query.in('formato', filters.formats);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllRows(buildQuery);
 
     const grouped: Record<string, { date: string; feed: number; stories: number }> = {};
     data?.forEach(item => {
@@ -84,27 +126,27 @@ export async function fetchEvolutionDataAction(filters: DashboardFiltersSerializ
             grouped[date] = { date, feed: 0, stories: 0 };
         }
         if (item.formato === 'FEED' || item.formato === 'VENDIDO FEED') grouped[date].feed++;
-        if (item.formato === 'STORIES' || item.formato === 'VENDIDO STORIES') grouped[date].stories++;
+        if (item.formato === 'STORIES' || item.formato === 'VENDIDO STORIES' || item.formato === 'STORY' || item.formato === 'REELS' || item.formato === 'VENDIDO REELS') grouped[date].stories++;
     });
 
     return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function fetchRankingDataAction(filters: DashboardFiltersSerialized) {
-    let query = supabase
-        .from(TABLE_NAME)
-        .select('nome_empresa, formato');
+    const buildQuery = () => {
+        let query = supabase
+            .from(TABLE_NAME)
+            .select('nome_empresa, formato')
+            .gte('created_at', filters.dateRange.from)
+            .lte('created_at', filters.dateRange.to);
 
-    query = query
-        .gte('created_at', filters.dateRange.from)
-        .lte('created_at', filters.dateRange.to);
+        if (filters.formats && filters.formats.length > 0) {
+            query = query.in('formato', filters.formats);
+        }
+        return query;
+    };
 
-    if (filters.formats && filters.formats.length > 0) {
-        query = query.in('formato', filters.formats);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllRows(buildQuery);
 
     const grouped: Record<string, { name: string; total: number }> = {};
     data?.forEach(item => {
@@ -121,13 +163,20 @@ export async function fetchRankingDataAction(filters: DashboardFiltersSerialized
 
 export async function fetchHourlyDataAction(filters: DashboardFiltersSerialized) {
     if (!filters.selectedClient) return [];
-    let query = supabase.from(TABLE_NAME).select('created_at');
-    query = query.eq('nome_empresa', filters.selectedClient)
-        .gte('created_at', filters.dateRange.from)
-        .lte('created_at', filters.dateRange.to);
     
-    const { data, error } = await query;
-    if (error) throw error;
+    const buildQuery = () => {
+        let query = supabase.from(TABLE_NAME).select('created_at');
+        query = query.eq('nome_empresa', filters.selectedClient)
+            .gte('created_at', filters.dateRange.from)
+            .lte('created_at', filters.dateRange.to);
+        
+        if (filters.formats && filters.formats.length > 0) {
+            query = query.in('formato', filters.formats);
+        }
+        return query;
+    };
+
+    const data = await fetchAllRows(buildQuery);
 
     const hours = new Array(24).fill(0).map((_, i) => ({ hour: i, count: 0 }));
     data?.forEach(item => {
@@ -139,13 +188,20 @@ export async function fetchHourlyDataAction(filters: DashboardFiltersSerialized)
 
 export async function fetchWeeklyDataAction(filters: DashboardFiltersSerialized) {
     if (!filters.selectedClient) return [];
-    let query = supabase.from(TABLE_NAME).select('created_at');
-    query = query.eq('nome_empresa', filters.selectedClient)
-        .gte('created_at', filters.dateRange.from)
-        .lte('created_at', filters.dateRange.to);
 
-    const { data, error } = await query;
-    if (error) throw error;
+    const buildQuery = () => {
+        let query = supabase.from(TABLE_NAME).select('created_at');
+        query = query.eq('nome_empresa', filters.selectedClient)
+            .gte('created_at', filters.dateRange.from)
+            .lte('created_at', filters.dateRange.to);
+
+        if (filters.formats && filters.formats.length > 0) {
+            query = query.in('formato', filters.formats);
+        }
+        return query;
+    };
+
+    const data = await fetchAllRows(buildQuery);
 
     const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weekStats = days.map(day => ({ day, count: 0 }));
@@ -157,30 +213,33 @@ export async function fetchWeeklyDataAction(filters: DashboardFiltersSerialized)
 }
 
 export async function fetchDetailedTableAction(filters: DashboardFiltersSerialized) {
-    let query = supabase.from(TABLE_NAME).select('*');
-    query = query.gte('created_at', filters.dateRange.from)
-        .lte('created_at', filters.dateRange.to)
-        .order('created_at', { ascending: false });
+    const buildQuery = () => {
+        let query = supabase.from(TABLE_NAME).select('*');
+        query = query.gte('created_at', filters.dateRange.from)
+            .lte('created_at', filters.dateRange.to)
+            .order('created_at', { ascending: false });
 
-    if (filters.selectedClient) query = query.eq('nome_empresa', filters.selectedClient);
-    if (filters.formats && filters.formats.length > 0) query = query.in('formato', filters.formats);
+        if (filters.selectedClient) query = query.eq('nome_empresa', filters.selectedClient);
+        if (filters.formats && filters.formats.length > 0) query = query.in('formato', filters.formats);
+        return query;
+    };
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
+    return await fetchAllRows(buildQuery);
 }
 
 export async function fetchVehicleDataAction(filters: DashboardFiltersSerialized) {
-    let query = supabase.from(TABLE_NAME).select('veiculo_gerado, nome_empresa');
-    query = query.gte('created_at', filters.dateRange.from)
-        .lte('created_at', filters.dateRange.to)
-        .not('veiculo_gerado', 'is', null);
+    const buildQuery = () => {
+        let query = supabase.from(TABLE_NAME).select('veiculo_gerado, nome_empresa, formato');
+        query = query.gte('created_at', filters.dateRange.from)
+            .lte('created_at', filters.dateRange.to)
+            .not('veiculo_gerado', 'is', null);
 
-    if (filters.selectedClient) query = query.eq('nome_empresa', filters.selectedClient);
-    if (filters.formats && filters.formats.length > 0) query = query.in('formato', filters.formats);
+        if (filters.selectedClient) query = query.eq('nome_empresa', filters.selectedClient);
+        if (filters.formats && filters.formats.length > 0) query = query.in('formato', filters.formats);
+        return query;
+    };
 
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllRows(buildQuery);
 
     if (!data || data.length === 0) {
         return {
