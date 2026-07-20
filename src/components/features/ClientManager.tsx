@@ -32,6 +32,8 @@ export function ClientManager() {
     const [guideFeed, setGuideFeed] = useState("");
     const [clienteAtivo, setClienteAtivo] = useState(true);
     const [isUploading, setIsUploading] = useState<{ stories: boolean; feed: boolean }>({ stories: false, feed: false });
+    const [idClickup, setIdClickup] = useState("");
+    const [webhookStoriesSegQuarSex, setWebhookStoriesSegQuarSex] = useState("");
 
     const openNewClientModal = () => {
         setEditingClient(null);
@@ -46,6 +48,8 @@ export function ClientManager() {
         setGuideStories("");
         setGuideFeed("");
         setClienteAtivo(true);
+        setIdClickup("");
+        setWebhookStoriesSegQuarSex("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
         
@@ -68,6 +72,8 @@ export function ClientManager() {
         setGuideStories(client.guideStories || "");
         setGuideFeed(client.guideFeed || "");
         setClienteAtivo(client.clienteAtivo ?? true);
+        setIdClickup(client.idClickup || "");
+        setWebhookStoriesSegQuarSex(client.webhookStoriesSegQuarSex || "");
         setColumns([...client.columns]);
         setIsUploading({ stories: false, feed: false });
         setIsModalOpen(true);
@@ -88,6 +94,8 @@ export function ClientManager() {
             guideStories,
             guideFeed,
             clienteAtivo,
+            idClickup,
+            webhookStoriesSegQuarSex,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
@@ -265,6 +273,22 @@ export function ClientManager() {
                             <Input
                                 value={webhookPostagens}
                                 onChange={(e) => setWebhookPostagens(e.target.value)}
+                                placeholder="https://hook.make.com/..."
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">ClickUp ID (Opcional)</label>
+                            <Input
+                                value={idClickup}
+                                onChange={(e) => setIdClickup(e.target.value)}
+                                placeholder="Ex: 86ady0z1m"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Webhook Stories Seg/Qua/Sex (Opcional)</label>
+                            <Input
+                                value={webhookStoriesSegQuarSex}
+                                onChange={(e) => setWebhookStoriesSegQuarSex(e.target.value)}
                                 placeholder="https://hook.make.com/..."
                             />
                         </div>

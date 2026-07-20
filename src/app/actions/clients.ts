@@ -64,7 +64,9 @@ export async function addClientAction(data: any) {
         horario_developers: nextHorario,
         guide_stories: data.guideStories,
         guide_feed: data.guideFeed,
-        cliente_ativo: data.clienteAtivo
+        cliente_ativo: data.clienteAtivo,
+        id_clickup: data.idClickup,
+        webhook_stories_seg_quar_sex: data.webhookStoriesSegQuarSex
     };
 
     try {
@@ -92,9 +94,13 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
     if (updates.token !== undefined) dbUpdates.token = updates.token;
+    if (updates.jsonFeed !== undefined) dbUpdates.json_feed = updates.jsonFeed;
+    if (updates.jsonStories !== undefined) dbUpdates.json_stories = updates.jsonStories;
     if (updates.guideStories !== undefined) dbUpdates.guide_stories = updates.guideStories;
     if (updates.guideFeed !== undefined) dbUpdates.guide_feed = updates.guideFeed;
     if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;
+    if (updates.idClickup !== undefined) dbUpdates.id_clickup = updates.idClickup;
+    if (updates.webhookStoriesSegQuarSex !== undefined) dbUpdates.webhook_stories_seg_quar_sex = updates.webhookStoriesSegQuarSex;
 
     try {
         // If activation status is specified, we check if we need to assign or clear group/schedule
@@ -153,6 +159,7 @@ export async function addSoldClientAction(data: any) {
         id_facebook: data.facebookId,
         id_instagram: data.instagramId,
         token: data.token,
+        json_feed: data.jsonFeed,
         json_stories: data.jsonStories,
         guide_stories: data.guideStories,
         guide_feed: data.guideFeed,
@@ -184,6 +191,8 @@ export async function updateSoldClientAction(id: string, updates: any) {
     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
     if (updates.token !== undefined) dbUpdates.token = updates.token;
+    if (updates.jsonFeed !== undefined) dbUpdates.json_feed = updates.jsonFeed;
+    if (updates.jsonStories !== undefined) dbUpdates.json_stories = updates.jsonStories;
     if (updates.guideStories !== undefined) dbUpdates.guide_stories = updates.guideStories;
     if (updates.guideFeed !== undefined) dbUpdates.guide_feed = updates.guideFeed;
     if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;

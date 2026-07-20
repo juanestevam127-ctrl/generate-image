@@ -1,5 +1,6 @@
-- [x] Implementar a paginação automática helper `fetchAllRows` em `src/app/actions/dashboard.ts`
-- [x] Otimizar `fetchMetricsAction` para fazer consultas de contagem separadas e incluir formatos de Story/Reels corretos
-- [x] Atualizar as demais ações de busca do dashboard em `src/app/actions/dashboard.ts` para usar a paginação e evitar o limite de 1000 linhas
+- [x] Corrigir persistência de `json_feed` e `json_stories` em `addSoldClientAction` e `updateSoldClientAction`
+- [x] Adicionar `idClickup` e `webhookStoriesSegQuarSex` na interface do Cliente e mapeamento global
+- [x] Habilitar gravação/atualização de `id_clickup` e `webhook_stories_seg_quar_sex` em `clients.ts`
+- [x] Adicionar inputs de ClickUp ID e Webhook Stories Seg/Qua/Sex na interface de `ClientManager.tsx`
 - [x] Validar a compilação do TypeScript do projeto
 - [x] Fazer commit e push das alterações para o GitHub

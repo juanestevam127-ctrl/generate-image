@@ -59,6 +59,8 @@ export interface Client {
     guideStories?: string;
     guideFeed?: string;
     clienteAtivo?: boolean;
+    idClickup?: string;
+    webhookStoriesSegQuarSex?: string;
 }
 
 export interface LayoutClient {
@@ -161,7 +163,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     horario_developers: c.horario_developers,
                     guideStories: c.guide_stories,
                     guideFeed: c.guide_feed,
-                    clienteAtivo: c.cliente_ativo ?? true
+                    clienteAtivo: c.cliente_ativo ?? true,
+                    idClickup: c.id_clickup,
+                    webhookStoriesSegQuarSex: c.webhook_stories_seg_quar_sex
                 }));
                 setClients(formattedClients);
 
@@ -312,7 +316,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             horario_developers: result.data.horario_developers,
             guideStories: result.data.guide_stories,
             guideFeed: result.data.guide_feed,
-            clienteAtivo: result.data.cliente_ativo ?? true
+            clienteAtivo: result.data.cliente_ativo ?? true,
+            idClickup: result.data.id_clickup,
+            webhookStoriesSegQuarSex: result.data.webhook_stories_seg_quar_sex
         };
 
         setClients((prev) => [...prev, newClient]);
