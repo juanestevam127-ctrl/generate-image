@@ -129,6 +129,21 @@ export async function GET(request: Request) {
                 veiculo_gerado: firstPost.veiculo_gerado
             };
 
+            // IMPORTANTE: Marcar como enviado ANTES de chamar a webhook
+            // Isso previne race condition onde o cron roda 2x antes do primeiro terminar
+            const ids = posts.map(p => p.id);
+            const { error: lockError } = await supabase
+                .from('publicacoes_design_online')
+                .update({ enviado_webhook: true })
+                .in('id', ids)
+                .eq('enviado_webhook', false); // só atualiza se ainda for false (lock otimista)
+
+            if (lockError) {
+                console.error(`Failed to lock posts for group ${key}:`, lockError);
+                results.push({ key, status: 'lock_failed', error: lockError.message });
+                continue;
+            }
+
             // Call Webhook
             try {
                 const res = await fetch(webhookUrl, {
@@ -138,17 +153,23 @@ export async function GET(request: Request) {
                 });
 
                 if (res.ok) {
-                    const ids = posts.map(p => p.id);
-                    await supabase
-                        .from('publicacoes_design_online')
-                        .update({ enviado_webhook: true })
-                        .in('id', ids);
-
                     results.push({ key, status: 'success' });
                 } else {
+                    // Webhook falhou: revertemos o lock para tentar novamente no próximo ciclo
+                    await supabase
+                        .from('publicacoes_design_online')
+                        .update({ enviado_webhook: false })
+                        .in('id', ids);
+
                     results.push({ key, status: 'failed', error: await res.text() });
                 }
             } catch (err) {
+                // Erro de rede: revertemos o lock
+                await supabase
+                    .from('publicacoes_design_online')
+                    .update({ enviado_webhook: false })
+                    .in('id', ids);
+
                 results.push({ key, status: 'error', error: (err as Error).message });
             }
         }
