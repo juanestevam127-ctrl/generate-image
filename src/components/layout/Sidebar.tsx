@@ -32,6 +32,14 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
         { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },
     ];
 
+    if (user.role === "master") {
+        navItems.push({
+            label: "Controle de Postagens",
+            href: "/controle-stories",
+            icon: Layout,
+        });
+    }
+
     return (
         <aside
             className={cn(
