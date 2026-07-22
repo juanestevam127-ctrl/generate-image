@@ -43,7 +43,8 @@ export default function ControleStoriesPage() {
             const { data, error } = await supabase
                 .from("design_online_stories_veiculos")
                 .select("*")
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .range(0, 5000);
 
             if (error) throw error;
             setPosts((data || []) as StoryPost[]);

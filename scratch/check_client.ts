@@ -8,20 +8,31 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUz
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkTiggo() {
-  const { data, error } = await supabase
-    .from('publicacoes_design_online')
-    .select('id, nome_empresa, veiculo_gerado, data_agendamento, publicado, publicado_instagram')
-    .eq('id', 23778)
-    .single();
+async function checkTotalRows() {
+  const { count, error } = await supabase
+    .from('design_online_stories_veiculos')
+    .select('*', { count: 'exact', head: true });
 
   if (error) {
     console.error(error);
     return;
   }
 
-  console.log('=== TIGGO 5X PRO 2024 CINZA STATE IN DB ===');
-  console.log(data);
+  console.log('=== TOTAL ROWS IN design_online_stories_veiculos ===');
+  console.log(`Total count: ${count}`);
+
+  const { data: sample, error: errSample } = await supabase
+    .from('design_online_stories_veiculos')
+    .select('id, nome_cliente, nome_veiculo, postado, rede_social')
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (errSample) {
+    console.error(errSample);
+  } else {
+    console.log('=== SAMPLE LATEST 10 ROWS ===');
+    console.table(sample);
+  }
 }
 
-checkTiggo();
+checkTotalRows();
