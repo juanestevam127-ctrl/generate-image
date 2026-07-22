@@ -286,7 +286,7 @@ export default function DashboardPage() {
                         {selectedClientId && activeClient ? (
                             <ScheduledPanel client={activeClient} isSold={false} />
                         ) : (
-                            <GlobalScheduleWidget />
+                            <GlobalScheduleWidget isSold={false} />
                         )}
                     </div>
                 ) : (

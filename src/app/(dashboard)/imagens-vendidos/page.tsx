@@ -330,7 +330,7 @@ export default function SoldDashboardPage() {
                         {selectedClientId && activeClient ? (
                             <ScheduledPanel client={activeClient} isSold={true} />
                         ) : (
-                            <GlobalScheduleWidget />
+                            <GlobalScheduleWidget isSold={true} />
                         )}
                     </div>
                 ) : (

@@ -35,7 +35,7 @@ function addDays(dateStr: string, days: number): string {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-export default function GlobalScheduleWidget() {
+export default function GlobalScheduleWidget({ isSold = false }: { isSold?: boolean }) {
     const [selectedDate, setSelectedDate] = useState<string>(getTodayBrazil());
     const [posts, setPosts] = useState<GlobalScheduledPost[]>([]);
     const [loading, setLoading] = useState(true);
@@ -48,6 +48,13 @@ export default function GlobalScheduleWidget() {
                 // Group by date+vehicle+company to deduplicate carousel images
                 const groups: Record<string, GlobalScheduledPost> = {};
                 result.data.forEach((img: any) => {
+                    const isSoldFormat = img.formato && img.formato.toUpperCase().startsWith("VENDIDO ");
+                    
+                    // Filter based on the dashboard context
+                    if (isSold ? !isSoldFormat : isSoldFormat) {
+                        return;
+                    }
+
                     const vehicle = img.veiculo_gerado || "Sem Veículo";
                     const key = `${img.data_agendamento}-${vehicle}-${img.nome_empresa}`;
                     if (!groups[key]) {
