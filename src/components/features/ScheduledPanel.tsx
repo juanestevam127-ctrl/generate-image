@@ -189,11 +189,9 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
         setIsEditModalOpen(false);
         try {
             const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
-            const selectedIds = editingPost.images.map(img => img.id);
-
-            const result = await updateSchedulerRecordAction(selectedIds, { 
+            const selectedIds = editingPost.images.map(img => img.id);             const result = await updateSchedulerRecordAction(selectedIds, { 
                 data_agendamento: scheduledDateTime.toISOString(),
-                enviado_webhook: false
+                webhook_disparado: false
             });
 
             if (!result.success) throw new Error(result.error);
@@ -282,7 +280,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
             await updateSchedulerRecordAction(selectedIds, { 
                 publicado: false, // Reset so webhook logic can update it
                 publicado_instagram: false,
-                enviado_webhook: true
+                webhook_disparado: true
             });
 
             alert("Webhook enviado com sucesso para tentar a postagem novamente!");
