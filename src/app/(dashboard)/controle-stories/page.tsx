@@ -118,8 +118,18 @@ export default function ControleStoriesPage() {
         a.nome_cliente.localeCompare(b.nome_cliente)
     );
 
-    // Obter clientes únicos para o filtro drop-down
-    const uniqueClients = Array.from(new Set(posts.map((p) => p.nome_cliente || "Sem Cliente"))).sort();
+    // Obter apenas clientes que têm alguma postagem pendente (para popular o filtro)
+    const uniqueClientsWithPending = Array.from(
+        new Set(
+            posts
+                .filter((p) => {
+                    const cName = p.nome_cliente || "Sem Cliente";
+                    const summary = clientSummaries[cName];
+                    return (summary?.naoPostadoFace > 0 || summary?.naoPostadoInsta > 0);
+                })
+                .map((p) => p.nome_cliente || "Sem Cliente")
+        )
+    ).sort();
 
     // 2. Agrupar postagens detalhadas por veículo + id_tarefa para exibição na tabela/cards
     const groupedVehicles: Record<string, {
@@ -161,8 +171,15 @@ export default function ControleStoriesPage() {
         }
     });
 
-    // Filtrar a lista detalhada com base na pesquisa e filtro de cliente
+    // Filtrar a lista detalhada para mostrar APENAS o que NÃO foi postado (pelo menos uma rede social pendente/falsa)
     const filteredGroupedVehicles = Object.values(groupedVehicles).filter((v) => {
+        // Verifica se tem pelo menos uma rede social marcada como pendente (false)
+        const hasPendingFacebook = v.facebookPostado === false;
+        const hasPendingInstagram = v.instagramPostado === false;
+        const isPending = hasPendingFacebook || hasPendingInstagram;
+
+        if (!isPending) return false;
+
         const matchSearch =
             v.nome_veiculo.toLowerCase().includes(searchTerm.toLowerCase()) ||
             v.id_tarefa.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -276,8 +293,8 @@ export default function ControleStoriesPage() {
                                 onChange={(e) => setSelectedClientFilter(e.target.value)}
                                 className="w-full bg-black/40 border border-white/10 rounded-md h-10 px-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                             >
-                                <option value="">Todos os Clientes</option>
-                                {uniqueClients.map((client) => (
+                                <option value="">Todos os Clientes com Pendências</option>
+                                {uniqueClientsWithPending.map((client) => (
                                     <option key={client} value={client}>{client}</option>
                                 ))}
                             </select>
