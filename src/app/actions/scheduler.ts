@@ -180,7 +180,12 @@ export async function cancelScheduledPostAction(ids: number[]) {
     try {
         const { error } = await supabase
             .from("publicacoes_design_online")
-            .update({ data_agendamento: null, publicado: false, enviado_webhook: false })
+            .update({ 
+                data_agendamento: null, 
+                publicado: false, 
+                publicado_instagram: false,
+                webhook_disparado: false 
+            })
             .in("id", ids);
 
         if (error) throw error;
