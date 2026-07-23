@@ -181,7 +181,8 @@ export function PostScheduler({ client }: { client: Client }) {
                 proposedTime,
                 currentPost.postType,
                 allScheduledPosts,
-                currentPostIds
+                currentPostIds,
+                client.divisao_developrs
             );
             setConflicts(foundConflicts);
         } else {

@@ -268,11 +268,12 @@ export function SoldPostScheduler({ client }: { client: Client }) {
         if (currentPost && scheduleDate && scheduleTime) {
             const proposedTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
             const currentPostIds = currentPost.images.map(img => img.id).filter(id => typeof id === 'number') as number[];
-            const foundConflicts = checkSchedulingConflicts(
+             const foundConflicts = checkSchedulingConflicts(
                 proposedTime,
                 currentPost.postType,
                 allScheduledPosts,
-                currentPostIds
+                currentPostIds,
+                (client as any).divisao_developrs
             );
             setConflicts(foundConflicts);
         } else {

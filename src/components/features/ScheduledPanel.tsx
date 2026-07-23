@@ -170,7 +170,8 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                 proposedTime,
                 editingPost.postType,
                 allScheduledPosts,
-                currentPostIds
+                currentPostIds,
+                client.divisao_developrs
             );
             setConflicts(foundConflicts);
         } else {

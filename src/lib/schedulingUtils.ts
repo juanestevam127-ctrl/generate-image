@@ -16,6 +16,7 @@ export interface ScheduledPost {
     veiculo_gerado: string;
     nome_empresa: string;
     postType?: string;
+    divisao_developrs?: number | null;
 }
 
 export function getPostDelay(postType: string): number {
@@ -50,7 +51,8 @@ export function processScheduledPosts(rawData: any[]): ScheduledPost[] {
 
             grouped[key] = {
                 ...row,
-                postType: type
+                postType: type,
+                divisao_developrs: row.divisao_developrs
             } as ScheduledPost;
         }
     });
@@ -67,7 +69,8 @@ export function checkSchedulingConflicts(
     proposedTime: Date,
     proposedType: string,
     existingPosts: ScheduledPost[],
-    excludePostIds: number[] = []
+    excludePostIds: number[] = [],
+    proposedGroup?: number | null
 ): SchedulingConflict[] {
     const conflicts: SchedulingConflict[] = [];
     const proposedDuration = getPostDelay(proposedType);
@@ -75,6 +78,17 @@ export function checkSchedulingConflicts(
 
     existingPosts.forEach(post => {
         if (excludePostIds.includes(post.id)) return;
+
+        // SE pertencem a grupos diferentes (e ambos têm um grupo válido), NÃO há conflito
+        if (
+            proposedGroup !== undefined &&
+            post.divisao_developrs !== undefined &&
+            proposedGroup !== null &&
+            post.divisao_developrs !== null &&
+            proposedGroup !== post.divisao_developrs
+        ) {
+            return;
+        }
 
         const existingStart = parseISO(post.data_agendamento);
         const existingDuration = getPostDelay(post.postType || "ESTATICA");
@@ -88,7 +102,7 @@ export function checkSchedulingConflicts(
         if (isOverlapping) {
             conflicts.push({
                 existingPost: post,
-                reason: `O post "${post.veiculo_gerado}" (${post.nome_empresa}) está agendado para ${existingStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} e exige um intervalo de ${existingDuration} minutos.`
+                reason: `O post "${post.veiculo_gerado}" (${post.nome_empresa} - Grupo ${post.divisao_developrs || "Sem Grupo"}) está agendado para ${existingStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} e exige um intervalo de ${existingDuration} minutos.`
             });
         }
     });
