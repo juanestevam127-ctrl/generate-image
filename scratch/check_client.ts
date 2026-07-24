@@ -8,31 +8,19 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUz
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkTotalRows() {
-  const { count, error } = await supabase
-    .from('design_online_stories_veiculos')
-    .select('*', { count: 'exact', head: true });
+async function checkClientsTable() {
+  const { data: clients, error } = await supabase
+    .from('clientes')
+    .select('id, name, divisao_developrs')
+    .limit(10);
 
   if (error) {
     console.error(error);
     return;
   }
 
-  console.log('=== TOTAL ROWS IN design_online_stories_veiculos ===');
-  console.log(`Total count: ${count}`);
-
-  const { data: sample, error: errSample } = await supabase
-    .from('design_online_stories_veiculos')
-    .select('id, nome_cliente, nome_veiculo, postado, rede_social')
-    .order('created_at', { ascending: false })
-    .limit(10);
-
-  if (errSample) {
-    console.error(errSample);
-  } else {
-    console.log('=== SAMPLE LATEST 10 ROWS ===');
-    console.table(sample);
-  }
+  console.log('=== clientes TABLE SAMPLE ===');
+  console.log(clients);
 }
 
-checkTotalRows();
+checkClientsTable();

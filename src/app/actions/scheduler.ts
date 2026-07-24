@@ -99,9 +99,9 @@ export async function updateGroupFormatAction(clientName: string, vehicle: strin
 }
 
 export async function fetchAllScheduledPostsAction() {
-    const { data, error } = await supabase
+    const { data: posts, error } = await supabase
         .from("publicacoes_design_online")
-        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao, divisao_developrs")
+        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao")
         .not("data_agendamento", "is", null)
         .eq("publicado", false)
         .order("data_agendamento", { ascending: true });
@@ -111,7 +111,31 @@ export async function fetchAllScheduledPostsAction() {
         return [];
     }
 
-    return data;
+    // Como publicacoes_design_online não tem divisao_developrs, buscamos do cliente
+    const { data: clients, error: clientErr } = await supabase
+        .from("clientes")
+        .select("name, divisao_developrs");
+
+    if (clientErr || !clients) {
+        return posts || [];
+    }
+
+    const clientGroupMap = new Map<string, number | null>();
+    clients.forEach(c => {
+        if (c.name) {
+            clientGroupMap.set(c.name.toLowerCase(), c.divisao_developrs);
+        }
+    });
+
+    const mappedPosts = (posts || []).map(post => {
+        const clientNameLower = post.nome_empresa ? post.nome_empresa.toLowerCase() : "";
+        return {
+            ...post,
+            divisao_developrs: clientGroupMap.get(clientNameLower) || null
+        };
+    });
+
+    return mappedPosts;
 }
 
 export async function fetchGlobalScheduledPostsAction(selectedDate?: string) {
