@@ -17,7 +17,7 @@ import { ScheduledPanel } from "@/components/features/ScheduledPanel";
 import GlobalScheduleWidget from '@/components/dashboard/GlobalScheduleWidget';
 
 export default function SoldDashboardPage() {
-    const { user, soldClients } = useStore();
+    const { user, soldClients, clients } = useStore();
     const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin" | "scheduled_panel">("analytics");
     const [previewImage, setPreviewImage] = useState<{ url: string, title: string } | null>(null);
 
@@ -275,8 +275,8 @@ export default function SoldDashboardPage() {
                                     </div>
                                 </div>
 
-                                {activeClient && (
-                                    <div className="flex-1 pb-1">
+                                 {activeClient && (
+                                    <div className="pb-1">
                                         {activeClient.webhookPostagens ? (
                                             <p className="text-xs text-green-300 bg-green-500/10 px-2 py-1 rounded inline-block">
                                                 Postagens: ...{activeClient.webhookPostagens.slice(-15)}
@@ -288,6 +288,35 @@ export default function SoldDashboardPage() {
                                         )}
                                     </div>
                                 )}
+
+                                {/* Tabela/Resumo de Grupos do Cliente */}
+                                <div className="flex-1 min-w-[280px]">
+                                    <details className="group bg-black/30 border border-white/10 rounded-lg p-2 overflow-hidden transition-all duration-300">
+                                        <summary className="text-xs font-bold text-green-400 cursor-pointer select-none flex items-center justify-between">
+                                            <span>📋 VER GRUPOS DE POSTAGEM (Fila de Foco)</span>
+                                            <span className="text-[10px] text-gray-500 font-normal group-open:rotate-180 transition-transform">▼</span>
+                                        </summary>
+                                        <div className="mt-2 pt-2 border-t border-white/5 max-h-48 overflow-y-auto space-y-3 text-[11px] custom-scrollbar">
+                                            {Object.entries(
+                                                (clients || []).reduce((acc: any, c: any) => {
+                                                    if (c.clienteAtivo !== false) {
+                                                        const gp = c.divisao_developrs || "Sem Grupo";
+                                                        if (!acc[gp]) acc[gp] = [];
+                                                        acc[gp].push(c.name);
+                                                    }
+                                                    return acc;
+                                                }, {} as Record<string, string[]>)
+                                            )
+                                            .sort((a, b) => (typeof a[0] === 'number' && typeof b[0] === 'number') ? (a[0] as number) - (b[0] as number) : String(a[0]).localeCompare(String(b[0])))
+                                            .map(([groupNum, names]: any) => (
+                                                <div key={groupNum} className="flex flex-col gap-0.5 pb-1 border-b border-white/5 last:border-0">
+                                                    <span className="font-bold text-green-300">Grupo {groupNum}</span>
+                                                    <span className="text-gray-400">{names.join(", ")}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </details>
+                                </div>
                             </div>
                         </Card>
 

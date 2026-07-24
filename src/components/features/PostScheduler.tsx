@@ -1091,6 +1091,17 @@ export function PostScheduler({ client }: { client: Client }) {
                         </div>
                     </div>
 
+                    {/* Grupo info */}
+                    <div className="bg-white/5 border border-white/10 p-3 rounded-lg text-xs space-y-1.5">
+                        <div className="flex justify-between items-center text-gray-300 font-semibold">
+                            <span>Sua Divisão:</span>
+                            <span className="text-indigo-400 font-bold">Grupo {client.divisao_developrs || "Sem Grupo"}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 leading-normal">
+                            Clientes do mesmo grupo compartilham a fila de postagens (devem aguardar o intervalo acima). Clientes de outros grupos podem postar no mesmo horário.
+                        </p>
+                    </div>
+
                     <div className="flex justify-end pt-4 space-x-3">
                         <Button variant="ghost" onClick={() => setIsScheduleModalOpen(false)}>Cancelar</Button>
                         <Button
