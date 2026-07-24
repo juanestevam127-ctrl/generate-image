@@ -723,6 +723,23 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
             }
 
+            // Bloquear se houver conflito de agendamento (somente no agendamento programado)
+            if (!isInstant) {
+                const currentPostIds = currentPost.images.map(img => img.id).filter(id => typeof id === 'number') as number[];
+                const foundConflicts = checkSchedulingConflicts(
+                    scheduledDateTime,
+                    currentPost.postType,
+                    allScheduledPosts,
+                    currentPostIds,
+                    (client as any).divisao_developrs
+                );
+                if (foundConflicts.length > 0) {
+                    alert(`Não é possível agendar. Conflito detectado:\n${foundConflicts[0].reason}`);
+                    setIsScheduling(false);
+                    return;
+                }
+            }
+
             if (isInstant) {
                 const payload = {
                     client: client.name,

@@ -187,9 +187,26 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
         }
 
         setActionLoading(editingPost.id);
-        setIsEditModalOpen(false);
         try {
             const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`);
+            
+            // Bloquear se houver conflito de agendamento
+            const currentPostIds = editingPost.images.map(img => img.id);
+            const foundConflicts = checkSchedulingConflicts(
+                scheduledDateTime,
+                editingPost.postType,
+                allScheduledPosts,
+                currentPostIds,
+                client.divisao_developrs
+            );
+            if (foundConflicts.length > 0) {
+                alert(`Não é possível reagendar. Conflito detectado:\n${foundConflicts[0].reason}`);
+                setActionLoading(null);
+                return;
+            }
+
+            setIsEditModalOpen(false);
+
             const selectedIds = editingPost.images.map(img => img.id);             const result = await updateSchedulerRecordAction(selectedIds, { 
                 data_agendamento: scheduledDateTime.toISOString(),
                 webhook_disparado: false
