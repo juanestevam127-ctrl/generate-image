@@ -253,6 +253,9 @@ export default function DashboardPage() {
                                             <span className="text-[10px] text-gray-500 font-normal group-open:rotate-180 transition-transform">▼</span>
                                         </summary>
                                         <div className="mt-2 pt-2 border-t border-white/5 max-h-48 overflow-y-auto space-y-3 text-[11px] custom-scrollbar">
+                                            <p className="text-[10px] text-red-400 font-bold mb-2 leading-snug">
+                                                ⚠️ ATENÇÃO: Clientes do mesmo grupo NÃO podem postar no mesmo horário.
+                                            </p>
                                             {Object.entries(
                                                 clients.reduce((acc, c) => {
                                                     if (c.clienteAtivo !== false) {
@@ -263,7 +266,14 @@ export default function DashboardPage() {
                                                     return acc;
                                                 }, {} as Record<string, string[]>)
                                             )
-                                            .sort((a, b) => (typeof a[0] === 'number' && typeof b[0] === 'number') ? (a[0] as number) - (b[0] as number) : String(a[0]).localeCompare(String(b[0])))
+                                            .sort((a, b) => {
+                                                const numA = parseInt(a[0]);
+                                                const numB = parseInt(b[0]);
+                                                if (isNaN(numA) && isNaN(numB)) return a[0].localeCompare(b[0]);
+                                                if (isNaN(numA)) return 1;
+                                                if (isNaN(numB)) return -1;
+                                                return numA - numB;
+                                            })
                                             .map(([groupNum, names]) => (
                                                 <div key={groupNum} className="flex flex-col gap-0.5 pb-1 border-b border-white/5 last:border-0">
                                                     <span className="font-bold text-indigo-300">Grupo {groupNum}</span>
