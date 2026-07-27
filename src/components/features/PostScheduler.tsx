@@ -151,6 +151,16 @@ export function PostScheduler({ client }: { client: Client }) {
                 }
             });
 
+            // Sort images inside each group: if orders are customized/manually set, respect them; otherwise sort by created_at
+            Object.values(groups).forEach(group => {
+                const hasManualOrder = group.images.some(img => (img.ordem !== undefined && img.ordem !== null && img.ordem > 0));
+                if (hasManualOrder) {
+                    group.images.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+                } else {
+                    group.images.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                }
+            });
+
             setGroupedPosts(Object.values(groups));
         } catch (error) {
             console.error("Error fetching images:", error);
