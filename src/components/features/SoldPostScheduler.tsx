@@ -789,36 +789,31 @@ export function SoldPostScheduler({ client }: { client: Client }) {
 
                 if (!res.ok) throw new Error("Falha ao enviar para o webhook");
 
-                const selectedIds = currentPost.images
-                    .map(img => img.id)
-                    .filter(id => typeof id === 'number');
-
-                if (selectedIds.length > 0) {
-                    const result = await updateSchedulerRecordAction(selectedIds, { 
+                // Save scheduling details and ensure sequential order index is written to database
+                for (let i = 0; i < sortedImagesList.length; i++) {
+                    const img = sortedImagesList[i];
+                    const result = await updateSchedulerRecordAction(img.id as number, {
                         data_agendamento: scheduledDateTime.toISOString(),
                         publicado: false,
                         publicado_instagram: false,
                         webhook_disparado: true,
-                        descricao: currentPost.caption
+                        descricao: currentPost.caption,
+                        ordem: i
                     });
-
-                    if (!result.success) console.error("Error updating published status via server:", result.error);
+                    if (!result.success) console.error("Error updating image order:", result.error);
                 }
             } else {
-                // Scheduling for later: Update DB only
-                const selectedIds = currentPost.images
-                    .map(img => img.id)
-                    .filter(id => typeof id === 'number');
-
-                if (selectedIds.length > 0) {
-                    const result = await updateSchedulerRecordAction(selectedIds, { 
+                // Scheduling for later: Update DB details and save sequential order index
+                for (let i = 0; i < sortedImagesList.length; i++) {
+                    const img = sortedImagesList[i];
+                    const result = await updateSchedulerRecordAction(img.id as number, {
                         data_agendamento: scheduledDateTime.toISOString(),
                         publicado: false,
                         publicado_instagram: false,
                         webhook_disparado: false,
-                        descricao: currentPost.caption
+                        descricao: currentPost.caption,
+                        ordem: i
                     });
-
                     if (!result.success) throw new Error(result.error);
                 }
             }
