@@ -654,15 +654,23 @@ export function PostScheduler({ client }: { client: Client }) {
                 }
             }
 
+            const sortedImagesList = [...currentPost.images];
+            const hasManualOrder = sortedImagesList.some(img => (img.ordem !== undefined && img.ordem !== null && img.ordem > 0));
+            if (hasManualOrder) {
+                sortedImagesList.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+            } else {
+                sortedImagesList.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            }
+
             if (isInstant) {
                 const payload = {
                     client: client.name,
                     facebook_id: client.facebookId,
                     instagram_id: client.instagramId,
                     token: client.token,
-                    images: currentPost.images.map(img => img.imagem),
-                    video: currentPost.images.find(img => isVideo(img.imagem))?.imagem,
-                    reels_cover: currentPost.images.find(img => !isVideo(img.imagem))?.imagem,
+                    images: sortedImagesList.map(img => img.imagem),
+                    video: sortedImagesList.find(img => isVideo(img.imagem))?.imagem,
+                    reels_cover: sortedImagesList.find(img => !isVideo(img.imagem))?.imagem,
                     description: currentPost.caption,
                     format: currentPost.formato,
                     post_type: currentPost.postType,
