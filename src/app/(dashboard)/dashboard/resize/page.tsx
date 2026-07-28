@@ -106,17 +106,10 @@ export default function ResizePage() {
             // Step 2: Send to N8N Webhook
             setStatusMessage("Processando com IA (Aguardando Webhook)...");
 
-            // Allow user to see the "processing" state
-            // Note: The structure of the payload depends on what n8n expects. 
-            // Based on prompt: "Send these images (links) ... it returns processed images"
-            // We'll send { images: [url1, url2] } or just the array.
-            // Let's assume a JSON wrapper.
-
             const webhookUrl = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/imagens-ia";
 
-            // Using proxy if needed, but let's try direct first or use the same proxy pattern as dashboard
-            // The dashboard uses /api/proxy-webhook to avoid CORS if the n8n webhook doesn't handle OPTIONS.
-            // Let's use the proxy to be safe.
+            // Generate a unique Request ID to prevent webhook response mixups on concurrency
+            const currentRequestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
             const proxyResponse = await fetch("/api/proxy-webhook", {
                 method: "POST",
@@ -127,7 +120,8 @@ export default function ResizePage() {
                         images: uploadedUrls, // Sending the array of URLs
                         client: selectedClient.name,
                         prompt: selectedClient.prompt || "",
-                        timestamp: new Date().toISOString()
+                        timestamp: new Date().toISOString(),
+                        request_id: currentRequestId
                     }
                 })
             });
@@ -137,15 +131,33 @@ export default function ResizePage() {
             }
 
             // Step 3: Handle Response
-            // Assuming the webhook returns a JSON with loop of processed images, or an array of URLs.
-            // If it returns just raw JSON, we parse it.
             const resultData = await proxyResponse.json();
             console.log("Webhook Result:", resultData);
 
-            // Adapting to possible response formats
-            // If resultData is array: use it. If resultData.images is array: use it.
-            // We expect a list of URLs for the resized images.
+            // Validar se a resposta pertence a esta sessão/request
+            // Se o n8n retornar um array ou objeto, tentamos extrair o ID de requisição
+            let receivedRequestId: string | null = null;
 
+            if (Array.isArray(resultData)) {
+                // Se for um array (estrutura n8n comum), procuramos o ID em algum dos itens ou metadados
+                const firstObj = resultData.find(item => item && typeof item === 'object' && (item.request_id || item.requestId));
+                if (firstObj) {
+                    receivedRequestId = firstObj.request_id || firstObj.requestId;
+                }
+            } else if (resultData && typeof resultData === 'object') {
+                receivedRequestId = resultData.request_id || resultData.requestId;
+                if (resultData.data && typeof resultData.data === 'object' && !receivedRequestId) {
+                    receivedRequestId = resultData.data.request_id || resultData.data.requestId;
+                }
+            }
+
+            // Se o n8n nos enviou um request_id e ele é diferente da nossa requisição atual, barramos
+            if (receivedRequestId && receivedRequestId !== currentRequestId) {
+                console.warn(`[Corte de Conflito] ID enviado: ${currentRequestId} | ID recebido: ${receivedRequestId}`);
+                throw new Error("Conflito de requisições paralelas detectado. As imagens retornadas pertencem a outra operação. Por favor, tente processar novamente.");
+            }
+
+            // Adapting to possible response formats
             let resultUrls: string[] = [];
             if (Array.isArray(resultData)) {
                 // Check if it's an array of objects with 'imagem' property (n8n structure)
@@ -162,10 +174,7 @@ export default function ResizePage() {
                 resultUrls = resultData.output;
             } else {
                 // Fallback: maybe just one image or unknown structure?
-                // Let's assume we map 1:1 if possible, or just push what we found
                 console.warn("Unknown response structure, trying to parse...");
-                // Just in case it returns the exact same input size
-                resultUrls = uploadedUrls; // Placeholder if logic fails? No, that would be wrong.
                 // If the user says "Needs to be available for download", we must show what came back.
                 // Let's trust the array check.
             }
