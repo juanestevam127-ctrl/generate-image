@@ -6,7 +6,7 @@ import { ClientManager } from "@/components/features/ClientManager";
 import { DynamicTable } from "@/components/features/DynamicTable";
 import { ImageEditor } from "@/components/features/ImageEditor";
 import { Button } from "@/components/ui/button";
-import { Settings, Send, Loader2, Sparkles, CheckCircle, AlertCircle, BarChart3, Image as ImageIcon } from "lucide-react";
+import { Settings, Send, Loader2, Sparkles, CheckCircle, AlertCircle, BarChart3, Image as ImageIcon, Upload, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { UserManager } from "@/components/features/UserManager";
 import { PostScheduler } from "@/components/features/PostScheduler";
@@ -15,17 +15,19 @@ import { uploadImage } from "@/lib/supabase";
 import { Modal } from "@/components/ui/modal";
 import { ScheduledPanel } from "@/components/features/ScheduledPanel";
 import GlobalScheduleWidget from '@/components/dashboard/GlobalScheduleWidget';
+import { fetchImportacaoVeiculosAction } from "@/app/actions/importacao";
 
 export default function DashboardPage() {
     const { user, clients } = useStore();
-    const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin" | "scheduled_panel">("analytics");
+    const [viewMode, setViewMode] = useState<"analytics" | "generator" | "scheduler" | "admin" | "scheduled_panel" | "importacao">("analytics");
     const [previewImage, setPreviewImage] = useState<{ url: string, title: string } | null>(null);
 
-    // Generator State
+    // Generator & Import State
     const [selectedClientId, setSelectedClientId] = useState<string>("");
     const [tableData, setTableData] = useState<Record<string, any>[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
+    const [isImporting, setIsImporting] = useState(false);
 
     // Image Editor State
     const [editorState, setEditorState] = useState<{
@@ -105,9 +107,52 @@ export default function DashboardPage() {
         }
     };
 
+    const handleImport = async () => {
+        if (!activeClient) return;
+        setIsImporting(true);
+        const res = await fetchImportacaoVeiculosAction(activeClient.name);
+        setIsImporting(false);
+        
+        if (res.success && res.vehicles) {
+            if (res.vehicles.length === 0) {
+                alert("Nenhum veículo disponível encontrado para este cliente no estoque.");
+                return;
+            }
+            
+            let newTableData: any[] = [];
+            res.vehicles.forEach(v => {
+                const payload = v.observacoes.geradorPayloads.find((p: any) => p.layoutName === activeClient.name);
+                if (payload && payload.lines) {
+                    payload.lines.forEach((line: any) => {
+                        const rowData = { ...line.fields, _id: crypto.randomUUID(), _vehicleId: v.id };
+                        newTableData.push(rowData);
+                    });
+                }
+            });
+            
+            if (newTableData.length > 0) {
+                setTableData(newTableData);
+            } else {
+                alert("Veículos encontrados, mas nenhum formato compatível com este cliente.");
+            }
+        } else {
+            alert("Erro ao buscar veículos: " + res.error);
+        }
+    };
+
     const handleGenerate = async () => {
         if (!activeClient) return;
         if (tableData.length === 0) return alert("A tabela está vazia.");
+
+        // Validar opções de imagens não selecionadas
+        for (let i = 0; i < tableData.length; i++) {
+            const row = tableData[i];
+            for (const col of activeClient.columns) {
+                if (col.type === "image" && Array.isArray(row[col.id])) {
+                    return alert(`Erro na linha ${i + 1}: Você precisa selecionar apenas uma imagem para o campo "${col.name}".`);
+                }
+            }
+        }
 
         const checkboxCols = activeClient.columns.filter(col => col.type === "checkbox");
         for (let i = 0; i < tableData.length; i++) {
@@ -164,11 +209,13 @@ export default function DashboardPage() {
                             viewMode === "admin" ? "Adminstração" :
                                 viewMode === "scheduler" ? "Agendar Postagens" :
                                     viewMode === "scheduled_panel" ? "Painel de Postagens" :
-                                        "Gerenciamento de Imagens"}
+                                        viewMode === "importacao" ? "Importar do Estoque" :
+                                            "Gerenciamento de Imagens"}
                         {viewMode === "generator" && <Sparkles className="ml-2 text-yellow-400 w-6 h-6 animate-pulse" />}
+                        {viewMode === "importacao" && <Upload className="ml-2 text-indigo-400 w-6 h-6" />}
                     </h1>
                     <p className="text-muted-foreground">
-                        {viewMode === "analytics" ? "Métricas e performance." : viewMode === "admin" ? "Gerencie seus clientes e a estrutura de dados." : viewMode === "scheduler" ? "Agendar e organizar postagens." : viewMode === "scheduled_panel" ? "Acompanhe e gerencie as postagens agendadas." : "Automação e gestão de imagens."}
+                        {viewMode === "analytics" ? "Métricas e performance." : viewMode === "admin" ? "Gerencie seus clientes e a estrutura de dados." : viewMode === "scheduler" ? "Agendar e organizar postagens." : viewMode === "scheduled_panel" ? "Acompanhe e gerencie as postagens agendadas." : viewMode === "importacao" ? "Importe veículos pré-montados do seu estoque externo." : "Automação e gestão de imagens."}
                     </p>
                 </div>
 
@@ -186,6 +233,13 @@ export default function DashboardPage() {
                     >
                         <Sparkles className="w-4 h-4" />
                         Operação
+                    </button>
+                    <button
+                        onClick={() => setViewMode("importacao")}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${viewMode === "importacao" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        <Upload className="w-4 h-4" />
+                        Importação
                     </button>
                     <button
                         onClick={() => setViewMode("scheduler")}
@@ -389,7 +443,18 @@ export default function DashboardPage() {
                                     </div>
                                 )}
 
-                                <div className="w-full md:w-auto">
+                                <div className="w-full md:w-auto flex flex-col md:flex-row gap-2">
+                                    {viewMode === "importacao" && (
+                                        <Button
+                                            onClick={handleImport}
+                                            disabled={!activeClient || isImporting}
+                                            variant="secondary"
+                                            className="w-full md:w-auto shadow-lg bg-indigo-500/20 text-indigo-200 hover:bg-indigo-500/30 border border-indigo-500/30"
+                                        >
+                                            {isImporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                                            {isImporting ? "Buscando..." : "Buscar do Estoque"}
+                                        </Button>
+                                    )}
                                     <Button
                                         onClick={handleGenerate}
                                         disabled={!activeClient || isSubmitting || tableData.length === 0}

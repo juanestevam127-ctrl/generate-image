@@ -142,6 +142,39 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                                                         );
                                                     }
 
+                                                    if (Array.isArray(imageUrl) && imageUrl.length > 0) {
+                                                        return (
+                                                            <div className="flex gap-2 overflow-x-auto max-w-[200px] p-1.5 bg-black/30 rounded-md border border-white/5 custom-scrollbar">
+                                                                {imageUrl.map((img, idx) => (
+                                                                    <div 
+                                                                        key={idx} 
+                                                                        className="relative group/selimage h-10 w-10 cursor-pointer border-2 border-transparent hover:border-indigo-400 rounded-md flex-shrink-0 transition-all overflow-hidden bg-black/50" 
+                                                                        onClick={() => handleCellChange(rowIndex, col.id, img)}
+                                                                        title="Clique para selecionar esta imagem"
+                                                                    >
+                                                                        <img src={img} className="h-full w-full object-cover" />
+                                                                        <div className="absolute inset-0 bg-indigo-500/0 group-hover/selimage:bg-indigo-500/30 transition-all"></div>
+                                                                    </div>
+                                                                ))}
+                                                                <div className="h-10 w-10 flex-shrink-0 border-2 border-dashed border-white/20 rounded-md flex flex-col items-center justify-center cursor-pointer hover:border-white/50 hover:bg-white/5 transition-all" onClick={() => fileInputRefs.current[`${rowIndex}-${col.id}`]?.click()} title="Fazer upload de outra imagem">
+                                                                    <Upload size={12} className="text-white/50" />
+                                                                </div>
+                                                                <input
+                                                                    type="file"
+                                                                    className="hidden"
+                                                                    accept="image/*"
+                                                                    ref={el => { fileInputRefs.current[`${rowIndex}-${col.id}`] = el }}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.files && e.target.files.length > 0) {
+                                                                            onImageUpload(rowIndex, col.id, Array.from(e.target.files));
+                                                                            e.target.value = "";
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    }
+
                                                     return (
                                                         <div className="relative">
                                                             <input
