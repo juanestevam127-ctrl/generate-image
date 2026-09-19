@@ -522,7 +522,7 @@ export default function DashboardPage() {
                                                         <div className="mt-auto pt-4 border-t border-white/5">
                                                             <Button 
                                                                 onClick={() => addVehicleToTable(v)}
-                                                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm shadow-md"
+                                                                className="w-full !bg-indigo-600 hover:!bg-indigo-500 !text-white text-sm shadow-md"
                                                             >
                                                                 <Download className="w-4 h-4 mr-2" />
                                                                 Preencher na Tabela
