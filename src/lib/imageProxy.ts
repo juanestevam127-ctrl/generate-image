@@ -12,5 +12,5 @@ export function getProxiedUrl(url: string): string {
 
 
 
-  return url;
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 }

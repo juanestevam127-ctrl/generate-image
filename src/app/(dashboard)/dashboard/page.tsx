@@ -28,6 +28,7 @@ export default function DashboardPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
     const [isImporting, setIsImporting] = useState(false);
+    const [availableVehicles, setAvailableVehicles] = useState<any[]>([]);
 
     // Image Editor State
     const [editorState, setEditorState] = useState<{
@@ -116,27 +117,31 @@ export default function DashboardPage() {
         if (res.success && res.vehicles) {
             if (res.vehicles.length === 0) {
                 alert("Nenhum veículo disponível encontrado para este cliente no estoque.");
+                setAvailableVehicles([]);
                 return;
             }
-            
-            let newTableData: any[] = [];
-            res.vehicles.forEach(v => {
-                const payload = v.observacoes.geradorPayloads.find((p: any) => p.layoutName === activeClient.name);
-                if (payload && payload.lines) {
-                    payload.lines.forEach((line: any) => {
-                        const rowData = { ...line.fields, _id: crypto.randomUUID(), _vehicleId: v.id };
-                        newTableData.push(rowData);
-                    });
-                }
-            });
-            
-            if (newTableData.length > 0) {
-                setTableData(newTableData);
-            } else {
-                alert("Veículos encontrados, mas nenhum formato compatível com este cliente.");
-            }
+            setAvailableVehicles(res.vehicles);
         } else {
             alert("Erro ao buscar veículos: " + res.error);
+        }
+    };
+
+    const addVehicleToTable = (vehicle: any) => {
+        const payload = vehicle.observacoes.geradorPayloads.find((p: any) => p.layoutName === activeClient?.name);
+        if (payload && payload.lines) {
+            let newLines: any[] = [];
+            payload.lines.forEach((line: any) => {
+                const rowData = { ...line.fields, _id: crypto.randomUUID(), _vehicleId: vehicle.id };
+                newLines.push(rowData);
+            });
+            
+            if (newLines.length > 0) {
+                setTableData(prev => [...prev, ...newLines]);
+                // Remove the vehicle from the available list after importing
+                setAvailableVehicles(prev => prev.filter(v => v.id !== vehicle.id));
+            } else {
+                alert("Veículo não possui formato compatível com este cliente.");
+            }
         }
     };
 
@@ -476,14 +481,75 @@ export default function DashboardPage() {
                         </Card>
 
                         {selectedClientId && activeClient ? (
-                            <DynamicTable
-                                client={activeClient}
-                                data={tableData}
-                                onChange={setTableData}
-                                onImageUpload={handleImageUpload}
-                                onEditImage={handleEditImage}
-                                onRemoveImage={handleRemoveImage}
-                            />
+                            <div className="space-y-6">
+                                {viewMode === "importacao" && availableVehicles.length > 0 && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                        {availableVehicles.map(v => {
+                                            const payload = v.observacoes.geradorPayloads.find((p: any) => p.layoutName === activeClient.name);
+                                            const numLines = payload?.lines?.length || 0;
+                                            
+                                            // Find the first image array in the payload
+                                            let thumbnail = null;
+                                            if (payload && payload.lines && payload.lines[0]) {
+                                                const fields = payload.lines[0].fields;
+                                                // Find first array that has elements
+                                                const imgField = Object.values(fields).find((val: any) => Array.isArray(val) && val.length > 0);
+                                                if (imgField) thumbnail = (imgField as any[])[0];
+                                            }
+
+                                            return (
+                                                <Card key={v.id} className="bg-zinc-900 border-white/10 overflow-hidden shadow-xl flex flex-col group">
+                                                    <div className="relative h-40 bg-black flex items-center justify-center overflow-hidden">
+                                                        {thumbnail ? (
+                                                            <img src={thumbnail} className="w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-100 transition-all duration-500" alt="Preview" />
+                                                        ) : (
+                                                            <div className="text-gray-500 flex flex-col items-center">
+                                                                <ImageIcon size={24} className="mb-2 opacity-50" />
+                                                                <span className="text-xs">Sem imagem</span>
+                                                            </div>
+                                                        )}
+                                                        <div className="absolute top-2 right-2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">
+                                                            {numLines} {numLines === 1 ? "ARTE" : "ARTES"}
+                                                        </div>
+                                                    </div>
+                                                    <div className="p-4 flex-1 flex flex-col">
+                                                        <h3 className="text-sm font-bold text-white mb-1 truncate uppercase" title={`${v.marca} ${v.modelo}`}>
+                                                            {v.marca} {v.modelo}
+                                                        </h3>
+                                                        <p className="text-xs text-gray-400 mb-4 line-clamp-2">
+                                                            {v.ano} • {v.cor}
+                                                        </p>
+                                                        <div className="mt-auto pt-4 border-t border-white/5">
+                                                            <Button 
+                                                                onClick={() => addVehicleToTable(v)}
+                                                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm shadow-md"
+                                                            >
+                                                                <Download className="w-4 h-4 mr-2" />
+                                                                Preencher na Tabela
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </Card>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                
+                                {tableData.length > 0 ? (
+                                    <DynamicTable
+                                        client={activeClient}
+                                        data={tableData}
+                                        onChange={setTableData}
+                                        onImageUpload={handleImageUpload}
+                                        onEditImage={handleEditImage}
+                                        onRemoveImage={handleRemoveImage}
+                                    />
+                                ) : viewMode !== "importacao" || availableVehicles.length === 0 ? (
+                                    <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
+                                        <p>{viewMode === "importacao" ? "Busque os veículos no estoque para começar." : "A tabela está vazia. Comece preenchendo os dados."}</p>
+                                    </div>
+                                ) : null}
+                            </div>
                         ) : (
                             <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
                                 <p>Selecione um cliente para começar.</p>
