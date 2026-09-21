@@ -535,7 +535,7 @@ export default function DashboardPage() {
                                     </div>
                                 )}
                                 
-                                {tableData.length > 0 ? (
+                                {viewMode !== "importacao" || tableData.length > 0 ? (
                                     <DynamicTable
                                         client={activeClient}
                                         data={tableData}
@@ -544,11 +544,11 @@ export default function DashboardPage() {
                                         onEditImage={handleEditImage}
                                         onRemoveImage={handleRemoveImage}
                                     />
-                                ) : viewMode !== "importacao" || availableVehicles.length === 0 ? (
+                                ) : (
                                     <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
-                                        <p>{viewMode === "importacao" ? "Busque os veículos no estoque para começar." : "A tabela está vazia. Comece preenchendo os dados."}</p>
+                                        <p>Busque os veículos no estoque para começar.</p>
                                     </div>
-                                ) : null}
+                                )}
                             </div>
                         ) : (
                             <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
