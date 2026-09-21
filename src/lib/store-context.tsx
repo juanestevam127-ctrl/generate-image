@@ -18,7 +18,7 @@ import {
 
 // --- Types ---
 
-export type UserRole = "master" | "common";
+export type UserRole = "master" | "common" | "operador";
 
 export interface User {
     id?: string;
@@ -77,6 +77,7 @@ export interface LayoutClient {
     modeloFeedId?: string;
     modeloStoriesId?: string;
     jsonCliente: any;
+    idClickup?: string;
 }
 
 interface StoreContextType {

@@ -1,39 +1,35 @@
 "use server";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
-const externalSupabaseUrl = "https://zkakyywtnfldnlrgjqoj.supabase.co";
-const externalSupabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprYWt5eXd0bmZsZG5scmdqcW9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTY1NTMyNSwiZXhwIjoyMTA1MjMxMzI1fQ.30M_66nNkHASw8WxdlT1OKuMjC-1Yu4AtUZmn73Eb0I";
-const externalSupabase = createClient(externalSupabaseUrl, externalSupabaseKey);
-
-export async function fetchImportacaoVeiculosAction(clientName: string) {
+export async function fetchImportacaoVeiculosAction(clientId: string) {
     try {
-        const { data, error } = await externalSupabase
-            .from("Veiculo")
-            .select("id, marca, modelo, ano, observacoes, status")
-            .eq("status", "DISPONIVEL");
+        const { data, error } = await supabase
+            .from("VeiculoOperador")
+            .select("*")
+            .eq("clienteId", clientId)
+            .eq("importado", false)
+            .order("createdAt", { ascending: false });
 
         if (error) {
             console.error("Error fetching vehicles:", error);
             return { success: false, error: error.message };
         }
 
-        // Filter vehicles that have a payload for this client
-        const vehicles = data.filter(v => {
-            if (!v.observacoes) return false;
-            let obs = v.observacoes;
-            if (typeof obs === "string") {
-                try {
-                    obs = JSON.parse(obs);
-                    v.observacoes = obs; // Keep it parsed for the frontend
-                } catch(e) {
-                    return false;
-                }
-            }
-            if (!obs.geradorPayloads) return false;
-            return obs.geradorPayloads.some((p: any) => p.layoutName === clientName);
-        });
+        return { success: true, vehicles: data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
 
-        return { success: true, vehicles };
+export async function marcarVeiculoComoImportadoAction(id: string) {
+    try {
+        const { error } = await supabase
+            .from("VeiculoOperador")
+            .update({ importado: true })
+            .eq("id", id);
+        
+        if (error) throw error;
+        return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };
     }

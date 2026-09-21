@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Trash, Edit, Save, X, Type, Image as ImageIcon, ArrowUp, ArrowDown, CheckSquare, Instagram, Facebook, Box } from "lucide-react";
 import { useStore, LayoutClient, ColumnDefinition, ColumnType } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,27 @@ export function LayoutClientManager() {
     const [modeloFeedId, setModeloFeedId] = useState("");
     const [modeloStoriesId, setModeloStoriesId] = useState("");
     const [jsonCliente, setJsonCliente] = useState<any>({});
+    const [idClickup, setIdClickup] = useState("");
+
+    // Clickup Clients data
+    const [clickupClients, setClickupClients] = useState<{id: string, name: string}[]>([]);
+    const [isLoadingClickup, setIsLoadingClickup] = useState(false);
+
+    // Fetch ClickUp Clients on mount
+    useEffect(() => {
+        let mounted = true;
+        const fetchClickup = async () => {
+            setIsLoadingClickup(true);
+            const { getClickupClientsAction } = await import("@/app/actions/clickup");
+            const res = await getClickupClientsAction();
+            if (mounted && res.success && res.data) {
+                setClickupClients(res.data);
+            }
+            if (mounted) setIsLoadingClickup(false);
+        };
+        fetchClickup();
+        return () => { mounted = false; };
+    }, []);
 
     const openNewClientModal = () => {
         setEditingClient(null);
@@ -61,12 +82,23 @@ export function LayoutClientManager() {
         setFacebookToken(client.facebookToken || "");
         setModeloFeedId(client.modeloFeedId || "");
         setModeloStoriesId(client.modeloStoriesId || "");
-        setJsonCliente(client.jsonCliente || {});
+        setJsonCliente(client.jsonCliente ? JSON.stringify(client.jsonCliente, null, 2) : "");
+        setIdClickup(client.idClickup || "");
         setIsModalOpen(true);
     };
 
-    const handleSave = () => {
-        if (!name || !webhookUrl) return alert("Preencha nome e webhook");
+    const saveClient = async () => {
+        if (!name.trim() || !webhookUrl.trim() || columns.length === 0) return;
+
+        let parsedJson = {};
+        if (jsonCliente.trim()) {
+            try {
+                parsedJson = JSON.parse(jsonCliente);
+            } catch (e) {
+                alert("O campo de configuração JSON contém erros de formatação.");
+                return;
+            }
+        }
 
         const clientData = {
             name,
@@ -80,7 +112,8 @@ export function LayoutClientManager() {
             facebookToken,
             modeloFeedId,
             modeloStoriesId,
-            jsonCliente
+            jsonCliente: parsedJson,
+            idClickup
         };
 
         if (editingClient) {
@@ -214,6 +247,20 @@ export function LayoutClientManager() {
                                 placeholder="Escreva o prompt padrão para redimensionamento..."
                             />
                         </div>
+                        <div className="space-y-2 col-span-2">
+                            <Label className="uppercase text-xs text-muted-foreground font-bold tracking-wider">Vincular com ClickUp (Cliente na aba SERVIÇOS)</Label>
+                            <select
+                                value={idClickup}
+                                onChange={(e) => setIdClickup(e.target.value)}
+                                className="w-full h-10 px-3 bg-black/40 border border-white/10 rounded-md text-sm text-white"
+                                disabled={isLoadingClickup}
+                            >
+                                <option value="">Não vincular</option>
+                                {clickupClients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     {/* Dynamic Columns Section */}
@@ -317,14 +364,8 @@ export function LayoutClientManager() {
                     <div className="space-y-2 border-t border-white/10 pt-4">
                         <Label className="text-sm font-semibold text-white">JSON do Cliente (Metadata)</Label>
                         <Textarea
-                            value={JSON.stringify(jsonCliente, null, 2)}
-                            onChange={(e) => {
-                                try {
-                                    setJsonCliente(JSON.parse(e.target.value));
-                                } catch (err) {
-                                    // Handle invalid JSON while typing if needed
-                                }
-                            }}
+                            value={typeof jsonCliente === 'string' ? jsonCliente : JSON.stringify(jsonCliente, null, 2)}
+                            onChange={(e) => setJsonCliente(e.target.value)}
                             className="h-32 bg-black/60 border-indigo-500/20 text-blue-300 font-mono text-xs"
                             placeholder='{ "config": { ... } }'
                         />
@@ -332,7 +373,7 @@ export function LayoutClientManager() {
 
                     <div className="flex justify-end pt-6 border-t border-white/10 space-x-3">
                         <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleSave} className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold px-8">
+                        <Button onClick={saveClient} className="bg-green-500 hover:bg-green-600 text-slate-950 font-bold px-8">
                             <Save className="w-4 h-4 mr-2" /> Salvar Cliente
                         </Button>
                     </div>

@@ -26,18 +26,27 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
 
     if (!user) return null;
 
-    const navItems = [
-        { label: "Gerenciar Imagens", href: "/dashboard", icon: LayoutDashboard },
-        { label: "Gerenciar Imagens Vendidos", href: "/imagens-vendidos", icon: LayoutDashboard },
-        { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },
-    ];
+    let navItems = [];
 
-    if (user.role === "master") {
-        navItems.push({
-            label: "Controle de Postagens",
-            href: "/controle-stories",
-            icon: Layout,
-        });
+    if (user.role === "operador") {
+        navItems = [
+            { label: "Veículos", href: "/veiculos", icon: LayoutDashboard },
+        ];
+    } else {
+        navItems = [
+            { label: "Veículos", href: "/veiculos", icon: LayoutDashboard },
+            { label: "Gerenciar Imagens", href: "/dashboard", icon: LayoutDashboard },
+            { label: "Gerenciar Imagens Vendidos", href: "/imagens-vendidos", icon: LayoutDashboard },
+            { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },
+        ];
+
+        if (user.role === "master") {
+            navItems.push({
+                label: "Controle de Postagens",
+                href: "/controle-stories",
+                icon: Layout,
+            });
+        }
     }
 
     return (

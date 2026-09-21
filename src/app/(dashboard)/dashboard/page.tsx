@@ -111,7 +111,8 @@ export default function DashboardPage() {
     const handleImport = async () => {
         if (!activeClient) return;
         setIsImporting(true);
-        const res = await fetchImportacaoVeiculosAction(activeClient.name);
+        const { fetchImportacaoVeiculosAction } = await import("@/app/actions/importacao");
+        const res = await fetchImportacaoVeiculosAction(activeClient.id);
         setIsImporting(false);
         
         if (res.success && res.vehicles) {
@@ -126,45 +127,33 @@ export default function DashboardPage() {
         }
     };
 
-    const addVehicleToTable = (vehicle: any) => {
-        const payload = vehicle.observacoes.geradorPayloads.find((p: any) => p.layoutName === activeClient?.name);
+    const addVehicleToTable = async (vehicle: any) => {
+        // vehicle tem: id, dados (jsonb), fotos (array)
         
-        // Handle both new 'slides' array structure and old 'lines' structure for backward compatibility
-        const items = payload?.slides || payload?.lines;
+        let rowData: any = { _id: crypto.randomUUID(), _vehicleId: vehicle.id };
         
-        if (payload && items && items.length > 0) {
-            let newLines: any[] = [];
-            
-            items.forEach((item: any) => {
-                let rowData: any = { _id: crypto.randomUUID(), _vehicleId: vehicle.id };
-                
-                // If it's the new structure (fields is an array of objects)
-                if (Array.isArray(item.fields)) {
-                    item.fields.forEach((f: any) => {
-                        // For image types, value is a comma-separated string, but DynamicTable needs an array
-                        if (f.type === 'image' && typeof f.value === 'string' && f.value) {
-                            rowData[f.id] = f.value.split(',').map((u: string) => u.trim()).filter((u: string) => u);
-                        } else {
-                            rowData[f.id] = f.value;
-                        }
-                    });
-                } else {
-                    // Old structure (fields is an object)
-                    rowData = { ...item.fields, ...rowData };
-                }
-                
-                newLines.push(rowData);
+        // Mapear os dados de texto
+        if (vehicle.dados) {
+            Object.keys(vehicle.dados).forEach(key => {
+                rowData[key] = vehicle.dados[key];
             });
-            
-            if (newLines.length > 0) {
-                setTableData(prev => [...prev, ...newLines]);
-                setAvailableVehicles(prev => prev.filter(v => v.id !== vehicle.id));
-            } else {
-                alert("Veículo não possui formato compatível com este cliente.");
-            }
-        } else {
-            alert("Este veículo foi vinculado, mas não possui nenhuma arte preenchida no estoque.");
         }
+        
+        // Mapear as fotos para a primeira coluna de imagem disponível (se houver)
+        if (vehicle.fotos && Array.isArray(vehicle.fotos) && vehicle.fotos.length > 0) {
+            const imageCols = activeClient?.columns.filter(c => c.type === "image") || [];
+            if (imageCols.length > 0) {
+                // Coloca todas as fotos na primeira coluna de imagem como um array (para o react-cropper/UI lidar)
+                rowData[imageCols[0].id] = vehicle.fotos;
+            }
+        }
+        
+        setTableData(prev => [...prev, rowData]);
+        setAvailableVehicles(prev => prev.filter(v => v.id !== vehicle.id));
+
+        // Marca como importado no banco para sumir da fila
+        const { marcarVeiculoComoImportadoAction } = await import("@/app/actions/importacao");
+        await marcarVeiculoComoImportadoAction(vehicle.id);
     };
 
     const handleGenerate = async () => {
@@ -507,27 +496,16 @@ export default function DashboardPage() {
                                 {viewMode === "importacao" && availableVehicles.length > 0 && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                         {availableVehicles.map(v => {
-                                            const payload = v.observacoes.geradorPayloads.find((p: any) => p.layoutName === activeClient.name);
-                                            const items = payload?.slides || payload?.lines || [];
-                                            const numLines = items.length;
+                                            const numLines = 1;
                                             
                                             // Find the first image array in the payload
                                             let thumbnail = null;
-                                            if (items && items[0]) {
-                                                const fields = items[0].fields;
-                                                
-                                                if (Array.isArray(fields)) {
-                                                    // New structure
-                                                    const imgField = fields.find((f: any) => f.type === 'image' && typeof f.value === 'string' && f.value);
-                                                    if (imgField) {
-                                                        thumbnail = imgField.value.split(',')[0].trim();
-                                                    }
-                                                } else {
-                                                    // Old structure
-                                                    const imgField = Object.values(fields).find((val: any) => Array.isArray(val) && val.length > 0);
-                                                    if (imgField) thumbnail = (imgField as any[])[0];
-                                                }
+                                            if (v.fotos && Array.isArray(v.fotos) && v.fotos.length > 0) {
+                                                thumbnail = v.fotos[0];
                                             }
+
+                                            const titulo = v.dados?.nome || v.dados?.Nome || v.dados?.NOME || "Veículo Sem Nome";
+                                            const detalhes = [v.dados?.cor || v.dados?.Cor || v.dados?.COR, v.dados?.ano || v.dados?.Ano || v.dados?.ANO, v.dados?.preco || v.dados?.Preco || v.dados?.PREÇO].filter(Boolean).join(" - ");
 
                                             return (
                                                 <Card key={v.id} className="bg-zinc-900 border-white/10 overflow-hidden shadow-xl flex flex-col group">
@@ -541,15 +519,15 @@ export default function DashboardPage() {
                                                             </div>
                                                         )}
                                                         <div className="absolute top-2 right-2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">
-                                                            {numLines} {numLines === 1 ? "ARTE" : "ARTES"}
+                                                            NOVO VEÍCULO
                                                         </div>
                                                     </div>
                                                     <div className="p-4 flex-1 flex flex-col">
-                                                        <h3 className="text-sm font-bold text-white mb-1 truncate uppercase" title={`${v.marca} ${v.modelo}`}>
-                                                            {v.marca} {v.modelo}
+                                                        <h3 className="text-sm font-bold text-white mb-1 truncate uppercase" title={titulo}>
+                                                            {titulo}
                                                         </h3>
                                                         <p className="text-xs text-gray-400 mb-4 line-clamp-2">
-                                                            {v.ano} • {v.cor}
+                                                            {detalhes}
                                                         </p>
                                                         <div className="mt-auto pt-4 border-t border-white/5">
                                                             <Button 
