@@ -128,20 +128,42 @@ export default function DashboardPage() {
 
     const addVehicleToTable = (vehicle: any) => {
         const payload = vehicle.observacoes.geradorPayloads.find((p: any) => p.layoutName === activeClient?.name);
-        if (payload && payload.lines) {
+        
+        // Handle both new 'slides' array structure and old 'lines' structure for backward compatibility
+        const items = payload?.slides || payload?.lines;
+        
+        if (payload && items && items.length > 0) {
             let newLines: any[] = [];
-            payload.lines.forEach((line: any) => {
-                const rowData = { ...line.fields, _id: crypto.randomUUID(), _vehicleId: vehicle.id };
+            
+            items.forEach((item: any) => {
+                let rowData: any = { _id: crypto.randomUUID(), _vehicleId: vehicle.id };
+                
+                // If it's the new structure (fields is an array of objects)
+                if (Array.isArray(item.fields)) {
+                    item.fields.forEach((f: any) => {
+                        // For image types, value is a comma-separated string, but DynamicTable needs an array
+                        if (f.type === 'image' && typeof f.value === 'string' && f.value) {
+                            rowData[f.id] = f.value.split(',').map((u: string) => u.trim()).filter((u: string) => u);
+                        } else {
+                            rowData[f.id] = f.value;
+                        }
+                    });
+                } else {
+                    // Old structure (fields is an object)
+                    rowData = { ...item.fields, ...rowData };
+                }
+                
                 newLines.push(rowData);
             });
             
             if (newLines.length > 0) {
                 setTableData(prev => [...prev, ...newLines]);
-                // Remove the vehicle from the available list after importing
                 setAvailableVehicles(prev => prev.filter(v => v.id !== vehicle.id));
             } else {
                 alert("Veículo não possui formato compatível com este cliente.");
             }
+        } else {
+            alert("Este veículo foi vinculado, mas não possui nenhuma arte preenchida no estoque.");
         }
     };
 
@@ -486,15 +508,25 @@ export default function DashboardPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                         {availableVehicles.map(v => {
                                             const payload = v.observacoes.geradorPayloads.find((p: any) => p.layoutName === activeClient.name);
-                                            const numLines = payload?.lines?.length || 0;
+                                            const items = payload?.slides || payload?.lines || [];
+                                            const numLines = items.length;
                                             
                                             // Find the first image array in the payload
                                             let thumbnail = null;
-                                            if (payload && payload.lines && payload.lines[0]) {
-                                                const fields = payload.lines[0].fields;
-                                                // Find first array that has elements
-                                                const imgField = Object.values(fields).find((val: any) => Array.isArray(val) && val.length > 0);
-                                                if (imgField) thumbnail = (imgField as any[])[0];
+                                            if (items && items[0]) {
+                                                const fields = items[0].fields;
+                                                
+                                                if (Array.isArray(fields)) {
+                                                    // New structure
+                                                    const imgField = fields.find((f: any) => f.type === 'image' && typeof f.value === 'string' && f.value);
+                                                    if (imgField) {
+                                                        thumbnail = imgField.value.split(',')[0].trim();
+                                                    }
+                                                } else {
+                                                    // Old structure
+                                                    const imgField = Object.values(fields).find((val: any) => Array.isArray(val) && val.length > 0);
+                                                    if (imgField) thumbnail = (imgField as any[])[0];
+                                                }
                                             }
 
                                             return (
