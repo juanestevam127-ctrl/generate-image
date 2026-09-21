@@ -106,6 +106,15 @@ export async function GET(request: Request) {
 
             const cleanDescription = firstPost.descricao || "";
 
+            // Buscar configurações gerais
+            const { data: configRows } = await supabase.from('configuracoes_gerais').select('*').limit(1);
+            const configData = configRows && configRows.length > 0 ? {
+                servidor_url: configRows[0].servidor_url,
+                bucket_nome: configRows[0].bucket_nome,
+                pasta_nome: configRows[0].pasta_nome,
+                token_auth: configRows[0].token
+            } : {};
+
             const payload = {
                 client: client.name,
                 facebook_id: client.id_facebook,
@@ -126,7 +135,8 @@ export async function GET(request: Request) {
                 timezone: "America/Sao_Paulo",
                 timezone_offset: -180, // Approximate for BRT
                 is_carousel: !isReels && posts.length > 1,
-                veiculo_gerado: firstPost.veiculo_gerado
+                veiculo_gerado: firstPost.veiculo_gerado,
+                ...configData
             };
 
             // IMPORTANTE: Marcar como enviado ANTES de chamar a webhook

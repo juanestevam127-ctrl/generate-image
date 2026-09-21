@@ -9,6 +9,7 @@ import {
     Maximize,
     X,
     Layout,
+    Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,11 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
                 label: "Controle de Postagens",
                 href: "/controle-stories",
                 icon: Layout,
+            });
+            navItems.push({
+                label: "Configurações Gerais",
+                href: "/configuracoes",
+                icon: Settings,
             });
         }
     }

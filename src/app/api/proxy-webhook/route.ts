@@ -8,8 +8,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
 
+        // Fetch configuracoes_gerais from Supabase
+        const { createClient } = require("@supabase/supabase-js");
+        const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+        
+        let configData = {};
+        const { data: configRows } = await supabase.from('configuracoes_gerais').select('*').limit(1);
+        if (configRows && configRows.length > 0) {
+            configData = {
+                servidor_url: configRows[0].servidor_url,
+                bucket_nome: configRows[0].bucket_nome,
+                pasta_nome: configRows[0].pasta_nome,
+                token_auth: configRows[0].token // Changed to token_auth to avoid colliding with client token
+            };
+        }
+
+        const mergedPayload = {
+            ...payload,
+            ...configData
+        };
+
         console.log(`[Proxy Webhook] Target: ${url}`);
-        console.log(`[Proxy Webhook] Payload Size: ${JSON.stringify(payload).length} chars`);
+        console.log(`[Proxy Webhook] Payload Size: ${JSON.stringify(mergedPayload).length} chars`);
 
         // Add a timeout to avoid hanging
         const controller = new AbortController();
@@ -20,7 +40,7 @@ export async function POST(req: NextRequest) {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(mergedPayload),
             signal: controller.signal
         });
 
