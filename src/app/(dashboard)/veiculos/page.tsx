@@ -256,7 +256,8 @@ export default function VeiculosPage() {
                             <Button 
                                 onClick={handleSave} 
                                 disabled={isSaving}
-                                className="w-full mt-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-12 shadow-lg disabled:bg-indigo-900/50 disabled:text-indigo-300 disabled:opacity-50"
+                                variant="secondary"
+                                className="w-full mt-6 bg-indigo-500 hover:bg-indigo-400 text-indigo-950 font-bold h-12 shadow-lg disabled:bg-indigo-900/80 disabled:text-indigo-300 disabled:opacity-100 border-none"
                             >
                                 {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
                                 {isSaving ? "Salvando Veículo..." : "Salvar Veículo"}

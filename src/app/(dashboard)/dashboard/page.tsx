@@ -132,20 +132,26 @@ export default function DashboardPage() {
         
         let rowData: any = { _id: crypto.randomUUID(), _vehicleId: vehicle.id };
         
-        // Mapear os dados de texto
-        if (vehicle.dados) {
-            Object.keys(vehicle.dados).forEach(key => {
-                rowData[key] = vehicle.dados[key];
+        // Mapear os dados de texto (agora mapeando de volta de name para col.id)
+        if (vehicle.dados && activeClient) {
+            activeClient.columns.forEach(col => {
+                // Se a key for encontrada no banco pelo nome
+                if (vehicle.dados[col.name] !== undefined) {
+                    rowData[col.id] = vehicle.dados[col.name];
+                }
+                // Fallback: se por acaso foi salvo com col.id antes
+                else if (vehicle.dados[col.id] !== undefined) {
+                    rowData[col.id] = vehicle.dados[col.id];
+                }
             });
         }
         
-        // Mapear as fotos para a primeira coluna de imagem disponível (se houver)
+        // Mapear as fotos para TODAS as colunas de imagem como um array (para o design escolher 1)
         if (vehicle.fotos && Array.isArray(vehicle.fotos) && vehicle.fotos.length > 0) {
             const imageCols = activeClient?.columns.filter(c => c.type === "image") || [];
-            if (imageCols.length > 0) {
-                // Coloca todas as fotos na primeira coluna de imagem como um array (para o react-cropper/UI lidar)
-                rowData[imageCols[0].id] = vehicle.fotos;
-            }
+            imageCols.forEach(c => {
+                rowData[c.id] = vehicle.fotos;
+            });
         }
         
         setTableData(prev => [...prev, rowData]);
@@ -504,8 +510,9 @@ export default function DashboardPage() {
                                                 thumbnail = v.fotos[0];
                                             }
 
-                                            const titulo = v.dados?.nome || v.dados?.Nome || v.dados?.NOME || "Veículo Sem Nome";
-                                            const detalhes = [v.dados?.cor || v.dados?.Cor || v.dados?.COR, v.dados?.ano || v.dados?.Ano || v.dados?.ANO, v.dados?.preco || v.dados?.Preco || v.dados?.PREÇO].filter(Boolean).join(" - ");
+                                            const firstKey = v.dados ? Object.keys(v.dados)[0] : null;
+                                            const titulo = v.dados?.nome || v.dados?.Nome || v.dados?.NOME || v.dados?.["NOME DO VEICULO"] || v.dados?.["NOME DO VEÍCULO"] || (firstKey ? v.dados[firstKey] : "Veículo Sem Nome");
+                                            const detalhes = [v.dados?.cor || v.dados?.Cor || v.dados?.COR || v.dados?.["COR DO VEICULO"], v.dados?.ano || v.dados?.Ano || v.dados?.ANO, v.dados?.preco || v.dados?.Preco || v.dados?.PREÇO || v.dados?.["VALOR"]].filter(Boolean).join(" - ");
 
                                             return (
                                                 <Card key={v.id} className="bg-zinc-900 border-white/10 overflow-hidden shadow-xl flex flex-col group">
