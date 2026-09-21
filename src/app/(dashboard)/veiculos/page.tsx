@@ -174,13 +174,49 @@ export default function VeiculosPage() {
                         <CardContent className="space-y-4">
                             {activeClient.columns.filter((c:any) => c.type === "text" || c.type === "checkbox").map((col: any) => (
                                 <div key={col.id} className="space-y-1">
-                                    <Label className="text-xs uppercase text-muted-foreground tracking-wider">{col.name}</Label>
-                                    <Input 
-                                        value={textFields[col.id] || ""}
-                                        onChange={(e) => handleTextChange(col.id, e.target.value)}
-                                        className="bg-black/40 border-white/10"
-                                        placeholder={`Preencher ${col.name}...`}
-                                    />
+                                    <Label className="text-xs uppercase text-muted-foreground tracking-wider">
+                                        {col.name} {col.type === "checkbox" ? "(Opcional)" : ""}
+                                    </Label>
+                                    
+                                    {col.type === "text" ? (
+                                        <Input 
+                                            value={textFields[col.id] || ""}
+                                            onChange={(e) => handleTextChange(col.id, e.target.value)}
+                                            className="bg-black/40 border-white/10"
+                                            placeholder={`Preencher ${col.name}...`}
+                                        />
+                                    ) : (
+                                        <div className="flex flex-wrap gap-2 py-2">
+                                            {col.options?.map((option: string) => {
+                                                const isChecked = (textFields[col.id] || "").split(", ").includes(option);
+                                                return (
+                                                    <label key={option} className="flex items-center gap-2 cursor-pointer group/cb">
+                                                        <div
+                                                            className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                                                                isChecked ? "bg-indigo-500 border-indigo-500" : "border-white/20 bg-black/40"
+                                                            }`}
+                                                            onClick={() => {
+                                                                const currentValues = (textFields[col.id] || "").split(", ").filter((v: string) => v !== "");
+                                                                let newValues;
+                                                                if (isChecked) {
+                                                                    newValues = currentValues.filter((v: string) => v !== option);
+                                                                } else {
+                                                                    newValues = [...currentValues, option];
+                                                                }
+                                                                handleTextChange(col.id, newValues.join(", "));
+                                                            }}
+                                                        >
+                                                            {isChecked && <X size={12} className="text-white" />}
+                                                        </div>
+                                                        <span className={`text-sm ${isChecked ? "text-indigo-300 font-medium" : "text-gray-400 group-hover/cb:text-gray-200"}`}>
+                                                            {option}
+                                                        </span>
+                                                    </label>
+                                                );
+                                            })}
+                                            {!col.options?.length && <span className="text-xs text-muted-foreground italic">Nenhuma opção configurada.</span>}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </CardContent>
@@ -214,8 +250,8 @@ export default function VeiculosPage() {
 
                             <Button 
                                 onClick={handleSave} 
-                                disabled={isSaving || (!textFields && imageFiles.length === 0)}
-                                className="w-full mt-6 bg-indigo-500 hover:bg-indigo-600 text-white font-bold h-12"
+                                disabled={isSaving}
+                                className="w-full mt-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-12 shadow-lg disabled:bg-indigo-900/50 disabled:text-indigo-300 disabled:opacity-50"
                             >
                                 {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
                                 {isSaving ? "Salvando Veículo..." : "Salvar Veículo"}
