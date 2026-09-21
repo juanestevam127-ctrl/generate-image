@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Trash, Edit, Save, X, Type, Image as ImageIcon, ArrowUp, ArrowDown, CheckSquare } from "lucide-react";
 import { useStore, Client, ColumnDefinition, ColumnType } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,27 @@ export function ClientManager() {
     const [isUploading, setIsUploading] = useState<{ stories: boolean; feed: boolean }>({ stories: false, feed: false });
     const [idClickup, setIdClickup] = useState("");
     const [webhookStoriesSegQuarSex, setWebhookStoriesSegQuarSex] = useState("");
+    const [activeTab, setActiveTab] = useState("geral");
+
+    // Clickup Clients data
+    const [clickupClients, setClickupClients] = useState<{id: string, name: string}[]>([]);
+    const [isLoadingClickup, setIsLoadingClickup] = useState(false);
+
+    // Fetch ClickUp Clients on mount
+    useEffect(() => {
+        let mounted = true;
+        const fetchClickup = async () => {
+            setIsLoadingClickup(true);
+            const { getClickupClientsAction } = await import("@/app/actions/clickup");
+            const res = await getClickupClientsAction();
+            if (mounted && res.success && res.data) {
+                setClickupClients(res.data);
+            }
+            if (mounted) setIsLoadingClickup(false);
+        };
+        fetchClickup();
+        return () => { mounted = false; };
+    }, []);
 
     const openNewClientModal = () => {
         setEditingClient(null);
@@ -277,12 +298,18 @@ export function ClientManager() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">ClickUp ID (Opcional)</label>
-                            <Input
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Vincular com ClickUp (Serviços)</label>
+                            <select
                                 value={idClickup}
                                 onChange={(e) => setIdClickup(e.target.value)}
-                                placeholder="Ex: 86ady0z1m"
-                            />
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={isLoadingClickup}
+                            >
+                                <option value="">Não vincular</option>
+                                {clickupClients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
                         </div>
                         <div className="space-y-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Webhook Stories Seg/Qua/Sex (Opcional)</label>

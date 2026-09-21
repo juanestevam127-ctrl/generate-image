@@ -10,7 +10,7 @@ import { Upload, X, Loader2, Save, Car } from "lucide-react";
 import { getPresignedUrlAction } from "@/app/actions/upload";
 
 export default function VeiculosPage() {
-    const { user, layoutClients } = useStore();
+    const { user, clients } = useStore();
     const [selectedClientId, setSelectedClientId] = useState("");
     const [activeClient, setActiveClient] = useState<any>(null);
     
@@ -22,14 +22,14 @@ export default function VeiculosPage() {
 
     useEffect(() => {
         if (selectedClientId) {
-            const client = layoutClients.find(c => c.id === selectedClientId);
+            const client = clients.find(c => c.id === selectedClientId);
             setActiveClient(client);
             setTextFields({});
             setImageFiles([]);
         } else {
             setActiveClient(null);
         }
-    }, [selectedClientId, layoutClients]);
+    }, [selectedClientId, clients]);
 
     const handleTextChange = (id: string, value: string) => {
         setTextFields(prev => ({ ...prev, [id]: value }));
@@ -137,7 +137,7 @@ export default function VeiculosPage() {
     }
 
     // Filtrar apenas clientes com ClickUp
-    const availableClients = layoutClients.filter(c => c.idClickup);
+    const availableClients = clients.filter(c => c.idClickup);
 
     return (
         <div className="space-y-6 pb-20">
