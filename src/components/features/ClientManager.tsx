@@ -33,6 +33,7 @@ export function ClientManager() {
     const [clienteAtivo, setClienteAtivo] = useState(true);
     const [isUploading, setIsUploading] = useState<{ stories: boolean; feed: boolean }>({ stories: false, feed: false });
     const [idClickup, setIdClickup] = useState("");
+    const [clickupTarefaId, setClickupTarefaId] = useState("");
     const [webhookStoriesSegQuarSex, setWebhookStoriesSegQuarSex] = useState("");
     const [activeTab, setActiveTab] = useState("geral");
 
@@ -94,6 +95,7 @@ export function ClientManager() {
         setGuideFeed(client.guideFeed || "");
         setClienteAtivo(client.clienteAtivo ?? true);
         setIdClickup(client.idClickup || "");
+        setClickupTarefaId(client.clickupTarefaId || "");
         setWebhookStoriesSegQuarSex(client.webhookStoriesSegQuarSex || "");
         setColumns([...client.columns]);
         setIsUploading({ stories: false, feed: false });
@@ -116,6 +118,7 @@ export function ClientManager() {
             guideFeed,
             clienteAtivo,
             idClickup,
+            clickupTarefaId,
             webhookStoriesSegQuarSex,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
@@ -300,8 +303,8 @@ export function ClientManager() {
                         <div className="space-y-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Vincular com ClickUp (Serviços)</label>
                             <select
-                                value={idClickup}
-                                onChange={(e) => setIdClickup(e.target.value)}
+                                value={clickupTarefaId}
+                                onChange={(e) => setClickupTarefaId(e.target.value)}
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 disabled={isLoadingClickup}
                             >
@@ -310,6 +313,14 @@ export function ClientManager() {
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
                             </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">ClickUp ID (Opcional)</label>
+                            <Input
+                                value={idClickup}
+                                onChange={(e) => setIdClickup(e.target.value)}
+                                placeholder="Ex: 86ady0z1m"
+                            />
                         </div>
                         <div className="space-y-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Webhook Stories Seg/Qua/Sex (Opcional)</label>

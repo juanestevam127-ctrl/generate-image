@@ -63,8 +63,8 @@ export default function VeiculosPage() {
     };
 
     const handleSave = async () => {
-        if (!activeClient || !activeClient.idClickup) {
-            alert("Cliente não possui integração com ClickUp configurada.");
+        if (!activeClient || !activeClient.clickupTarefaId) {
+            alert("Cliente não possui integração com ClickUp configurada (Tarefa não vinculada).");
             return;
         }
 
@@ -98,13 +98,18 @@ export default function VeiculosPage() {
             if (!nome) nome = Object.values(dados)[0] as string || "Veículo";
 
             // 1. Create Clickup Task
+            const taskData = {
+                name: `${nome} ${cor} ${ano}`.toUpperCase().trim(),
+                price: preco,
+                clientId: activeClient.clickupTarefaId
+            };
             const { createClickupTaskAction } = await import("@/app/actions/clickup");
             const clickupRes = await createClickupTaskAction({
                 nomeVeiculo: nome,
                 cor,
                 ano,
                 precoFormatado: preco,
-                clienteClickupId: activeClient.idClickup
+                clienteClickupId: activeClient.clickupTarefaId
             });
 
             if (!clickupRes.success) throw new Error("Erro ClickUp: " + clickupRes.error);
@@ -136,8 +141,8 @@ export default function VeiculosPage() {
         return <div className="p-8">Acesso Negado</div>;
     }
 
-    // Filtrar apenas clientes com ClickUp
-    const availableClients = clients.filter(c => c.idClickup);
+    // Filtrar apenas clientes com ClickUp vinculados (tarefa)
+    const availableClients = clients.filter(c => c.clickupTarefaId);
 
     return (
         <div className="space-y-6 pb-20">

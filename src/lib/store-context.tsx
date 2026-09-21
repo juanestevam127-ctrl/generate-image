@@ -60,6 +60,7 @@ export interface Client {
     guideFeed?: string;
     clienteAtivo?: boolean;
     idClickup?: string;
+    clickupTarefaId?: string; // NOVO: Para vincular na criação de veículos
     webhookStoriesSegQuarSex?: string;
 }
 
@@ -166,6 +167,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     guideFeed: c.guide_feed,
                     clienteAtivo: c.cliente_ativo ?? true,
                     idClickup: c.id_clickup,
+                    clickupTarefaId: c.clickup_tarefa_id,
                     webhookStoriesSegQuarSex: c.webhook_stories_seg_quar_sex
                 }));
                 setClients(formattedClients);
@@ -319,6 +321,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             guideFeed: result.data.guide_feed,
             clienteAtivo: result.data.cliente_ativo ?? true,
             idClickup: result.data.id_clickup,
+            clickupTarefaId: result.data.clickup_tarefa_id,
             webhookStoriesSegQuarSex: result.data.webhook_stories_seg_quar_sex
         };
 
