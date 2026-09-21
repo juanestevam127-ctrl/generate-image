@@ -138,17 +138,21 @@ export default function VeiculosPage() {
 
             activeClient.columns.forEach((col: any) => {
                 if (col.type === "text" || col.type === "checkbox") {
-                    const val = textFields[col.id] || "";
-                    dados[col.name] = val;
-                    const lowerCol = col.name.toLowerCase();
-                    if (lowerCol.includes("veiculo") || lowerCol.includes("nome") || lowerCol.includes("carro")) nome = val;
-                    if (lowerCol.includes("cor")) cor = val;
-                    if (lowerCol.includes("ano")) ano = val;
-                    if (lowerCol.includes("pre") || lowerCol.includes("valor")) preco = val;
+                    dados[col.name] = textFields[col.id] || "";
                 }
             });
 
-            if (!nome) nome = Object.values(dados)[0] as string || "Veículo";
+            const getFieldVal = (d: any, keywords: string[]) => {
+                let key = Object.keys(d).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
+                if (key) return d[key];
+                key = Object.keys(d).find(k => keywords.some(kw => new RegExp(`\\b${kw}\\b`, 'i').test(k)));
+                return key ? d[key] : null;
+            };
+
+            nome = getFieldVal(dados, ['nome', 'carro', 'titulo', 'modelo']) || Object.values(dados)[0] as string || "Veículo";
+            cor = getFieldVal(dados, ['cor']) || "";
+            ano = getFieldVal(dados, ['ano']) || "";
+            preco = getFieldVal(dados, ['pre', 'valor']) || "";
 
             const { createClickupTaskAction } = await import("@/app/actions/clickup");
             const clickupRes = await createClickupTaskAction({
