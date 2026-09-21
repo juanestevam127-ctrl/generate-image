@@ -347,14 +347,42 @@ export default function VeiculosPage() {
                                                     {col.name}
                                                 </Label>
                                                 {col.type === "checkbox" ? (
-                                                    <select
-                                                        className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white outline-none focus:border-indigo-500"
-                                                        value={textFields[col.id] || "Não"}
-                                                        onChange={(e) => handleTextChange(col.id, e.target.value)}
-                                                    >
-                                                        <option value="Sim">Sim</option>
-                                                        <option value="Não">Não</option>
-                                                    </select>
+                                                    <div className="flex items-center gap-6 pt-1">
+                                                        <label className="flex items-center gap-2 cursor-pointer">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="w-5 h-5 rounded border-white/10 bg-black/50 text-indigo-600 focus:ring-indigo-500"
+                                                                checked={(textFields[col.id] || "").includes("Stories")}
+                                                                onChange={(e) => {
+                                                                    let current = textFields[col.id] ? textFields[col.id].split(', ') : [];
+                                                                    if (e.target.checked) {
+                                                                        if (!current.includes("Stories")) current.push("Stories");
+                                                                    } else {
+                                                                        current = current.filter((c: string) => c !== "Stories");
+                                                                    }
+                                                                    handleTextChange(col.id, current.join(', '));
+                                                                }}
+                                                            />
+                                                            <span className="text-gray-300">Stories</span>
+                                                        </label>
+                                                        <label className="flex items-center gap-2 cursor-pointer">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="w-5 h-5 rounded border-white/10 bg-black/50 text-indigo-600 focus:ring-indigo-500"
+                                                                checked={(textFields[col.id] || "").includes("Feed")}
+                                                                onChange={(e) => {
+                                                                    let current = textFields[col.id] ? textFields[col.id].split(', ') : [];
+                                                                    if (e.target.checked) {
+                                                                        if (!current.includes("Feed")) current.push("Feed");
+                                                                    } else {
+                                                                        current = current.filter((c: string) => c !== "Feed");
+                                                                    }
+                                                                    handleTextChange(col.id, current.join(', '));
+                                                                }}
+                                                            />
+                                                            <span className="text-gray-300">Feed</span>
+                                                        </label>
+                                                    </div>
                                                 ) : (
                                                     <Input
                                                         type="text"
