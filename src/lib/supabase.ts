@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getPresignedUrlAction } from '@/app/actions/upload';
 
 let supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
 const supabaseKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
@@ -9,7 +10,6 @@ if (supabaseUrl && !supabaseUrl.startsWith('http')) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
-
 
 export async function uploadImage(
     image: string, 
@@ -27,34 +27,38 @@ export async function uploadImage(
         // 2. Generate unique filename
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(7);
-        const folderPrefix = folder ? (folder.endsWith('/') ? folder : `${folder}/`) : '';
-        const filename = `${folderPrefix}${timestamp}-${randomStr}.${extension}`;
+        // User wants all images in temp-files
+        const filename = `temp-files/${timestamp}-${randomStr}.${extension}`;
 
-        // 3. Upload
-        const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(filename, blob, {
-                contentType: contentType,
-                upsert: false,
-                onUploadProgress: (progress: any) => {
-                    if (onProgress) {
-                        const percent = (progress.loaded / progress.total) * 100;
-                        onProgress(Math.round(percent));
-                    }
-                }
-            } as any);
+        if (onProgress) onProgress(10);
 
-        if (error) {
-            console.error('Supabase Upload Error:', error);
+        // 3. Get Presigned URL for R2
+        const presignedResult = await getPresignedUrlAction(filename, contentType);
+        if (!presignedResult.success || !presignedResult.signedUrl || !presignedResult.publicUrl) {
+            console.error('Failed to get presigned URL:', presignedResult.error);
             return null;
         }
 
-        // 4. Get Public URL
-        const { data: { publicUrl } } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(filename);
+        if (onProgress) onProgress(30);
 
-        return publicUrl;
+        // 4. Upload to R2
+        const uploadRes = await fetch(presignedResult.signedUrl, {
+            method: 'PUT',
+            body: blob,
+            headers: {
+                'Content-Type': contentType
+            }
+        });
+
+        if (!uploadRes.ok) {
+            console.error('Failed to upload to R2:', await uploadRes.text());
+            return null;
+        }
+
+        if (onProgress) onProgress(100);
+
+        // 5. Return Public URL
+        return presignedResult.publicUrl;
     } catch (e) {
         console.error('Upload Logic Error:', e);
         return null;
@@ -73,32 +77,34 @@ export async function uploadFile(
 
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(7);
-        const folderPrefix = folder ? (folder.endsWith('/') ? folder : `${folder}/`) : '';
-        const filename = `${folderPrefix}${timestamp}-${randomStr}.${extension}`;
+        const filename = `temp-files/${timestamp}-${randomStr}.${extension}`;
 
-        const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(filename, file, {
-                contentType: contentType,
-                upsert: false,
-                onUploadProgress: (progress: any) => {
-                    if (onProgress) {
-                        const percent = (progress.loaded / progress.total) * 100;
-                        onProgress(Math.round(percent));
-                    }
-                }
-            } as any);
+        if (onProgress) onProgress(10);
 
-        if (error) {
-            console.error('Supabase Upload Error:', error);
+        const presignedResult = await getPresignedUrlAction(filename, contentType);
+        if (!presignedResult.success || !presignedResult.signedUrl || !presignedResult.publicUrl) {
+            console.error('Failed to get presigned URL:', presignedResult.error);
             return null;
         }
 
-        const { data: { publicUrl } } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(filename);
+        if (onProgress) onProgress(30);
 
-        return publicUrl;
+        const uploadRes = await fetch(presignedResult.signedUrl, {
+            method: 'PUT',
+            body: file,
+            headers: {
+                'Content-Type': contentType
+            }
+        });
+
+        if (!uploadRes.ok) {
+            console.error('Failed to upload to R2:', await uploadRes.text());
+            return null;
+        }
+
+        if (onProgress) onProgress(100);
+
+        return presignedResult.publicUrl;
     } catch (e) {
         console.error('Upload Logic Error:', e);
         return null;
