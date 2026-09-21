@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useStore } from "@/lib/store-context";
 import { ClientManager } from "@/components/features/ClientManager";
+import { VehicleCard } from "@/components/features/VehicleCard";
 import { DynamicTable } from "@/components/features/DynamicTable";
 import { ImageEditor } from "@/components/features/ImageEditor";
 import { Button } from "@/components/ui/button";
@@ -508,43 +509,12 @@ export default function DashboardPage() {
                                                 thumbnail = v.fotos[0];
                                             }
 
-                                            const firstKey = v.dados ? Object.keys(v.dados)[0] : null;
-                                            const titulo = v.dados?.nome || v.dados?.Nome || v.dados?.NOME || v.dados?.["NOME DO VEICULO"] || v.dados?.["NOME DO VEÍCULO"] || (firstKey ? v.dados[firstKey] : "Veículo Sem Nome");
-                                            const detalhes = [v.dados?.cor || v.dados?.Cor || v.dados?.COR || v.dados?.["COR DO VEICULO"], v.dados?.ano || v.dados?.Ano || v.dados?.ANO, v.dados?.preco || v.dados?.Preco || v.dados?.PREÇO || v.dados?.["VALOR"]].filter(Boolean).join(" - ");
-
                                             return (
-                                                <Card key={v.id} className="bg-zinc-900 border-white/10 overflow-hidden shadow-xl flex flex-col group">
-                                                    <div className="relative h-40 bg-black flex items-center justify-center overflow-hidden">
-                                                        {thumbnail ? (
-                                                            <img src={thumbnail} className="w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-100 transition-all duration-500" alt="Preview" />
-                                                        ) : (
-                                                            <div className="text-gray-500 flex flex-col items-center">
-                                                                <ImageIcon size={24} className="mb-2 opacity-50" />
-                                                                <span className="text-xs">Sem imagem</span>
-                                                            </div>
-                                                        )}
-                                                        <div className="absolute top-2 right-2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">
-                                                            NOVO VEÍCULO
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-4 flex-1 flex flex-col">
-                                                        <h3 className="text-sm font-bold text-white mb-1 truncate uppercase" title={titulo}>
-                                                            {titulo}
-                                                        </h3>
-                                                        <p className="text-xs text-gray-400 mb-4 line-clamp-2">
-                                                            {detalhes}
-                                                        </p>
-                                                        <div className="mt-auto pt-4 border-t border-white/5">
-                                                            <Button 
-                                                                onClick={() => addVehicleToTable(v)}
-                                                                className="w-full !bg-indigo-600 hover:!bg-indigo-500 !text-white text-sm shadow-md"
-                                                            >
-                                                                <Download className="w-4 h-4 mr-2" />
-                                                                Preencher na Tabela
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </Card>
+                                                <VehicleCard 
+                                                    key={v.id} 
+                                                    vehicle={v} 
+                                                    onAdd={addVehicleToTable} 
+                                                />
                                             );
                                         })}
                                     </div>
