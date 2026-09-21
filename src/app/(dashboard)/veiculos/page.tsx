@@ -344,7 +344,7 @@ export default function VeiculosPage() {
                                         return (
                                             <div key={col.id} className="space-y-2">
                                                 <Label className="text-gray-300 font-medium">
-                                                    {col.name} {col.type === "checkbox" && "(S/N)"}
+                                                    {col.name}
                                                 </Label>
                                                 {col.type === "checkbox" ? (
                                                     <select
@@ -404,10 +404,15 @@ export default function VeiculosPage() {
                                 <div className="pt-6 border-t border-white/10">
                                     <Button 
                                         onClick={handleSave} 
-                                        disabled={isSaving} 
-                                        className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-bold shadow-lg shadow-indigo-900/20"
+                                        disabled={isSaving}
+                                        variant="secondary"
+                                        className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-indigo-900 text-lg font-bold shadow-lg transition-all active:scale-[0.98]"
                                     >
-                                        {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
+                                        {isSaving ? (
+                                            <Loader2 className="w-5 h-5 mr-2 animate-spin text-indigo-900" />
+                                        ) : (
+                                            <Save className="w-5 h-5 mr-2 text-indigo-900" />
+                                        )}
                                         {isSaving ? "Salvando e Processando..." : "Salvar Veículo"}
                                     </Button>
                                 </div>
