@@ -12,13 +12,20 @@ export function VehicleCard({ vehicle, onAdd }: { vehicle: any, onAdd: (v: any) 
 
     const getFieldVal = (dados: any, keywords: string[]) => {
         if (!dados) return null;
-        // Search by exact keyword match within the string (case insensitive)
-        const key = Object.keys(dados).find(k => keywords.some(kw => k.toLowerCase().includes(kw)));
+        // Priority 1: Exact matches or "starts with" for strong keywords
+        let key = Object.keys(dados).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
+        if (key) return dados[key];
+        
+        // Priority 2: Contains word
+        key = Object.keys(dados).find(k => keywords.some(kw => {
+            const regex = new RegExp(`\\b${kw}\\b`, 'i');
+            return regex.test(k);
+        }));
         return key ? dados[key] : null;
     };
 
-    // Dynamically grab title and details
-    const titulo = getFieldVal(vehicle.dados, ['nome', 'veiculo', 'carro']) 
+    // Dynamically grab title and details (remove 'veiculo' from title keywords as it conflicts with 'cor do veiculo')
+    const titulo = getFieldVal(vehicle.dados, ['nome', 'carro', 'titulo', 'modelo']) 
         || (vehicle.dados && Object.values(vehicle.dados)[0]) 
         || "Veículo Sem Nome";
 

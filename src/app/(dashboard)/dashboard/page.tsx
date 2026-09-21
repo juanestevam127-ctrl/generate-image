@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store-context";
 import { ClientManager } from "@/components/features/ClientManager";
 import { VehicleCard } from "@/components/features/VehicleCard";
@@ -117,16 +117,20 @@ export default function DashboardPage() {
         setIsImporting(false);
         
         if (res.success && res.vehicles) {
-            if (res.vehicles.length === 0) {
-                alert("Nenhum veículo disponível encontrado para este cliente no estoque.");
-                setAvailableVehicles([]);
-                return;
-            }
             setAvailableVehicles(res.vehicles);
         } else {
             alert("Erro ao buscar veículos: " + res.error);
         }
     };
+
+    // Auto-import when entering importacao tab or changing client
+    useEffect(() => {
+        if (viewMode === "importacao" && selectedClientId) {
+            handleImport();
+        } else {
+            setAvailableVehicles([]);
+        }
+    }, [viewMode, selectedClientId]);
 
     const addVehicleToTable = async (vehicle: any) => {
         // vehicle tem: id, dados (jsonb), fotos (array)
@@ -473,7 +477,7 @@ export default function DashboardPage() {
                                             className="w-full md:w-auto shadow-lg bg-indigo-500/20 text-indigo-200 hover:bg-indigo-500/30 border border-indigo-500/30"
                                         >
                                             {isImporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-                                            {isImporting ? "Buscando..." : "Buscar do Estoque"}
+                                            {isImporting ? "Atualizando..." : "Atualizar Estoque"}
                                         </Button>
                                     )}
                                     <Button
