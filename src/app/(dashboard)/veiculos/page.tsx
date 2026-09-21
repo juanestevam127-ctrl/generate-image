@@ -1,25 +1,90 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useStore } from "@/lib/store-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X, Loader2, Save, Car } from "lucide-react";
+import { Upload, X, Loader2, Save, Car, LayoutList, Plus, Search, Filter } from "lucide-react";
 import { getPresignedUrlAction } from "@/app/actions/upload";
+import { getGosTasksAction, getClickupListStatusesAction, updateClickupTaskStatusAction } from "@/app/actions/clickup";
 
 export default function VeiculosPage() {
     const { user, clients } = useStore();
+    const [activeTab, setActiveTab] = useState<"lista" | "novo">("lista");
+    
+    // Lista GOS
+    const [tasks, setTasks] = useState<any[]>([]);
+    const [statuses, setStatuses] = useState<any[]>([]);
+    const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+    
+    // Filters
+    const [filterClient, setFilterClient] = useState("all");
+    const [filterStatus, setFilterStatus] = useState("all");
+    const [filterAssignee, setFilterAssignee] = useState("all");
+
+    // Novo Veículo
     const [selectedClientId, setSelectedClientId] = useState("");
     const [activeClient, setActiveClient] = useState<any>(null);
-    
-    // Form fields
     const [textFields, setTextFields] = useState<Record<string, string>>({});
     const [imageFiles, setImageFiles] = useState<File[]>([]);
-    
     const [isSaving, setIsSaving] = useState(false);
 
+    useEffect(() => {
+        if (activeTab === "lista") {
+            loadGosData();
+        }
+    }, [activeTab]);
+
+    const loadGosData = async () => {
+        setIsLoadingTasks(true);
+        const [tasksRes, statusesRes] = await Promise.all([
+            getGosTasksAction(),
+            getClickupListStatusesAction()
+        ]);
+        
+        if (tasksRes.success) {
+            setTasks(tasksRes.data || []);
+        }
+        if (statusesRes.success) {
+            setStatuses(statusesRes.statuses || []);
+        }
+        setIsLoadingTasks(false);
+    };
+
+    // Filter derivations
+    const assignees = useMemo(() => {
+        const map = new Map();
+        tasks.forEach(t => {
+            t.assignees?.forEach((a: any) => {
+                if (!map.has(a.id)) map.set(a.id, a);
+            });
+        });
+        return Array.from(map.values());
+    }, [tasks]);
+
+    const filteredTasks = useMemo(() => {
+        return tasks.filter(t => {
+            if (filterClient !== "all" && t.clientId !== filterClient) return false;
+            if (filterStatus !== "all" && t.status !== filterStatus) return false;
+            if (filterAssignee !== "all" && !t.assignees?.find((a:any) => a.id.toString() === filterAssignee)) return false;
+            return true;
+        });
+    }, [tasks, filterClient, filterStatus, filterAssignee]);
+
+    const handleStatusChange = async (taskId: string, newStatus: string) => {
+        // Optimistic update
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+        const res = await updateClickupTaskStatusAction(taskId, newStatus);
+        if (!res.success) {
+            alert("Erro ao alterar status: " + res.error);
+            // Revert on error
+            loadGosData(); 
+        }
+    };
+
+    // Form functions
     useEffect(() => {
         if (selectedClientId) {
             const client = clients.find(c => c.id === selectedClientId);
@@ -48,16 +113,9 @@ export default function VeiculosPage() {
     const uploadFileToR2 = async (file: File): Promise<string> => {
         const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
         const filePath = `temp-files/${fileName}`;
-        
         const res = await getPresignedUrlAction(filePath, file.type);
         if (!res.success) throw new Error(res.error);
-
-        const uploadRes = await fetch(res.signedUrl!, {
-            method: 'PUT',
-            body: file,
-            headers: { 'Content-Type': file.type }
-        });
-
+        const uploadRes = await fetch(res.signedUrl!, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
         if (!uploadRes.ok) throw new Error("Erro no upload do R2");
         return res.publicUrl!;
     };
@@ -70,14 +128,11 @@ export default function VeiculosPage() {
 
         setIsSaving(true);
         try {
-            // Upload images
             const uploadedUrls = [];
             for (const file of imageFiles) {
-                const url = await uploadFileToR2(file);
-                uploadedUrls.push(url);
+                uploadedUrls.push(await uploadFileToR2(file));
             }
 
-            // Achar nome, cor, ano, preco nas colunas para o titulo da task
             let nome = "", cor = "", ano = "", preco = "";
             const dados: any = {};
 
@@ -85,7 +140,6 @@ export default function VeiculosPage() {
                 if (col.type === "text" || col.type === "checkbox") {
                     const val = textFields[col.id] || "";
                     dados[col.name] = val;
-                    
                     const lowerCol = col.name.toLowerCase();
                     if (lowerCol.includes("veiculo") || lowerCol.includes("nome") || lowerCol.includes("carro")) nome = val;
                     if (lowerCol.includes("cor")) cor = val;
@@ -94,34 +148,18 @@ export default function VeiculosPage() {
                 }
             });
 
-            // Se não encontrou, pega o primeiro
             if (!nome) nome = Object.values(dados)[0] as string || "Veículo";
 
-            // 1. Create Clickup Task
-            const taskData = {
-                name: `${nome} ${cor} ${ano}`.toUpperCase().trim(),
-                price: preco,
-                clientId: activeClient.clickupTarefaId
-            };
             const { createClickupTaskAction } = await import("@/app/actions/clickup");
             const clickupRes = await createClickupTaskAction({
-                nomeVeiculo: nome,
-                cor,
-                ano,
-                precoFormatado: preco,
-                clienteClickupId: activeClient.clickupTarefaId
+                nomeVeiculo: nome, cor, ano, precoFormatado: preco, clienteClickupId: activeClient.clickupTarefaId
             });
 
             if (!clickupRes.success) throw new Error("Erro ClickUp: " + clickupRes.error);
 
-            // 2. Save to Supabase Local
             const { supabase } = await import("@/lib/supabase");
             const { error: sbError } = await supabase.from("VeiculoOperador").insert([{
-                clienteId: activeClient.id,
-                dados: dados,
-                fotos: uploadedUrls,
-                clickupTaskId: clickupRes.data?.taskId,
-                importado: false
+                clienteId: activeClient.id, dados: dados, fotos: uploadedUrls, clickupTaskId: clickupRes.data?.taskId, importado: false
             }]);
 
             if (sbError) throw sbError;
@@ -129,7 +167,8 @@ export default function VeiculosPage() {
             alert("Veículo adicionado com sucesso!");
             setTextFields({});
             setImageFiles([]);
-
+            setActiveTab("lista");
+            loadGosData();
         } catch (e: any) {
             alert("Erro ao salvar: " + e.message);
         } finally {
@@ -137,134 +176,246 @@ export default function VeiculosPage() {
         }
     };
 
-    if (user?.role !== "master" && user?.role !== "operador") {
-        return <div className="p-8">Acesso Negado</div>;
-    }
-
-    // Filtrar apenas clientes com ClickUp vinculados (tarefa)
+    if (!user) return null;
     const availableClients = clients.filter(c => c.clickupTarefaId);
 
     return (
         <div className="space-y-6 pb-20">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-white mb-1 flex items-center">
-                    <Car className="mr-3 text-indigo-400" />
-                    Adicionar Veículos
-                </h1>
-                <p className="text-muted-foreground">Adicione veículos para os clientes e envie automaticamente para o ClickUp e painel de Importação.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-white mb-1 flex items-center">
+                        <Car className="mr-2 text-indigo-400 w-8 h-8" />
+                        Veículos e Estoque GOS
+                    </h1>
+                    <p className="text-muted-foreground">
+                        Acompanhe tarefas no GOS, altere status, ou adicione novos veículos ao estoque.
+                    </p>
+                </div>
+                <div className="bg-white/5 p-1 rounded-lg border border-white/10 flex space-x-1">
+                    <button
+                        onClick={() => setActiveTab("lista")}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === "lista" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        <LayoutList className="w-4 h-4" /> Painel GOS
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("novo")}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === "novo" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        <Plus className="w-4 h-4" /> Adicionar Veículo
+                    </button>
+                </div>
             </div>
 
-            <Card className="p-6 bg-gradient-to-r from-indigo-900/20 to-blue-900/20 border-indigo-500/20">
-                <div className="w-full md:w-1/2">
-                    <Label className="text-sm font-medium text-gray-300 mb-2 block">Selecione o Cliente</Label>
-                    <select
-                        className="w-full bg-black/40 border border-white/10 rounded-md h-10 px-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={selectedClientId}
-                        onChange={(e) => setSelectedClientId(e.target.value)}
-                    >
-                        <option value="" disabled>-- Escolha um cliente --</option>
-                        {availableClients.sort((a, b) => a.name.localeCompare(b.name)).map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
-                </div>
-            </Card>
-
-            {activeClient && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-500">
-                    <Card className="bg-zinc-900 border-white/10">
-                        <CardHeader>
-                            <CardTitle className="text-lg">Dados do Veículo</CardTitle>
+            {activeTab === "lista" && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <Card className="bg-zinc-900 border-white/10 shadow-xl">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-white text-lg">Filtros</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            {activeClient.columns.filter((c:any) => c.type === "text" || c.type === "checkbox").map((col: any) => (
-                                <div key={col.id} className="space-y-1">
-                                    <Label className="text-xs uppercase text-muted-foreground tracking-wider">
-                                        {col.name} {col.type === "checkbox" ? "(Opcional)" : ""}
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-1">
+                                    <Label className="text-gray-400">Cliente</Label>
+                                    <select 
+                                        value={filterClient} 
+                                        onChange={(e) => setFilterClient(e.target.value)}
+                                        className="w-full bg-black/50 border border-white/10 rounded-md p-2 text-white outline-none focus:border-indigo-500"
+                                    >
+                                        <option value="all">Todos os Clientes</option>
+                                        {availableClients.map(c => (
+                                            <option key={c.id} value={c.clickupTarefaId}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-gray-400">Responsável</Label>
+                                    <select 
+                                        value={filterAssignee} 
+                                        onChange={(e) => setFilterAssignee(e.target.value)}
+                                        className="w-full bg-black/50 border border-white/10 rounded-md p-2 text-white outline-none focus:border-indigo-500"
+                                    >
+                                        <option value="all">Todos os Responsáveis</option>
+                                        {assignees.map((a: any) => (
+                                            <option key={a.id} value={a.id}>{a.username}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-gray-400">Status</Label>
+                                    <select 
+                                        value={filterStatus} 
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                        className="w-full bg-black/50 border border-white/10 rounded-md p-2 text-white outline-none focus:border-indigo-500"
+                                    >
+                                        <option value="all">Todos os Status</option>
+                                        {statuses.map(s => (
+                                            <option key={s.id} value={s.status}>{s.status.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {isLoadingTasks ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-indigo-400">
+                            <Loader2 className="w-8 h-8 animate-spin mb-4" />
+                            <p>Carregando tarefas do ClickUp...</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredTasks.length === 0 ? (
+                                <div className="col-span-full text-center py-12 text-gray-500">
+                                    Nenhum veículo encontrado com os filtros atuais.
+                                </div>
+                            ) : (
+                                filteredTasks.map(task => {
+                                    const cClient = availableClients.find(c => c.clickupTarefaId === task.clientId);
+                                    return (
+                                        <Card key={task.id} className="bg-zinc-900 border-white/10 p-4 flex flex-col space-y-4 shadow-xl hover:border-indigo-500/50 transition-colors">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h3 className="text-white font-bold text-sm mb-1 line-clamp-2" title={task.name}>{task.name}</h3>
+                                                    <p className="text-xs text-indigo-300 font-semibold">{cClient ? cClient.name : "Cliente Não Vinculado"}</p>
+                                                </div>
+                                                {task.assignees?.length > 0 && (
+                                                    <div className="flex -space-x-2">
+                                                        {task.assignees.map((a: any) => (
+                                                            <div key={a.id} className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold border border-black text-white" style={{ backgroundColor: a.color || '#666' }} title={a.username}>
+                                                                {a.initials}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="pt-2 mt-auto">
+                                                <Label className="text-[10px] text-gray-400 mb-1 block uppercase tracking-wider">Status Atual (ClickUp)</Label>
+                                                <select 
+                                                    value={task.status} 
+                                                    onChange={(e) => handleStatusChange(task.id, e.target.value)}
+                                                    className="w-full text-xs bg-black/50 border border-white/5 rounded p-2 text-white outline-none cursor-pointer hover:bg-black transition-colors"
+                                                    style={{ borderLeft: `4px solid ${task.statusColor || '#666'}` }}
+                                                >
+                                                    {statuses.map(s => (
+                                                        <option key={s.id} value={s.status}>{s.status.toUpperCase()}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </Card>
+                                    );
+                                })
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === "novo" && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl">
+                    <Card className="bg-zinc-900 border-white/10 shadow-xl overflow-hidden">
+                        <CardHeader className="bg-black/20 border-b border-white/5">
+                            <CardTitle className="text-white">Selecione o Cliente</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <select
+                                className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white outline-none focus:border-indigo-500"
+                                value={selectedClientId}
+                                onChange={(e) => setSelectedClientId(e.target.value)}
+                            >
+                                <option value="">-- Escolha um cliente --</option>
+                                {availableClients.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </CardContent>
+                    </Card>
+
+                    {activeClient && (
+                        <Card className="bg-zinc-900 border-white/10 shadow-xl overflow-hidden mt-6">
+                            <CardHeader className="bg-black/20 border-b border-white/5">
+                                <CardTitle className="text-white">Preencha as Informações</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-6 space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {activeClient.columns.map((col: any) => {
+                                        if (col.type !== "text" && col.type !== "checkbox") return null;
+                                        return (
+                                            <div key={col.id} className="space-y-2">
+                                                <Label className="text-gray-300 font-medium">
+                                                    {col.name} {col.type === "checkbox" && "(S/N)"}
+                                                </Label>
+                                                {col.type === "checkbox" ? (
+                                                    <select
+                                                        className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white outline-none focus:border-indigo-500"
+                                                        value={textFields[col.id] || "Não"}
+                                                        onChange={(e) => handleTextChange(col.id, e.target.value)}
+                                                    >
+                                                        <option value="Sim">Sim</option>
+                                                        <option value="Não">Não</option>
+                                                    </select>
+                                                ) : (
+                                                    <Input
+                                                        type="text"
+                                                        value={textFields[col.id] || ""}
+                                                        onChange={(e) => handleTextChange(col.id, e.target.value)}
+                                                        className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500"
+                                                        placeholder={`Digite ${col.name.toLowerCase()}`}
+                                                    />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="space-y-4 pt-4 border-t border-white/10">
+                                    <Label className="text-gray-300 font-medium block">
+                                        Fotos do Veículo (Múltiplas Seleções)
                                     </Label>
+                                    <div className="flex items-center justify-center w-full">
+                                        <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-40 border-2 border-indigo-500/30 border-dashed rounded-lg cursor-pointer bg-indigo-500/5 hover:bg-indigo-500/10 transition-colors">
+                                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                <Upload className="w-10 h-10 mb-3 text-indigo-400" />
+                                                <p className="mb-2 text-sm text-gray-300"><span className="font-semibold text-indigo-400">Clique para enviar</span> ou arraste as fotos</p>
+                                                <p className="text-xs text-gray-500">PNG, JPG (MAX. 800x400px)</p>
+                                            </div>
+                                            <input id="dropzone-file" type="file" className="hidden" multiple accept="image/*" onChange={handleImageChange} />
+                                        </label>
+                                    </div>
                                     
-                                    {col.type === "text" ? (
-                                        <Input 
-                                            value={textFields[col.id] || ""}
-                                            onChange={(e) => handleTextChange(col.id, e.target.value)}
-                                            className="bg-black/40 border-white/10"
-                                            placeholder={`Preencher ${col.name}...`}
-                                        />
-                                    ) : (
-                                        <div className="flex flex-wrap gap-2 py-2">
-                                            {col.options?.map((option: string) => {
-                                                const isChecked = (textFields[col.id] || "").split(", ").includes(option);
-                                                return (
-                                                    <label key={option} className="flex items-center gap-2 cursor-pointer group/cb">
-                                                        <div
-                                                            className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
-                                                                isChecked ? "bg-indigo-500 border-indigo-500" : "border-white/20 bg-black/40"
-                                                            }`}
-                                                            onClick={() => {
-                                                                const currentValues = (textFields[col.id] || "").split(", ").filter((v: string) => v !== "");
-                                                                let newValues;
-                                                                if (isChecked) {
-                                                                    newValues = currentValues.filter((v: string) => v !== option);
-                                                                } else {
-                                                                    newValues = [...currentValues, option];
-                                                                }
-                                                                handleTextChange(col.id, newValues.join(", "));
-                                                            }}
-                                                        >
-                                                            {isChecked && <X size={12} className="text-white" />}
-                                                        </div>
-                                                        <span className={`text-sm ${isChecked ? "text-indigo-300 font-medium" : "text-gray-400 group-hover/cb:text-gray-200"}`}>
-                                                            {option}
-                                                        </span>
-                                                    </label>
-                                                );
-                                            })}
-                                            {!col.options?.length && <span className="text-xs text-muted-foreground italic">Nenhuma opção configurada.</span>}
+                                    {imageFiles.length > 0 && (
+                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-4">
+                                            {imageFiles.map((file, idx) => (
+                                                <div key={idx} className="relative group rounded-lg overflow-hidden border border-white/10 bg-black aspect-square">
+                                                    <img src={URL.createObjectURL(file)} className="w-full h-full object-cover opacity-80" alt="Preview" />
+                                                    <button
+                                                        onClick={() => removeImage(idx)}
+                                                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
-                            ))}
-                        </CardContent>
-                    </Card>
 
-                    <Card className="bg-zinc-900 border-white/10">
-                        <CardHeader>
-                            <CardTitle className="text-lg">Fotos do Veículo</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/20 rounded-lg cursor-pointer bg-black/20 hover:bg-black/40 transition-colors">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <Upload className="w-8 h-8 mb-2 text-gray-400" />
-                                    <p className="mb-2 text-sm text-gray-400"><span className="font-semibold">Clique para anexar fotos</span></p>
+                                <div className="pt-6 border-t border-white/10">
+                                    <Button 
+                                        onClick={handleSave} 
+                                        disabled={isSaving} 
+                                        className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-bold shadow-lg shadow-indigo-900/20"
+                                    >
+                                        {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
+                                        {isSaving ? "Salvando e Processando..." : "Salvar Veículo"}
+                                    </Button>
                                 </div>
-                                <Input type="file" className="hidden" multiple accept="image/*" onChange={handleImageChange} />
-                            </Label>
-
-                            {imageFiles.length > 0 && (
-                                <div className="grid grid-cols-3 gap-2 mt-4">
-                                    {imageFiles.map((file, idx) => (
-                                        <div key={idx} className="relative group rounded overflow-hidden h-20 bg-black/50 border border-white/10">
-                                            <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                                            <button onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <X size={12} className="text-white" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <Button 
-                                onClick={handleSave} 
-                                disabled={isSaving}
-                                variant="secondary"
-                                className="w-full mt-6 bg-indigo-500 hover:bg-indigo-400 text-indigo-950 font-bold h-12 shadow-lg disabled:bg-indigo-900/80 disabled:text-indigo-300 disabled:opacity-100 border-none"
-                            >
-                                {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
-                                {isSaving ? "Salvando Veículo..." : "Salvar Veículo"}
-                            </Button>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
+
             )}
         </div>
     );

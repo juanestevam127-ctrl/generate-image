@@ -112,3 +112,92 @@ export async function createClickupTaskAction(params: {
         return { success: false, error: e.message };
     }
 }
+
+export async function getGosTasksAction() {
+    try {
+        let allTasks: any[] = [];
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            const res = await fetch(`https://api.clickup.com/api/v2/list/${GOS_LIST_ID}/task?archived=false&page=${page}&include_closed=true`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': CLICKUP_TOKEN,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!res.ok) throw new Error("Failed to fetch GOS tasks");
+            
+            const data = await res.json();
+            const tasks = data.tasks || [];
+            allTasks = [...allTasks, ...tasks];
+
+            if (data.last_page) {
+                hasMore = false;
+            } else if (tasks.length === 0) {
+                hasMore = false;
+            } else {
+                page++;
+            }
+        }
+
+        const formattedTasks = allTasks.map(t => {
+            const clientField = t.custom_fields?.find((cf: any) => cf.id === "1bbe66ba-1e2a-4827-b1c2-75c5c615de51");
+            const clientId = clientField?.value ? clientField.value[0]?.id : null;
+
+            return {
+                id: t.id,
+                name: t.name,
+                status: t.status?.status,
+                statusColor: t.status?.color,
+                assignees: t.assignees?.map((a: any) => ({ id: a.id, username: a.username, initials: a.initials, color: a.color })) || [],
+                clientId: clientId
+            };
+        });
+
+        return { success: true, data: formattedTasks };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function getClickupListStatusesAction() {
+    try {
+        const res = await fetch(`https://api.clickup.com/api/v2/list/${GOS_LIST_ID}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': CLICKUP_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch list details");
+        
+        const data = await res.json();
+        return { success: true, statuses: data.statuses };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function updateClickupTaskStatusAction(taskId: string, status: string) {
+    try {
+        const res = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': CLICKUP_TOKEN,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status })
+        });
+
+        if (!res.ok) throw new Error("Failed to update status");
+        
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+

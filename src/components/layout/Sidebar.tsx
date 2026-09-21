@@ -34,9 +34,9 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
         ];
     } else {
         navItems = [
-            { label: "Veículos", href: "/veiculos", icon: LayoutDashboard },
             { label: "Gerenciar Imagens", href: "/dashboard", icon: LayoutDashboard },
             { label: "Gerenciar Imagens Vendidos", href: "/imagens-vendidos", icon: LayoutDashboard },
+            { label: "Veículos", href: "/veiculos", icon: LayoutDashboard },
             { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },
         ];
 
