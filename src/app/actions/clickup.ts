@@ -6,19 +6,36 @@ const GOS_LIST_ID = "901306161617";
 
 export async function getClickupClientsAction() {
     try {
-        const res = await fetch(`https://api.clickup.com/api/v2/list/${CLIENTES_LIST_ID}/task?archived=false&page=0`, {
-            method: 'GET',
-            headers: {
-                'Authorization': CLICKUP_TOKEN,
-                'Content-Type': 'application/json'
-            },
-            next: { revalidate: 60 } // Cache for 60s
-        });
+        let allTasks: any[] = [];
+        let page = 0;
+        let hasMore = true;
 
-        if (!res.ok) throw new Error("Failed to fetch from ClickUp");
-        
-        const data = await res.json();
-        const clients = (data.tasks || []).map((t: any) => ({
+        while (hasMore) {
+            const res = await fetch(`https://api.clickup.com/api/v2/list/${CLIENTES_LIST_ID}/task?archived=false&page=${page}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': CLICKUP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                next: { revalidate: 60 } // Cache for 60s
+            });
+
+            if (!res.ok) throw new Error("Failed to fetch from ClickUp");
+            
+            const data = await res.json();
+            const tasks = data.tasks || [];
+            allTasks = [...allTasks, ...tasks];
+
+            if (data.last_page) {
+                hasMore = false;
+            } else if (tasks.length === 0) {
+                hasMore = false;
+            } else {
+                page++;
+            }
+        }
+
+        const clients = allTasks.map((t: any) => ({
             id: t.id,
             name: t.name
         }));
