@@ -149,7 +149,10 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                                                                     <div 
                                                                         key={idx} 
                                                                         className="relative group/selimage h-10 w-10 cursor-pointer border-2 border-transparent hover:border-indigo-400 rounded-md flex-shrink-0 transition-all overflow-hidden bg-black/50" 
-                                                                        onClick={() => handleCellChange(rowIndex, col.id, img)}
+                                                                        onClick={() => {
+                                                                            handleCellChange(rowIndex, col.id, img);
+                                                                            onEditImage(rowIndex, col.id, img, 0);
+                                                                        }}
                                                                         title="Clique para selecionar esta imagem"
                                                                     >
                                                                         <img src={img} className="h-full w-full object-cover" />
