@@ -1,13 +1,12 @@
 "use server";
 import { supabase } from "@/lib/supabase";
 
-export async function fetchImportacaoVeiculosAction(clientId: string) {
+export async function fetchImportacaoVeiculosAction(clienteId: string) {
     try {
         const { data, error } = await supabase
             .from("VeiculoOperador")
             .select("*")
-            .eq("clienteId", clientId)
-            .eq("importado", false)
+            .eq("clienteId", clienteId)
             .order("createdAt", { ascending: false });
 
         if (error) {

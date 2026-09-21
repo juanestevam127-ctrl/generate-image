@@ -155,11 +155,9 @@ export default function DashboardPage() {
         }
         
         setTableData(prev => [...prev, rowData]);
-        setAvailableVehicles(prev => prev.filter(v => v.id !== vehicle.id));
-
-        // Marca como importado no banco para sumir da fila
-        const { marcarVeiculoComoImportadoAction } = await import("@/app/actions/importacao");
-        await marcarVeiculoComoImportadoAction(vehicle.id);
+        
+        // O veículo não será mais removido da lista nem marcado como importado, 
+        // permitindo que seja importado quantas vezes for preciso.
     };
 
     const handleGenerate = async () => {
