@@ -120,7 +120,7 @@ export async function getGosTasksAction() {
         let hasMore = true;
 
         while (hasMore && page < 10) {
-            const res = await fetch(`https://api.clickup.com/api/v2/list/${GOS_LIST_ID}/task?archived=false&page=${page}&order_by=updated&reverse=true`, {
+            const res = await fetch(`https://api.clickup.com/api/v2/list/${GOS_LIST_ID}/task?archived=false&page=${page}&order_by=updated`, {
                 method: 'GET',
                 headers: {
                     'Authorization': CLICKUP_TOKEN,
