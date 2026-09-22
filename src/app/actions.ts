@@ -35,11 +35,12 @@ export async function verifyLoginAction(email: string, pass: string) {
 export async function loadInitialDataAction() {
     try {
         // Run fetches in parallel on the server
-        const [clientsRes, usersRes, layoutsRes, soldRes] = await Promise.all([
+        const [clientsRes, usersRes, layoutsRes, soldRes, configRes] = await Promise.all([
             supabase.from("clientes").select("*").order("name", { ascending: true }),
             supabase.from("usuarios").select("*").order("email", { ascending: true }),
             supabase.from("design_online_layouts_clientes").select("*").order("nome_cliente", { ascending: true }),
-            supabase.from("clientes_vendidos").select("*").order("name", { ascending: true })
+            supabase.from("clientes_vendidos").select("*").order("name", { ascending: true }),
+            supabase.from("configuracoes_gerais").select("*").limit(1)
         ]);
 
         if (clientsRes.error) throw clientsRes.error;
@@ -51,7 +52,8 @@ export async function loadInitialDataAction() {
                 clients: clientsRes.data || [],
                 registeredUsers: usersRes.data || [],
                 layoutClients: layoutsRes.data || [],
-                soldClients: soldRes.data || []
+                soldClients: soldRes.data || [],
+                configuracoesGerais: (configRes.data && configRes.data.length > 0) ? configRes.data[0] : null
             }
         };
     } catch (error: any) {

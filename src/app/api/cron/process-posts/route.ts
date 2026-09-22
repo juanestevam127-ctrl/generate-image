@@ -112,7 +112,8 @@ export async function GET(request: Request) {
                 servidor_url: configRows[0].servidor_url,
                 bucket_nome: configRows[0].bucket_nome,
                 pasta_nome: configRows[0].pasta_nome,
-                token_auth: configRows[0].token
+                secret_access_key: configRows[0].secret_access_key,
+                access_key_id: configRows[0].access_key_id
             } : {};
 
             const payload = {

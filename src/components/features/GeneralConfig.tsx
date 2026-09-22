@@ -6,28 +6,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, Save, Server } from "lucide-react";
-import { useStore } from "@/lib/store-context";
+import { supabase } from "@/lib/supabase";
 
 export function GeneralConfig() {
-    const { configuracoesGerais, saveConfiguracoesGerais } = useStore() as any;
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
         servidor_url: "",
         bucket_nome: "",
         pasta_nome: "",
-        token: ""
+        secret_access_key: "",
+        access_key_id: ""
     });
 
     useEffect(() => {
-        if (configuracoesGerais) {
-            setFormData({
-                servidor_url: configuracoesGerais.servidor_url || "",
-                bucket_nome: configuracoesGerais.bucket_nome || "",
-                pasta_nome: configuracoesGerais.pasta_nome || "",
-                token: configuracoesGerais.token || ""
-            });
+        async function loadConfig() {
+            const { data } = await supabase.from('configuracoes_gerais').select('*').limit(1);
+            if (data && data.length > 0) {
+                setFormData({
+                    servidor_url: data[0].servidor_url || "",
+                    bucket_nome: data[0].bucket_nome || "",
+                    pasta_nome: data[0].pasta_nome || "",
+                    secret_access_key: data[0].secret_access_key || "",
+                    access_key_id: data[0].access_key_id || ""
+                });
+            }
         }
-    }, [configuracoesGerais]);
+        loadConfig();
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -36,7 +41,9 @@ export function GeneralConfig() {
     const handleSave = async () => {
         setIsLoading(true);
         try {
-            await saveConfiguracoesGerais(formData);
+            const { updateConfiguracoesGeraisAction } = await import("@/app/actions/clients");
+            const res = await updateConfiguracoesGeraisAction(formData);
+            if (!res.success) throw new Error(res.error);
             alert("Configurações salvas com sucesso!");
         } catch (error: any) {
             alert("Erro ao salvar: " + error.message);
@@ -60,62 +67,34 @@ export function GeneralConfig() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <p className="text-sm text-gray-400">
-                        Os dados abaixo serão enviados automaticamente na raiz do payload (JSON) de todos os webhooks disparados pelo sistema.
+                        Os dados abaixo serão anexados automaticamente na raiz do payload de todos os webhooks disparados.
                     </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2 col-span-1 md:col-span-2">
                             <Label className="text-gray-300 font-medium">URL do Servidor (servidor_url)</Label>
-                            <Input
-                                name="servidor_url"
-                                value={formData.servidor_url}
-                                onChange={handleChange}
-                                placeholder="ex: https://meu-servidor.com/upload"
-                                className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500"
-                            />
+                            <Input name="servidor_url" value={formData.servidor_url} onChange={handleChange} placeholder="ex: https://meu-servidor.com/upload" className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500" />
                         </div>
-
                         <div className="space-y-2">
                             <Label className="text-gray-300 font-medium">Nome do Bucket (bucket_nome)</Label>
-                            <Input
-                                name="bucket_nome"
-                                value={formData.bucket_nome}
-                                onChange={handleChange}
-                                placeholder="ex: meus-assets"
-                                className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500"
-                            />
+                            <Input name="bucket_nome" value={formData.bucket_nome} onChange={handleChange} placeholder="ex: meus-assets" className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500" />
                         </div>
-
                         <div className="space-y-2">
                             <Label className="text-gray-300 font-medium">Nome da Pasta (pasta_nome)</Label>
-                            <Input
-                                name="pasta_nome"
-                                value={formData.pasta_nome}
-                                onChange={handleChange}
-                                placeholder="ex: uploads/2026"
-                                className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500"
-                            />
+                            <Input name="pasta_nome" value={formData.pasta_nome} onChange={handleChange} placeholder="ex: uploads/2026" className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500" />
                         </div>
-
-                        <div className="space-y-2 col-span-1 md:col-span-2">
-                            <Label className="text-gray-300 font-medium">Token de Autenticação (token)</Label>
-                            <Input
-                                name="token"
-                                type="text"
-                                value={formData.token}
-                                onChange={handleChange}
-                                placeholder="Token de segurança da API"
-                                className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500"
-                            />
+                        <div className="space-y-2 col-span-1">
+                            <Label className="text-gray-300 font-medium">Access Key ID</Label>
+                            <Input name="access_key_id" type="text" value={formData.access_key_id} onChange={handleChange} placeholder="Access Key ID" className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500" />
+                        </div>
+                        <div className="space-y-2 col-span-1">
+                            <Label className="text-gray-300 font-medium">Secret Access Key</Label>
+                            <Input name="secret_access_key" type="password" value={formData.secret_access_key} onChange={handleChange} placeholder="Secret Access Key" className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500" />
                         </div>
                     </div>
 
                     <div className="pt-6 border-t border-white/10 flex justify-end">
-                        <Button 
-                            onClick={handleSave} 
-                            disabled={isLoading}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white w-full md:w-auto font-bold"
-                        >
+                        <Button onClick={handleSave} disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-700 text-white w-full md:w-auto font-bold">
                             {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
                             Salvar Configurações
                         </Button>

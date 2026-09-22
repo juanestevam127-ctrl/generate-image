@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
                 servidor_url: configRows[0].servidor_url,
                 bucket_nome: configRows[0].bucket_nome,
                 pasta_nome: configRows[0].pasta_nome,
-                token_auth: configRows[0].token // Changed to token_auth to avoid colliding with client token
+                secret_access_key: configRows[0].secret_access_key,
+                access_key_id: configRows[0].access_key_id
             };
         }
 

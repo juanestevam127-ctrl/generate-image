@@ -302,3 +302,14 @@ export async function removeUserAction(email: string) {
     if (error) throw error;
     return { success: true };
 }
+
+export async function updateConfiguracoesGeraisAction(config: any) {
+    try {
+        const { error } = await supabase.from('configuracoes_gerais').update(config).eq('id', 1);
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error('Update config error:', error);
+        return { success: false, error: error.message };
+    }
+}
