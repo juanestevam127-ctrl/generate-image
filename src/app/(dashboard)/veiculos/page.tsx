@@ -378,7 +378,7 @@ export default function VeiculosPage() {
                                 onChange={(e) => setSelectedClientId(e.target.value)}
                             >
                                 <option value="">-- Escolha um cliente --</option>
-                                {availableClients.map((c) => (
+                                {availableClients.filter(c => c.clienteAtivo !== false).map((c) => (
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
                             </select>
