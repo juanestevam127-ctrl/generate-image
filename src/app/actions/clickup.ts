@@ -55,6 +55,8 @@ export async function createClickupTaskAction(params: {
     ano: string;
     precoFormatado: string; // Ex: R$99.990
     clienteClickupId: string;
+    observacoesGOS?: string;
+    contemVideo?: boolean;
 }) {
     try {
         // Formata o nome "VEICULO COR ANO"
@@ -67,28 +69,48 @@ export async function createClickupTaskAction(params: {
             precoNumerico = parseFloat(limpo) || 0;
         }
 
+        const formatoLabels = ["cd18d768-d9ae-4391-a517-d7635782cd43"]; // "Arte"
+        if (params.contemVideo) {
+            formatoLabels.push("979bfaf9-21e3-4e16-b539-573b82bd53be"); // "Video"
+        }
+
+        const custom_fields: any[] = [
+            {
+                // Preço
+                id: "bb59624a-e911-4831-94e5-f77b50ed8e19",
+                value: precoNumerico
+            },
+            {
+                // Formato
+                id: "d75481ec-10fc-46e3-8a69-4f632c88e749",
+                value: formatoLabels
+            },
+            {
+                // CLIENTE (Task Relationship)
+                id: "1bbe66ba-1e2a-4827-b1c2-75c5c615de51",
+                value: {
+                    add: [params.clienteClickupId]
+                }
+            },
+            {
+                // Postar no Story
+                id: "1d74654f-138f-4bbe-962c-29de9c795d58",
+                value: true
+            }
+        ];
+
+        if (params.observacoesGOS) {
+            custom_fields.push({
+                // Observações - GOS
+                id: "cf65e83a-e4b3-4ac7-ae3c-3e76ba56a34e",
+                value: params.observacoesGOS
+            });
+        }
+
         const body = {
             name: taskName,
             status: "FALTA ARTE | EDIÇÃO",
-            custom_fields: [
-                {
-                    // Preço
-                    id: "bb59624a-e911-4831-94e5-f77b50ed8e19",
-                    value: precoNumerico
-                },
-                {
-                    // Formato -> Arte (ID da label)
-                    id: "d75481ec-10fc-46e3-8a69-4f632c88e749",
-                    value: ["cd18d768-d9ae-4391-a517-d7635782cd43"]
-                },
-                {
-                    // CLIENTE (Task Relationship)
-                    id: "1bbe66ba-1e2a-4827-b1c2-75c5c615de51",
-                    value: {
-                        add: [params.clienteClickupId]
-                    }
-                }
-            ]
+            custom_fields
         };
 
         const res = await fetch(`https://api.clickup.com/api/v2/list/${GOS_LIST_ID}/task`, {

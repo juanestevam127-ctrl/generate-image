@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X, Loader2, Save, Car, LayoutList, Plus, Search, Filter } from "lucide-react";
+import { Upload, X, Loader2, Save, Car, LayoutList, Plus, Search, Filter, Trash2 } from "lucide-react";
 import { getPresignedUrlAction } from "@/app/actions/upload";
 import { getGosTasksAction, getClickupListStatusesAction, updateClickupTaskStatusAction } from "@/app/actions/clickup";
 
@@ -25,11 +25,18 @@ export default function VeiculosPage() {
     const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
 
     // Novo Veículo
+        type VehicleRowData = {
+        id: string;
+        textFields: Record<string, string>;
+        extraValor: string;
+        observacoesGOS: string;
+        contemVideo: boolean;
+        imageFiles: File[];
+    };
+
     const [selectedClientId, setSelectedClientId] = useState("");
     const [activeClient, setActiveClient] = useState<any>(null);
-    const [textFields, setTextFields] = useState<Record<string, string>>({});
-    const [extraValor, setExtraValor] = useState("");
-    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [vehicles, setVehicles] = useState<VehicleRowData[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -98,26 +105,48 @@ export default function VeiculosPage() {
         if (selectedClientId) {
             const client = clients.find(c => c.id === selectedClientId);
             setActiveClient(client);
-            setTextFields({});
-            setExtraValor("");
-            setImageFiles([]);
+            setVehicles([{
+                id: Math.random().toString(),
+                textFields: {},
+                extraValor: "",
+                observacoesGOS: "",
+                contemVideo: false,
+                imageFiles: []
+            }]);
         } else {
             setActiveClient(null);
         }
     }, [selectedClientId, clients]);
 
-    const handleTextChange = (id: string, value: string) => {
-        setTextFields(prev => ({ ...prev, [id]: value }));
+    const handleVehicleChange = (vId: string, field: string, value: any) => {
+        setVehicles(prev => prev.map(v => v.id === vId ? { ...v, [field]: value } : v));
     };
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setImageFiles(prev => [...prev, ...Array.from(e.target.files!)]);
-        }
+    const handleVehicleTextChange = (vId: string, colId: string, value: string) => {
+        setVehicles(prev => prev.map(v => v.id === vId ? { ...v, textFields: { ...v.textFields, [colId]: value } } : v));
     };
 
-    const removeImage = (index: number) => {
-        setImageFiles(prev => prev.filter((_, i) => i !== index));
+    const handleVehicleImageChange = (vId: string, files: File[]) => {
+        setVehicles(prev => prev.map(v => v.id === vId ? { ...v, imageFiles: [...v.imageFiles, ...files] } : v));
+    };
+
+    const removeVehicleImage = (vId: string, fileIdx: number) => {
+        setVehicles(prev => prev.map(v => v.id === vId ? { ...v, imageFiles: v.imageFiles.filter((_, i) => i !== fileIdx) } : v));
+    };
+
+    const addVehicleRow = () => {
+        setVehicles(prev => [...prev, {
+            id: Math.random().toString(),
+            textFields: {},
+            extraValor: "",
+            observacoesGOS: "",
+            contemVideo: false,
+            imageFiles: []
+        }]);
+    };
+
+    const removeVehicleRow = (vId: string) => {
+        setVehicles(prev => prev.filter(v => v.id !== vId));
     };
 
     const uploadFileToR2 = async (file: File): Promise<string> => {
@@ -135,52 +164,68 @@ export default function VeiculosPage() {
             alert("Cliente não possui integração com ClickUp configurada (Tarefa não vinculada).");
             return;
         }
+        if (vehicles.length === 0) return;
 
         setIsSaving(true);
         try {
-            const uploadedUrls = [];
-            for (const file of imageFiles) {
-                uploadedUrls.push(await uploadFileToR2(file));
+            const { createClickupTaskAction } = await import("@/app/actions/clickup");
+            const { supabase } = await import("@/lib/supabase");
+
+            for (const v of vehicles) {
+                const uploadedUrls = [];
+                for (const file of v.imageFiles) {
+                    uploadedUrls.push(await uploadFileToR2(file));
+                }
+
+                const dados: any = {};
+                activeClient.columns.forEach((col: any) => {
+                    if (col.type === "text" || col.type === "checkbox") {
+                        if (col.name.toLowerCase() !== "formato") {
+                            dados[col.name] = v.textFields[col.id] || "";
+                        }
+                    }
+                });
+
+                const getFieldVal = (d: any, keywords: string[]) => {
+                    let key = Object.keys(d).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
+                    if (key) return d[key];
+                    key = Object.keys(d).find(k => keywords.some(kw => new RegExp(`\\b${kw}\\b`, 'i').test(k)));
+                    return key ? d[key] : null;
+                };
+
+                const nome = getFieldVal(dados, ['nome', 'carro', 'titulo', 'modelo']) || Object.values(dados)[0] as string || "Veículo";
+                const cor = getFieldVal(dados, ['cor']) || "";
+                const ano = getFieldVal(dados, ['ano']) || "";
+                const preco = getFieldVal(dados, ['pre', 'valor']) || v.extraValor || "";
+
+                const clickupRes = await createClickupTaskAction({
+                    nomeVeiculo: nome, 
+                    cor, 
+                    ano, 
+                    precoFormatado: preco, 
+                    clienteClickupId: activeClient.clickupTarefaId,
+                    observacoesGOS: v.observacoesGOS,
+                    contemVideo: v.contemVideo
+                });
+
+                if (!clickupRes.success) throw new Error("Erro ClickUp: " + clickupRes.error);
+
+                const { error: sbError } = await supabase.from("VeiculoOperador").insert([{
+                    clienteId: activeClient.id, dados: dados, fotos: uploadedUrls, clickupTaskId: clickupRes.data?.taskId, importado: false
+                }]);
+
+                if (sbError) throw sbError;
             }
 
-            let nome = "", cor = "", ano = "", preco = "";
-            const dados: any = {};
-
-            activeClient.columns.forEach((col: any) => {
-                if (col.type === "text" || col.type === "checkbox") {
-                    dados[col.name] = textFields[col.id] || "";
-                }
-            });
-
-            const getFieldVal = (d: any, keywords: string[]) => {
-                let key = Object.keys(d).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
-                if (key) return d[key];
-                key = Object.keys(d).find(k => keywords.some(kw => new RegExp(`\\b${kw}\\b`, 'i').test(k)));
-                return key ? d[key] : null;
-            };
-
-            nome = getFieldVal(dados, ['nome', 'carro', 'titulo', 'modelo']) || Object.values(dados)[0] as string || "Veículo";
-            cor = getFieldVal(dados, ['cor']) || "";
-            ano = getFieldVal(dados, ['ano']) || "";
-            preco = getFieldVal(dados, ['pre', 'valor']) || extraValor || "";
-
-            const { createClickupTaskAction } = await import("@/app/actions/clickup");
-            const clickupRes = await createClickupTaskAction({
-                nomeVeiculo: nome, cor, ano, precoFormatado: preco, clienteClickupId: activeClient.clickupTarefaId
-            });
-
-            if (!clickupRes.success) throw new Error("Erro ClickUp: " + clickupRes.error);
-
-            const { supabase } = await import("@/lib/supabase");
-            const { error: sbError } = await supabase.from("VeiculoOperador").insert([{
-                clienteId: activeClient.id, dados: dados, fotos: uploadedUrls, clickupTaskId: clickupRes.data?.taskId, importado: false
+            alert("Veículo(s) adicionado(s) com sucesso!");
+            setVehicles([{
+                id: Math.random().toString(),
+                textFields: {},
+                extraValor: "",
+                observacoesGOS: "",
+                contemVideo: false,
+                imageFiles: []
             }]);
-
-            if (sbError) throw sbError;
-
-            alert("Veículo adicionado com sucesso!");
-            setTextFields({});
-            setImageFiles([]);
             setActiveTab("lista");
             loadGosData();
         } catch (e: any) {
@@ -345,110 +390,118 @@ export default function VeiculosPage() {
                             <CardHeader className="bg-black/20 border-b border-white/5">
                                 <CardTitle className="text-white">Preencha as Informações</CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6 space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {activeClient.columns.map((col: any) => {
-                                        if (col.type !== "text" && col.type !== "checkbox") return null;
-                                        return (
-                                            <div key={col.id} className="space-y-2">
-                                                <Label className="text-gray-300 font-medium">
-                                                    {col.name}
-                                                </Label>
-                                                {col.type === "checkbox" ? (
-                                                    <div className="flex items-center gap-6 pt-1">
-                                                        <label className="flex items-center gap-2 cursor-pointer">
-                                                            <input 
-                                                                type="checkbox" 
-                                                                className="w-5 h-5 rounded border-white/10 bg-black/50 text-indigo-600 focus:ring-indigo-500"
-                                                                checked={(textFields[col.id] || "").includes("Stories")}
-                                                                onChange={(e) => {
-                                                                    let current = textFields[col.id] ? textFields[col.id].split(', ') : [];
-                                                                    if (e.target.checked) {
-                                                                        if (!current.includes("Stories")) current.push("Stories");
-                                                                    } else {
-                                                                        current = current.filter((c: string) => c !== "Stories");
-                                                                    }
-                                                                    handleTextChange(col.id, current.join(', '));
-                                                                }}
-                                                            />
-                                                            <span className="text-gray-300">Stories</span>
-                                                        </label>
-                                                        <label className="flex items-center gap-2 cursor-pointer">
-                                                            <input 
-                                                                type="checkbox" 
-                                                                className="w-5 h-5 rounded border-white/10 bg-black/50 text-indigo-600 focus:ring-indigo-500"
-                                                                checked={(textFields[col.id] || "").includes("Feed")}
-                                                                onChange={(e) => {
-                                                                    let current = textFields[col.id] ? textFields[col.id].split(', ') : [];
-                                                                    if (e.target.checked) {
-                                                                        if (!current.includes("Feed")) current.push("Feed");
-                                                                    } else {
-                                                                        current = current.filter((c: string) => c !== "Feed");
-                                                                    }
-                                                                    handleTextChange(col.id, current.join(', '));
-                                                                }}
-                                                            />
-                                                            <span className="text-gray-300">Feed</span>
-                                                        </label>
-                                                    </div>
-                                                ) : (
-                                                    <Input
-                                                        type="text"
-                                                        value={textFields[col.id] || ""}
-                                                        onChange={(e) => handleTextChange(col.id, e.target.value)}
-                                                        className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500"
-                                                        placeholder={`Digite ${col.name.toLowerCase()}`}
-                                                    />
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                    {!activeClient.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
-                                        <div className="space-y-2">
-                                            <Label className="text-gray-300 font-medium">
-                                                Valor (Apenas p/ ClickUp)
-                                            </Label>
-                                            <Input
-                                                type="text"
-                                                value={extraValor}
-                                                onChange={(e) => setExtraValor(e.target.value)}
-                                                className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500"
-                                                placeholder="ex: R$ 50.000,00"
-                                            />
+                            <CardContent className="p-6">
+                                <div className="overflow-x-auto w-full pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                    <div className="min-w-max flex flex-col gap-3">
+                                        <div className="flex items-center gap-3 px-3 text-sm font-medium text-gray-400 border-b border-white/5 pb-2">
+                                            {activeClient.columns.map((c: any) => c.name.toLowerCase() !== 'formato' && (
+                                                <div key={c.id} className="w-44 shrink-0">{c.name}</div>
+                                            ))}
+                                            {!activeClient.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                                <div className="w-32 shrink-0">Valor (ClickUp)</div>
+                                            )}
+                                            <div className="w-56 shrink-0">Observações - GOS</div>
+                                            <div className="w-24 shrink-0">Contém Vídeo?</div>
+                                            <div className="w-52 shrink-0">Fotos</div>
+                                            <div className="w-10 shrink-0"></div>
                                         </div>
-                                    )}
-                                </div>
 
-                                <div className="space-y-4 pt-4 border-t border-white/10">
-                                    <Label className="text-gray-300 font-medium block">
-                                        Fotos do Veículo (Múltiplas Seleções)
-                                    </Label>
-                                    <div className="flex items-center justify-center w-full">
-                                        <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-40 border-2 border-indigo-500/30 border-dashed rounded-lg cursor-pointer bg-indigo-500/5 hover:bg-indigo-500/10 transition-colors">
-                                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                <Upload className="w-10 h-10 mb-3 text-indigo-400" />
-                                                <p className="mb-2 text-sm text-gray-300"><span className="font-semibold text-indigo-400">Clique para enviar</span> ou arraste as fotos</p>
-                                                <p className="text-xs text-gray-500">PNG, JPG (MAX. 800x400px)</p>
+                                        {vehicles.map((v, i) => (
+                                            <div key={v.id} className="flex items-start gap-3 bg-black/20 p-3 rounded-lg border border-white/5 relative group hover:bg-black/30 transition-colors">
+                                                {activeClient.columns.map((c: any) => {
+                                                    if (c.name.toLowerCase() === 'formato') return null;
+                                                    return (
+                                                        <div key={c.id} className="w-44 shrink-0">
+                                                            {c.type === "checkbox" ? (
+                                                                <div className="flex items-center gap-4 h-9">
+                                                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+                                                                        <input 
+                                                                            type="checkbox" 
+                                                                            className="w-4 h-4 rounded border-white/10 bg-black/50 text-indigo-600"
+                                                                            checked={(v.textFields[c.id] || "").includes("Stories")}
+                                                                            onChange={(e) => {
+                                                                                let current = v.textFields[c.id] ? v.textFields[c.id].split(', ') : [];
+                                                                                if (e.target.checked) { if (!current.includes("Stories")) current.push("Stories"); }
+                                                                                else { current = current.filter(x => x !== "Stories"); }
+                                                                                handleVehicleTextChange(v.id, c.id, current.join(', '));
+                                                                            }}
+                                                                        /> Stories
+                                                                    </label>
+                                                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+                                                                        <input 
+                                                                            type="checkbox" 
+                                                                            className="w-4 h-4 rounded border-white/10 bg-black/50 text-indigo-600"
+                                                                            checked={(v.textFields[c.id] || "").includes("Feed")}
+                                                                            onChange={(e) => {
+                                                                                let current = v.textFields[c.id] ? v.textFields[c.id].split(', ') : [];
+                                                                                if (e.target.checked) { if (!current.includes("Feed")) current.push("Feed"); }
+                                                                                else { current = current.filter(x => x !== "Feed"); }
+                                                                                handleVehicleTextChange(v.id, c.id, current.join(', '));
+                                                                            }}
+                                                                        /> Feed
+                                                                    </label>
+                                                                </div>
+                                                            ) : (
+                                                                <Input type="text" className="h-9 bg-black/50 text-xs border-white/10" value={v.textFields[c.id] || ''} onChange={(e) => handleVehicleTextChange(v.id, c.id, e.target.value)} placeholder={`${c.name}`} />
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                                
+                                                {!activeClient.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                                    <div className="w-32 shrink-0">
+                                                        <Input className="h-9 bg-black/50 text-xs border-white/10" value={v.extraValor} onChange={(e) => handleVehicleChange(v.id, 'extraValor', e.target.value)} placeholder="R$ 0,00" />
+                                                    </div>
+                                                )}
+
+                                                <div className="w-56 shrink-0">
+                                                    <Input className="h-9 bg-black/50 text-xs border-white/10" value={v.observacoesGOS} onChange={(e) => handleVehicleChange(v.id, 'observacoesGOS', e.target.value)} placeholder="Opcional..." />
+                                                </div>
+
+                                                <div className="w-24 shrink-0 flex items-center justify-center h-9 bg-black/30 border border-white/5 rounded">
+                                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-300 w-full h-full justify-center">
+                                                        <input type="checkbox" className="w-4 h-4 rounded border-white/10 bg-black/50 text-indigo-600 focus:ring-indigo-500" checked={v.contemVideo} onChange={(e) => handleVehicleChange(v.id, 'contemVideo', e.target.checked)} />
+                                                        Sim
+                                                    </label>
+                                                </div>
+
+                                                <div className="w-52 shrink-0 flex flex-col gap-2">
+                                                    <label className="h-9 w-full flex items-center justify-center bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded border border-indigo-500/20 cursor-pointer text-xs font-semibold transition-colors">
+                                                        <Upload className="w-3 h-3 mr-2" /> {v.imageFiles.length > 0 ? `${v.imageFiles.length} foto(s)` : 'Anexar Fotos'}
+                                                        <input type="file" multiple accept="image/*" className="hidden" onChange={(e) => {
+                                                            if (e.target.files) handleVehicleImageChange(v.id, Array.from(e.target.files));
+                                                        }} />
+                                                    </label>
+                                                    {v.imageFiles.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {v.imageFiles.map((file, idx) => (
+                                                                <div key={idx} className="relative w-8 h-8 group/img">
+                                                                    <img src={URL.createObjectURL(file)} className="w-full h-full object-cover rounded shadow-sm border border-white/10" />
+                                                                    <button onClick={() => removeVehicleImage(v.id, idx)} className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity z-10 shadow-lg">
+                                                                        <X className="w-2.5 h-2.5 text-white"/>
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="w-10 shrink-0 flex items-start justify-center pt-1">
+                                                    {vehicles.length > 1 && (
+                                                        <button onClick={() => removeVehicleRow(v.id)} className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-all" title="Remover linha">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <input id="dropzone-file" type="file" className="hidden" multiple accept="image/*" onChange={handleImageChange} />
-                                        </label>
+                                        ))}
                                     </div>
                                     
-                                    {imageFiles.length > 0 && (
-                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-4">
-                                            {imageFiles.map((file, idx) => (
-                                                <div key={idx} className="relative group rounded-lg overflow-hidden border border-white/10 bg-black aspect-square">
-                                                    <img src={URL.createObjectURL(file)} className="w-full h-full object-cover opacity-80" alt="Preview" />
-                                                    <button
-                                                        onClick={() => removeImage(idx)}
-                                                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-lg"
-                                                    >
-                                                        <X className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                    <div className="mt-4 border-t border-white/5 pt-4">
+                                        <Button variant="outline" onClick={addVehicleRow} className="bg-white/5 border-white/10 hover:bg-white/10 text-white text-xs h-9 px-4">
+                                            <Plus className="w-4 h-4 mr-2" /> Adicionar Mais Um Veículo
+                                        </Button>
+                                    </div>
                                 </div>
 
                                 <div className="pt-6 border-t border-white/10">
