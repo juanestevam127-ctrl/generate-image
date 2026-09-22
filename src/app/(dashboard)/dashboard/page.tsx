@@ -424,7 +424,7 @@ export default function DashboardPage() {
                                         >
                                             <option value="" disabled>-- Escolha uma empresa --</option>
                                             {[...clients]
-                                                .filter(c => c.clienteAtivo !== false)
+                                                .filter(c => viewMode === 'importacao' ? !!c.clickupTarefaId : c.clienteAtivo !== false)
                                                 .sort((a, b) => a.name.localeCompare(b.name))
                                                 .map(c => (
                                                     <option key={c.id} value={c.id}>{c.name}</option>
