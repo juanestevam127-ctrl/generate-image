@@ -396,6 +396,20 @@ export default function VeiculosPage() {
                                             </div>
                                         );
                                     })}
+                                    {!activeClient.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-300 font-medium">
+                                                Valor (Apenas p/ ClickUp)
+                                            </Label>
+                                            <Input
+                                                type="text"
+                                                value={extraValor}
+                                                onChange={(e) => setExtraValor(e.target.value)}
+                                                className="bg-black/50 border-white/10 text-white focus-visible:ring-indigo-500"
+                                                placeholder="ex: R$ 50.000,00"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-4 pt-4 border-t border-white/10">
