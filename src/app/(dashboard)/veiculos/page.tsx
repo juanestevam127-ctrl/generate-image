@@ -394,7 +394,7 @@ export default function VeiculosPage() {
                                 <div className="overflow-x-auto w-full pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                                     <div className="min-w-max flex flex-col gap-3">
                                         <div className="flex items-center gap-3 px-3 text-sm font-medium text-gray-400 border-b border-white/5 pb-2">
-                                            {activeClient.columns.map((c: any) => c.name.toLowerCase() !== 'formato' && (
+                                            {activeClient.columns.map((c: any) => c.name.toLowerCase() !== 'formato' && (c.type === 'text' || c.type === 'checkbox') && (
                                                 <div key={c.id} className="w-44 shrink-0">{c.name}</div>
                                             ))}
                                             {!activeClient.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
@@ -410,6 +410,7 @@ export default function VeiculosPage() {
                                             <div key={v.id} className="flex items-start gap-3 bg-black/20 p-3 rounded-lg border border-white/5 relative group hover:bg-black/30 transition-colors">
                                                 {activeClient.columns.map((c: any) => {
                                                     if (c.name.toLowerCase() === 'formato') return null;
+                                                    if (c.type !== 'text' && c.type !== 'checkbox') return null;
                                                     return (
                                                         <div key={c.id} className="w-44 shrink-0">
                                                             {c.type === "checkbox" ? (
