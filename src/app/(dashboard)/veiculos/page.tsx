@@ -20,9 +20,9 @@ export default function VeiculosPage() {
     const [isLoadingTasks, setIsLoadingTasks] = useState(false);
     
     // Filters
-    const [filterClient, setFilterClient] = useState("all");
-    const [filterStatus, setFilterStatus] = useState("all");
-    const [filterAssignee, setFilterAssignee] = useState("all");
+    const [filterClients, setFilterClients] = useState<string[]>([]);
+    const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+    const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
 
     // Novo Veículo
     const [selectedClientId, setSelectedClientId] = useState("");
@@ -66,12 +66,15 @@ export default function VeiculosPage() {
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(t => {
-            if (filterClient !== "all" && t.clientId !== filterClient) return false;
-            if (filterStatus !== "all" && t.status !== filterStatus) return false;
-            if (filterAssignee !== "all" && !t.assignees?.find((a:any) => a.id.toString() === filterAssignee)) return false;
+            if (filterClients.length > 0 && !filterClients.includes(t.clientId)) return false;
+            if (filterStatuses.length > 0 && !filterStatuses.includes(t.status)) return false;
+            if (filterAssignees.length > 0) {
+                const taskAssigneeIds = t.assignees?.map((a:any) => a.id.toString()) || [];
+                if (!filterAssignees.some(id => taskAssigneeIds.includes(id))) return false;
+            }
             return true;
         });
-    }, [tasks, filterClient, filterStatus, filterAssignee]);
+    }, [tasks, filterClients, filterStatuses, filterAssignees]);
 
     const handleStatusChange = async (taskId: string, newStatus: string) => {
         // Optimistic update
@@ -221,42 +224,36 @@ export default function VeiculosPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
                                     <Label className="text-gray-400">Cliente</Label>
-                                    <select 
-                                        value={filterClient} 
-                                        onChange={(e) => setFilterClient(e.target.value)}
-                                        className="w-full bg-black/50 border border-white/10 rounded-md p-2 text-white outline-none focus:border-indigo-500"
-                                    >
-                                        <option value="all">Todos os Clientes</option>
-                                        {availableClients.map(c => (
-                                            <option key={c.id} value={c.clickupTarefaId}>{c.name}</option>
-                                        ))}
-                                    </select>
+                                    <MultiSelectDropdown 
+                                        options={availableClients}
+                                        selected={filterClients}
+                                        onChange={setFilterClients}
+                                        placeholder="Todos os Clientes"
+                                        renderLabel={(c: any) => c.name}
+                                        valueKey="clickupTarefaId"
+                                    />
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-gray-400">Responsável</Label>
-                                    <select 
-                                        value={filterAssignee} 
-                                        onChange={(e) => setFilterAssignee(e.target.value)}
-                                        className="w-full bg-black/50 border border-white/10 rounded-md p-2 text-white outline-none focus:border-indigo-500"
-                                    >
-                                        <option value="all">Todos os Responsáveis</option>
-                                        {assignees.map((a: any) => (
-                                            <option key={a.id} value={a.id}>{a.username}</option>
-                                        ))}
-                                    </select>
+                                    <MultiSelectDropdown 
+                                        options={assignees}
+                                        selected={filterAssignees}
+                                        onChange={setFilterAssignees}
+                                        placeholder="Todos os Responsáveis"
+                                        renderLabel={(a: any) => a.username}
+                                        valueKey="id"
+                                    />
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-gray-400">Status</Label>
-                                    <select 
-                                        value={filterStatus} 
-                                        onChange={(e) => setFilterStatus(e.target.value)}
-                                        className="w-full bg-black/50 border border-white/10 rounded-md p-2 text-white outline-none focus:border-indigo-500"
-                                    >
-                                        <option value="all">Todos os Status</option>
-                                        {statuses.map(s => (
-                                            <option key={s.id} value={s.status}>{s.status.toUpperCase()}</option>
-                                        ))}
-                                    </select>
+                                    <MultiSelectDropdown 
+                                        options={statuses}
+                                        selected={filterStatuses}
+                                        onChange={setFilterStatuses}
+                                        placeholder="Todos os Status"
+                                        renderLabel={(s: any) => s.status.toUpperCase()}
+                                        valueKey="status"
+                                    />
                                 </div>
                             </div>
                         </CardContent>
@@ -453,6 +450,48 @@ export default function VeiculosPage() {
                     )}
                 </div>
 
+            )}
+        </div>
+    );
+}
+
+function MultiSelectDropdown({ options, selected, onChange, placeholder, renderLabel, valueKey }: any) {
+    const [open, setOpen] = useState(false);
+    const toggleOpt = (val: string) => {
+        if (selected.includes(val)) {
+            onChange(selected.filter((v: string) => v !== val));
+        } else {
+            onChange([...selected, val]);
+        }
+    };
+    return (
+        <div className="relative">
+            <div className="w-full bg-black/50 border border-white/10 rounded-md p-2 text-white flex justify-between items-center cursor-pointer select-none min-h-[42px]" onClick={() => setOpen(!open)}>
+                <span className="truncate text-sm">
+                    {selected.length === 0 ? placeholder : `${selected.length} selecionado(s)`}
+                </span>
+                <span className="text-xs text-gray-400">▼</span>
+            </div>
+            {open && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+                    <div className="absolute top-full left-0 w-full mt-1 bg-zinc-800 border border-white/10 rounded-md shadow-2xl z-50 max-h-60 overflow-y-auto p-1 space-y-1">
+                        <div className="flex items-center gap-2 p-2 hover:bg-white/5 rounded cursor-pointer transition-colors" onClick={() => { onChange([]); setOpen(false); }}>
+                            <input type="checkbox" checked={selected.length === 0} readOnly className="pointer-events-none w-4 h-4 rounded border-white/20 bg-black/50 text-indigo-500 focus:ring-indigo-500" />
+                            <span className="text-sm text-gray-200">Todos</span>
+                        </div>
+                        {options.map((opt: any, i: number) => {
+                            const val = typeof valueKey === 'function' ? valueKey(opt) : opt[valueKey];
+                            const label = renderLabel(opt);
+                            return (
+                                <div key={i} className="flex items-center gap-2 p-2 hover:bg-white/5 rounded cursor-pointer transition-colors" onClick={() => toggleOpt(val)}>
+                                    <input type="checkbox" checked={selected.includes(val)} readOnly className="pointer-events-none w-4 h-4 rounded border-white/20 bg-black/50 text-indigo-500 focus:ring-indigo-500" />
+                                    <span className="text-sm text-gray-200 truncate">{label}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </>
             )}
         </div>
     );
