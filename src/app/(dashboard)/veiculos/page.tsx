@@ -28,6 +28,7 @@ export default function VeiculosPage() {
     const [selectedClientId, setSelectedClientId] = useState("");
     const [activeClient, setActiveClient] = useState<any>(null);
     const [textFields, setTextFields] = useState<Record<string, string>>({});
+    const [extraValor, setExtraValor] = useState("");
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -93,6 +94,7 @@ export default function VeiculosPage() {
             const client = clients.find(c => c.id === selectedClientId);
             setActiveClient(client);
             setTextFields({});
+            setExtraValor("");
             setImageFiles([]);
         } else {
             setActiveClient(null);
@@ -155,7 +157,7 @@ export default function VeiculosPage() {
             nome = getFieldVal(dados, ['nome', 'carro', 'titulo', 'modelo']) || Object.values(dados)[0] as string || "Veículo";
             cor = getFieldVal(dados, ['cor']) || "";
             ano = getFieldVal(dados, ['ano']) || "";
-            preco = getFieldVal(dados, ['pre', 'valor']) || "";
+            preco = getFieldVal(dados, ['pre', 'valor']) || extraValor || "";
 
             const { createClickupTaskAction } = await import("@/app/actions/clickup");
             const clickupRes = await createClickupTaskAction({
