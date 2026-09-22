@@ -67,11 +67,16 @@ export default function VeiculosPage() {
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(t => {
-            if (filterClients.length > 0 && !filterClients.includes(t.clientId)) return false;
-            if (filterStatuses.length > 0 && !filterStatuses.includes(t.status)) return false;
+            if (filterClients.length > 0) {
+                const cId = t.clientId ? t.clientId.toString() : "";
+                if (!filterClients.includes(cId)) return false;
+            }
+            if (filterStatuses.length > 0) {
+                if (!filterStatuses.includes(t.status)) return false;
+            }
             if (filterAssignees.length > 0) {
                 const taskAssigneeIds = t.assignees?.map((a:any) => a.id.toString()) || [];
-                if (!filterAssignees.some(id => taskAssigneeIds.includes(id))) return false;
+                if (!filterAssignees.some(id => taskAssigneeIds.includes(id.toString()))) return false;
             }
             return true;
         });
@@ -243,7 +248,7 @@ export default function VeiculosPage() {
                                         onChange={setFilterAssignees}
                                         placeholder="Todos os Responsáveis"
                                         renderLabel={(a: any) => a.username}
-                                        valueKey="id"
+                                        valueKey={(a: any) => a.id.toString()}
                                     />
                                 </div>
                                 <div className="space-y-1">
