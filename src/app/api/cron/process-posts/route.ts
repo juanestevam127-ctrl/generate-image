@@ -185,6 +185,64 @@ export async function GET(request: Request) {
             }
         }
 
+        // ------------------------------------------------------------------
+        // UPDATE CLICKUP STATUS FOR COMPLETED POSTS
+        // ------------------------------------------------------------------
+        try {
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            const { data: completedPosts } = await supabase
+                .from('publicacoes_design_online')
+                .select('nome_empresa, veiculo_gerado')
+                .eq('publicado', true)
+                .eq('publicado_instagram', true)
+                .gte('data_agendamento', sevenDaysAgo);
+
+            if (completedPosts && completedPosts.length > 0) {
+                const uniqueCompleted = completedPosts.filter((v, i, a) => a.findIndex(t => (t.veiculo_gerado === v.veiculo_gerado && t.nome_empresa === v.nome_empresa)) === i);
+                const { updateClickupTaskStatusAction } = await import("@/app/actions/clickup");
+
+                for (const post of uniqueCompleted) {
+                    if (!post.veiculo_gerado) continue;
+                    
+                    const { data: clienteData } = await supabase.from('clientes').select('id').eq('name', post.nome_empresa).single();
+                    let clienteId = clienteData?.id;
+                    if (!clienteId) {
+                        const { data: clienteVend } = await supabase.from('clientes_vendidos').select('id').eq('name', post.nome_empresa).single();
+                        clienteId = clienteVend?.id;
+                    }
+
+                    if (clienteId) {
+                        const { data: veiculoOperador } = await supabase
+                            .from('VeiculoOperador')
+                            .select('id, clickupTaskId, dados')
+                            .eq('clienteId', clienteId)
+                            .not('clickupTaskId', 'is', null)
+                            .order('created_at', { ascending: false });
+
+                        if (veiculoOperador && veiculoOperador.length > 0) {
+                            const matchingVehicle = veiculoOperador.find(v => {
+                                const nome = v.dados['Nome do Veiculo'] || v.dados['Nome do Veículo'] || v.dados['Carro'] || v.dados['Titulo'] || v.dados['Modelo'] || Object.values(v.dados)[0];
+                                return nome === post.veiculo_gerado && v.dados.clickup_status_updated !== true;
+                            });
+
+                            if (matchingVehicle && matchingVehicle.clickupTaskId) {
+                                const res = await updateClickupTaskStatusAction(matchingVehicle.clickupTaskId, "falta anúncio");
+                                
+                                if (res.success) {
+                                    const novosDados = { ...matchingVehicle.dados, clickup_status_updated: true };
+                                    await supabase.from('VeiculoOperador').update({ dados: novosDados }).eq('id', matchingVehicle.id);
+                                    results.push({ action: 'clickup_updated', vehicle: post.veiculo_gerado });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: any) {
+            console.error("Erro ao atualizar ClickUp:", e);
+            results.push({ action: 'clickup_updated_error', error: e.message });
+        }
+
         return NextResponse.json({ processed: results.length, details: results });
     } catch (error) {
         console.error('Error in cron job:', error);
