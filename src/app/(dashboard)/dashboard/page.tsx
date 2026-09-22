@@ -194,6 +194,22 @@ export default function DashboardPage() {
         setSubmitStatus("idle");
 
         try {
+            const { supabase } = await import("@/lib/supabase");
+            for (const row of tableData) {
+                if (row._vehicleId) {
+                    const { data: existing } = await supabase.from('VeiculoOperador').select('dados').eq('id', row._vehicleId).single();
+                    if (existing) {
+                        const updatedDados = { ...existing.dados };
+                        activeClient.columns.forEach((c: any) => {
+                            if (row[c.id] !== undefined) {
+                                updatedDados[c.name] = row[c.id];
+                            }
+                        });
+                        await supabase.from('VeiculoOperador').update({ dados: updatedDados }).eq('id', row._vehicleId);
+                    }
+                }
+            }
+
             const payload = {
                 client: activeClient.name,
                 data: tableData,

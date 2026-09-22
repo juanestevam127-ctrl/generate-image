@@ -221,8 +221,9 @@ export async function GET(request: Request) {
 
                         if (veiculoOperador && veiculoOperador.length > 0) {
                             const matchingVehicle = veiculoOperador.find(v => {
-                                const nome = v.dados['Nome do Veiculo'] || v.dados['Nome do Veículo'] || v.dados['Carro'] || v.dados['Titulo'] || v.dados['Modelo'] || Object.values(v.dados)[0];
-                                return nome === post.veiculo_gerado && v.dados.clickup_status_updated !== true;
+                                const values = Object.values(v.dados).map(val => String(val).trim());
+                                const nomeEncontrado = values.some(val => val === post.veiculo_gerado.trim());
+                                return nomeEncontrado && v.dados.clickup_status_updated !== true;
                             });
 
                             if (matchingVehicle && matchingVehicle.clickupTaskId) {
