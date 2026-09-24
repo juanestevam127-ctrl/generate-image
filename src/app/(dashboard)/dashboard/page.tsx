@@ -17,6 +17,7 @@ import { Modal } from "@/components/ui/modal";
 import { ScheduledPanel } from "@/components/features/ScheduledPanel";
 import GlobalScheduleWidget from '@/components/dashboard/GlobalScheduleWidget';
 import { fetchImportacaoVeiculosAction } from "@/app/actions/importacao";
+import { TaskQueueUI } from "@/components/features/TaskQueueUI";
 
 export default function DashboardPage() {
     const { user, clients } = useStore();
@@ -426,7 +427,31 @@ export default function DashboardPage() {
                 ) : (
                     <div className="space-y-6 animate-in fade-in duration-500">
                         <Card className="p-6 bg-gradient-to-r from-indigo-900/20 to-blue-900/20 border-indigo-500/20">
-                            <div className="flex flex-col md:flex-row gap-4 items-end">
+                            
+                            {/* IMPORT TASK QUEUE */}
+                            {viewMode === "importacao" && (
+                                <div className="w-full mb-6">
+                                    <TaskQueueUI 
+                                        onImportTask={(task, clientId) => {
+                                            setSelectedClientId(clientId);
+                                            if (task.veiculoDb) {
+                                                addVehicleToTable(task.veiculoDb);
+                                            } else {
+                                                // Adiciona linha preenchida com dados basicos
+                                                setTableData(prev => [...prev, {
+                                                    _id: crypto.randomUUID(),
+                                                    _clickupTaskId: task.clickupTaskId,
+                                                    "Valor": task.preco || "",
+                                                    "Nome do Veiculo": task.taskName
+                                                }]);
+                                            }
+                                        }} 
+                                        lockedClientId={tableData.length > 0 ? selectedClientId : null} 
+                                    />
+                                </div>
+                            )}
+
+                            <div className={`flex flex-col md:flex-row gap-4 items-end ${viewMode === "importacao" ? "hidden" : ""}`}>
                                 <div className="w-full md:w-1/3">
                                     <label className="text-sm font-medium text-gray-300 mb-2 block">Selecione o Cliente</label>
                                     <div className="relative">
