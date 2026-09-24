@@ -261,7 +261,7 @@ export async function findClickupTaskForVehicleAction(clienteId: string, veiculo
             .select('id, clickupTaskId, dados')
             .eq('clienteId', clienteId)
             .not('clickupTaskId', 'is', null)
-            .order('created_at', { ascending: false });
+            .order('createdAt', { ascending: false });
 
         if (!veiculos || veiculos.length === 0) return { success: false, error: 'No tasks found' };
 
