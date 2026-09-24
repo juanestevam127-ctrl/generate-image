@@ -1,5 +1,5 @@
-import { supabase } from "@/lib/supabase";
 "use server";
+import { supabase } from "@/lib/supabase";
 
 const CLICKUP_TOKEN = process.env.CLICKUP_TOKEN || "pk_112068213_H24CB6Q9OBLJMNEMECLOHXNS7Z27HLJ6";
 const CLIENTES_LIST_ID = "900101297340";
