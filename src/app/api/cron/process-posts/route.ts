@@ -222,7 +222,7 @@ export async function GET(request: Request) {
                         if (veiculoOperador && veiculoOperador.length > 0) {
                             const matchingVehicle = veiculoOperador.find(v => {
                                 const values = Object.values(v.dados).map(val => String(val).trim());
-                                const nomeEncontrado = values.some(val => val === post.veiculo_gerado.trim());
+                                const formatado = post.veiculo_gerado.trim().toUpperCase(); const nomeEncontrado = values.some(val => { const v = val.toUpperCase(); return v.length > 3 && (formatado.includes(v) || v.includes(formatado)); });
                                 return nomeEncontrado && v.dados.clickup_status_updated !== true;
                             });
 

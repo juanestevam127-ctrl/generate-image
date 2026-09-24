@@ -208,6 +208,21 @@ export default function DashboardPage() {
                         });
                         await supabase.from('VeiculoOperador').update({ dados: updatedDados }).eq('id', row._vehicleId);
                     }
+                } else if (row._clickupTaskId) {
+                    // Create new record for imported task so we can track it later
+                    const newDados: any = {};
+                    activeClient.columns.forEach((c: any) => {
+                        if (row[c.id] !== undefined) {
+                            newDados[c.name] = row[c.id];
+                        }
+                    });
+                    
+                    await supabase.from('VeiculoOperador').insert({
+                        clienteId: activeClient.id,
+                        clickupTaskId: row._clickupTaskId,
+                        dados: newDados,
+                        importado: false
+                    });
                 }
             }
 

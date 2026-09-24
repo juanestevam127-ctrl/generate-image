@@ -269,7 +269,7 @@ export async function findClickupTaskForVehicleAction(clienteId: string, veiculo
 
         const match = veiculos.find(v => {
             const values = Object.values(v.dados).map(val => String(val).trim().toUpperCase());
-            return values.some(val => val === veiculoFormatado);
+            return values.some(val => val.length > 3 && (veiculoFormatado.includes(val) || val.includes(veiculoFormatado)));
         });
 
         if (match) return { success: true, clickupTaskId: match.clickupTaskId };
