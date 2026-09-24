@@ -199,7 +199,7 @@ export async function GET(request: Request) {
 
             if (completedPosts && completedPosts.length > 0) {
                 const uniqueCompleted = completedPosts.filter((v, i, a) => a.findIndex(t => (t.veiculo_gerado === v.veiculo_gerado && t.nome_empresa === v.nome_empresa)) === i);
-                const { updateClickupTaskStatusAction } = await import("@/app/actions/clickup");
+                const { updateClickupTaskStatusAction, getClickupTaskAction } = await import("@/app/actions/clickup");
 
                 for (const post of uniqueCompleted) {
                     if (!post.veiculo_gerado) continue;

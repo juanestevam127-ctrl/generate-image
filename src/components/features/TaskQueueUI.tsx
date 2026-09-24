@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchImportQueueAction } from "@/app/actions/importQueue";
-import { Loader2, RefreshCw, PlusCircle, AlertCircle } from "lucide-react";
+import { Loader2, RefreshCw, PlusCircle, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function TaskQueueUI({ 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { uploadStoryToClickupAction, findClickupTaskForVehicleAction } from "@/app/actions/clickup";
 import { MoveUp, MoveDown, Trash2, Plus, Calendar as CalendarIcon, Clock, Send, ChevronLeft, ChevronRight, Loader2, Info, LayoutTemplate, Type, History, Filter, Search, MoreVertical, Edit2 } from "lucide-react";
 import { getProxiedUrl } from "@/lib/imageProxy";
 
@@ -99,6 +100,7 @@ export function PostScheduler({ client }: { client: Client }) {
 
     // Caption Saving State
     const [savingCaptions, setSavingCaptions] = useState<Record<string, boolean>>({});
+    const [isUploadingStory, setIsUploadingStory] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         fetchImages();
@@ -603,6 +605,37 @@ export function PostScheduler({ client }: { client: Client }) {
         setViewFilter(newPostFormat);
         setIsCreateModalOpen(false);
         setNewPostVehicle("");
+    };
+
+    
+    const handleUploadStory = async (post: any) => {
+        if (post.images.length > 1) {
+            alert("Exclua as artes extras deste veículo. O campo Stories no ClickUp aceita apenas 1 imagem (Arte Principal).");
+            return;
+        }
+        
+        setIsUploadingStory(prev => ({ ...prev, [post.id]: true }));
+        try {
+            // 1. Find Task ID
+            const findRes = await findClickupTaskForVehicleAction(client.id, post.veiculo_gerado);
+            if (!findRes.success || !findRes.clickupTaskId) {
+                alert("Não foi possível encontrar a tarefa deste veículo no ClickUp. Certifique-se de que ele foi importado do ClickUp.");
+                setIsUploadingStory(prev => ({ ...prev, [post.id]: false }));
+                return;
+            }
+
+            // 2. Upload
+            const uploadRes = await uploadStoryToClickupAction(findRes.clickupTaskId, post.images[0].imagem);
+            if (uploadRes.success) {
+                alert("Story anexado com sucesso no ClickUp!");
+            } else {
+                alert("Erro ao subir Story: " + uploadRes.error);
+            }
+        } catch (e: any) {
+            alert("Erro: " + e.message);
+        } finally {
+            setIsUploadingStory(prev => ({ ...prev, [post.id]: false }));
+        }
     };
 
     const handleSchedule = async (isInstant: boolean = false) => {
