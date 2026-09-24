@@ -39,10 +39,10 @@ export async function loadInitialDataAction() {
 
         // Run fetches in parallel on the server
         const [clientsRes, usersRes, layoutsRes, soldRes, configRes] = await Promise.all([
-            supabase.from("clientes").select("*").order("name", { ascending: true }),
-            supabase.from("usuarios").select("*").order("email", { ascending: true }),
-            supabase.from("design_online_layouts_clientes").select("*").order("nome_cliente", { ascending: true }),
-            supabase.from("clientes_vendidos").select("*").order("name", { ascending: true }),
+            supabase.from("clientes").select("id, name, webhook_url, webhook_postagens, columns, prompt, caption_template, id_facebook, id_instagram, token, divisao_developrs, horario_developers, guide_stories, guide_feed, cliente_ativo, id_clickup, clickup_tarefa_id, webhook_stories_seg_quar_sex"),
+            supabase.from("usuarios").select("id, email, password, role, name"),
+            supabase.from("design_online_layouts_clientes").select("*"),
+            supabase.from("clientes_vendidos").select("id, name, webhook_url, webhook_postagens, prompt, columns, caption_template, id_facebook, id_instagram, token, json_feed, json_stories, guide_stories, guide_feed, cliente_ativo"),
             supabase.from("configuracoes_gerais").select("*").limit(1)
         ]);
 

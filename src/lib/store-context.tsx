@@ -213,8 +213,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 }));
                 setSoldClients(formattedSold);
 
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error loading data via Server Action:", error);
+                if (typeof window !== 'undefined') alert("Falha na conexão com o banco de dados. Recarregue a página. Erro: " + error.message);
             } finally {
                 setIsLoaded(true);
             }
