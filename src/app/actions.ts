@@ -34,6 +34,9 @@ export async function verifyLoginAction(email: string, pass: string) {
 
 export async function loadInitialDataAction() {
     try {
+        const { unstable_noStore: noStore } = await import("next/cache");
+        noStore(); // Bypass aggressive Next.js caching
+
         // Run fetches in parallel on the server
         const [clientsRes, usersRes, layoutsRes, soldRes, configRes] = await Promise.all([
             supabase.from("clientes").select("*").order("name", { ascending: true }),
