@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { uploadStoryToClickupAction, findClickupTaskForVehicleAction } from "@/app/actions/clickup";
-import { MoveUp, MoveDown, Trash2, Plus, Calendar as CalendarIcon, Clock, Send, ChevronLeft, ChevronRight, Loader2, Info, LayoutTemplate, Type, History, Filter, Search, MoreVertical, Edit2 } from "lucide-react";
+import { Upload, MoveUp, MoveDown, Trash2, Plus, Calendar as CalendarIcon, Clock, Send, ChevronLeft, ChevronRight, Loader2, Info, LayoutTemplate, Type, History, Filter, Search, MoreVertical, Edit2 } from "lucide-react";
 import { getProxiedUrl } from "@/lib/imageProxy";
 
 import { useStore, Client } from "@/lib/store-context";
@@ -850,6 +850,17 @@ export function PostScheduler({ client }: { client: Client }) {
                                             <p className="text-[10px] text-gray-400 mt-1">{post.veiculo_gerado}</p>
                                         </div>
                                     </div>
+                                    <Button
+                                        onClick={() => handleUploadStory(post)}
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isUploadingStory[post.id]}
+                                        className="h-8 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 px-3 flex gap-2 items-center"
+                                        title="Subir imagem para o campo Stories no ClickUp"
+                                    >
+                                        {isUploadingStory[post.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                                        <span className="hidden sm:inline">Story</span>
+                                    </Button>
                                     <Button
                                         onClick={() => handleOpenModal(post)}
                                         size="sm"
