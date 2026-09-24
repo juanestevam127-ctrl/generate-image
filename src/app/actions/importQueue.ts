@@ -12,7 +12,7 @@ export async function fetchImportQueueAction() {
         // 1. Fetch pending VeiculoOperador
         const { data: veiculos, error: vError } = await supabase
             .from("VeiculoOperador")
-            .select("*, clientes(id, name)")
+            .select("*")
             .eq("importado", false);
 
         if (vError) throw vError;
@@ -86,7 +86,7 @@ export async function fetchImportQueueAction() {
             const veiculoDb = veiculos?.find(v => v.clickupTaskId === t.id);
             
             // Normalize client name for grouping
-            const clientName = veiculoDb?.clientes?.name || clickupClientName;
+            const clientName = clickupClientName;
 
             if (!grouped[clientName]) {
                 grouped[clientName] = [];
