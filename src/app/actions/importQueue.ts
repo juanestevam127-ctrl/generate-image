@@ -65,7 +65,7 @@ export async function fetchImportQueueAction() {
             
             const hasArte = selectedIds.some((id: string) => {
                 const opt = options.find((o: any) => o.id === id);
-                return opt && opt.name && opt.name.toUpperCase().includes("ARTE");
+                return opt && (opt.name || opt.label) && (opt.name || opt.label).toUpperCase().includes("ARTE");
             });
 
             return hasArte;
