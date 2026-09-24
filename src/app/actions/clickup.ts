@@ -255,6 +255,7 @@ export async function uploadStoryToClickupAction(taskId: string, imageUrl: strin
 }
 
 export async function findClickupTaskForVehicleAction(clienteId: string, veiculoGerado: string) {
+    noStore();
     try {
         const { data: veiculos } = await supabase
             .from('VeiculoOperador')

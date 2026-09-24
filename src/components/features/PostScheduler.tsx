@@ -617,9 +617,9 @@ export function PostScheduler({ client }: { client: Client }) {
         setIsUploadingStory(prev => ({ ...prev, [post.id]: true }));
         try {
             // 1. Find Task ID
-            const findRes = await findClickupTaskForVehicleAction(client.id, post.veiculo_gerado);
+                        const findRes = await findClickupTaskForVehicleAction(client.id, post.veiculo_gerado);
             if (!findRes.success || !findRes.clickupTaskId) {
-                alert("Não foi possível encontrar a tarefa deste veículo no ClickUp. Certifique-se de que ele foi importado do ClickUp.");
+                alert("Erro ao buscar tarefa: " + (findRes.error || "Veículo não encontrado"));
                 setIsUploadingStory(prev => ({ ...prev, [post.id]: false }));
                 return;
             }
