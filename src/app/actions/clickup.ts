@@ -239,14 +239,17 @@ export async function uploadStoryToClickupAction(taskId: string, imageUrl: strin
         const blob = new Blob([buffer], { type: contentType });
         fd.append('attachment', blob, `story.${ext}`);
 
-        // Use the task attachment endpoint (not custom field endpoint)
-        const res = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/attachment`, {
-            method: 'POST',
-            headers: {
-                'Authorization': CLICKUP_TOKEN
-            },
-            body: fd as any
-        });
+        const STORIES_FIELD_ID = 'c3825f6c-e9d3-428f-a424-758fa44110ff';
+
+        // Upload directly to the Stories custom attachment field
+        const res = await fetch(
+            `https://api.clickup.com/api/v2/task/${taskId}/attachment?custom_field_id=${STORIES_FIELD_ID}`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': CLICKUP_TOKEN },
+                body: fd as any
+            }
+        );
 
         if (!res.ok) throw new Error('Failed to upload to ClickUp: ' + await res.text());
 
