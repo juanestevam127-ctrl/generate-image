@@ -31,7 +31,7 @@ export async function GET(request: Request) {
         // 2. Group by veiculo_gerado and nome_empresa
         const groups: Record<string, any[]> = {};
         pendingPosts.forEach(post => {
-            const key = `${post.nome_empresa}-${post.veiculo_gerado}-${post.formato}`;
+            const key = post.identificador_veiculo ? post.identificador_veiculo : `${post.nome_empresa}-${post.veiculo_gerado}-${post.formato}`;
             if (!groups[key]) groups[key] = [];
             groups[key].push(post);
         });
@@ -137,6 +137,7 @@ export async function GET(request: Request) {
                 timezone_offset: -180, // Approximate for BRT
                 is_carousel: !isReels && posts.length > 1,
                 veiculo_gerado: firstPost.veiculo_gerado,
+                identificador_veiculo: firstPost.identificador_veiculo || null,
                 ...configData
             };
 
