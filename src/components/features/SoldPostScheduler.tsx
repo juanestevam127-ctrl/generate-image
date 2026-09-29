@@ -758,7 +758,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 sortedImagesList.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
             }
 
-            const identificadorVeiculo = Math.random().toString(36).substring(2, 10).toUpperCase();
+            const existingIdentificador = sortedImagesList.find(img => (img as any).identificador_veiculo)?.identificador_veiculo;
+            const identificadorVeiculo = existingIdentificador || Math.random().toString(36).substring(2, 10).toUpperCase();
 
             if (isInstant) {
                 const payload = {
