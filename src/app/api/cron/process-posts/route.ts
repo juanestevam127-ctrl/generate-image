@@ -18,7 +18,7 @@ export async function GET(request: Request) {
             .from('publicacoes_design_online')
             .select('*')
             .eq('publicado', false)
-            .or('enviado_webhook.is.null,enviado_webhook.eq.false')
+            .or('webhook_disparado.is.null,webhook_disparado.eq.false')
             .lte('data_agendamento', now)
             .not('data_agendamento', 'is', null);
 
@@ -157,9 +157,9 @@ export async function GET(request: Request) {
             const ids = posts.map(p => p.id);
             const { error: lockError } = await supabase
                 .from('publicacoes_design_online')
-                .update({ enviado_webhook: true })
+                .update({ webhook_disparado: true })
                 .in('id', ids)
-                .eq('enviado_webhook', false); // só atualiza se ainda for false (lock otimista)
+                .eq('webhook_disparado', false); // só atualiza se ainda for false (lock otimista)
 
             if (lockError) {
                 console.error(`Failed to lock posts for group ${key}:`, lockError);
@@ -181,7 +181,7 @@ export async function GET(request: Request) {
                     // Webhook falhou: revertemos o lock para tentar novamente no próximo ciclo
                     await supabase
                         .from('publicacoes_design_online')
-                        .update({ enviado_webhook: false })
+                        .update({ webhook_disparado: false })
                         .in('id', ids);
 
                     results.push({ key, status: 'failed', error: await res.text() });
@@ -190,7 +190,7 @@ export async function GET(request: Request) {
                 // Erro de rede: revertemos o lock
                 await supabase
                     .from('publicacoes_design_online')
-                    .update({ enviado_webhook: false })
+                    .update({ webhook_disparado: false })
                     .in('id', ids);
 
                 results.push({ key, status: 'error', error: (err as Error).message });
