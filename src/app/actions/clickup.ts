@@ -229,21 +229,23 @@ export async function updateClickupTaskStatusAction(taskId: string, status: stri
 
 export async function uploadStoryToClickupAction(taskId: string, imageUrl: string) {
     try {
+        const STORIES_FIELD_ID = 'c3825f6c-e9d3-428f-a424-758fa44110ff';
+        const WORKSPACE_ID = '9007045623';
+
+        // Step 1: Download the image
         const imageRes = await fetch(imageUrl);
         if (!imageRes.ok) throw new Error('Failed to download image from R2');
         const buffer = await imageRes.arrayBuffer();
-        
-        const fd = new FormData();
         const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
         const ext = contentType.includes('png') ? 'png' : 'jpg';
+
+        // Step 2: Upload to ClickUp workspace custom field attachments (v3)
+        const fd = new FormData();
         const blob = new Blob([buffer], { type: contentType });
         fd.append('attachment', blob, `story.${ext}`);
 
-        const STORIES_FIELD_ID = 'c3825f6c-e9d3-428f-a424-758fa44110ff';
-
-        // Upload directly to the Stories custom attachment field
-        const res = await fetch(
-            `https://api.clickup.com/api/v2/task/${taskId}/attachment?custom_field_id=${STORIES_FIELD_ID}`,
+        const uploadRes = await fetch(
+            `https://api.clickup.com/api/v3/workspaces/${WORKSPACE_ID}/custom_fields/${STORIES_FIELD_ID}/attachments`,
             {
                 method: 'POST',
                 headers: { 'Authorization': CLICKUP_TOKEN },
@@ -251,9 +253,28 @@ export async function uploadStoryToClickupAction(taskId: string, imageUrl: strin
             }
         );
 
-        if (!res.ok) throw new Error('Failed to upload to ClickUp: ' + await res.text());
+        if (!uploadRes.ok) throw new Error('Upload failed: ' + await uploadRes.text());
+        const uploadData = await uploadRes.json();
 
-        return { success: true };
+        const attachmentId = uploadData.id;
+        if (!attachmentId) throw new Error('No attachment ID returned: ' + JSON.stringify(uploadData));
+
+        // Step 3: Associate the attachment ID to the task custom field (v2)
+        const fieldRes = await fetch(
+            `https://api.clickup.com/api/v2/task/${taskId}/field/${STORIES_FIELD_ID}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': CLICKUP_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ value: [attachmentId] })
+            }
+        );
+
+        if (!fieldRes.ok) throw new Error('Field update failed: ' + await fieldRes.text());
+
+        return { success: true, attachmentId };
     } catch (e: any) {
         console.error('ClickUp Story Upload Error:', e);
         return { success: false, error: e.message };
