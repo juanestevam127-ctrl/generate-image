@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { fetchScheduledPanelPostsAction, cancelScheduledPostAction, updateSchedulerRecordAction, fetchAllScheduledPostsAction } from "@/app/actions/scheduler";
+import { fetchScheduledPanelPostsAction, cancelScheduledPostAction, updateSchedulerRecordAction, fetchAllScheduledPostsAction ,
+    getOrCreateIdentificadorAction
+} from "@/app/actions/scheduler";
 import { 
     processScheduledPosts, 
     checkSchedulingConflicts, 
@@ -207,8 +209,8 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
 
             setIsEditModalOpen(false);
 
-            const selectedIds = editingPost.images.map(img => img.id);             const result = await updateSchedulerRecordAction,
-    getOrCreateIdentificadorAction(selectedIds, { 
+            const selectedIds = editingPost.images.map(img => img.id);
+            const result = await updateSchedulerRecordAction(selectedIds, { 
                 data_agendamento: scheduledDateTime.toISOString(),
                 webhook_disparado: false
             });
