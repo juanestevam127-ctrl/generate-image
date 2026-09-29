@@ -19,6 +19,7 @@ import {
     insertSchedulerPostAction,
     updateGroupFormatAction,
     fetchAllScheduledPostsAction,
+    getOrCreateIdentificadorAction,
     checkVehicleNameUniquenessAction
 } from "@/app/actions/scheduler";
 import { cn } from "@/lib/utils";
@@ -758,8 +759,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 sortedImagesList.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
             }
 
-            const existingIdentificador = sortedImagesList.find(img => (img as any).identificador_veiculo)?.identificador_veiculo;
-            const identificadorVeiculo = existingIdentificador || Math.random().toString(36).substring(2, 10).toUpperCase();
+            const imageIds = sortedImagesList.map(img => img.id).filter(Boolean) as number[];
+            const identificadorVeiculo = await getOrCreateIdentificadorAction(imageIds);
 
             if (isInstant) {
                 const payload = {

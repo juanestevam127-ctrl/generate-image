@@ -243,3 +243,30 @@ export async function checkVehicleNameUniquenessAction(clientName: string, vehic
     }
 }
 
+/**
+ * Always reads identificador_veiculo from the DB for the given image IDs.
+ * If none exists yet, generates a new one, saves it to all rows, and returns it.
+ * This is the single source of truth — never depends on React state.
+ */
+export async function getOrCreateIdentificadorAction(imageIds: number[]): Promise<string> {
+    // 1. Check if any of these images already have an identifier in DB
+    const { data } = await supabase
+        .from("publicacoes_design_online")
+        .select("identificador_veiculo")
+        .in("id", imageIds)
+        .not("identificador_veiculo", "is", null)
+        .limit(1);
+
+    if (data && data.length > 0 && data[0].identificador_veiculo) {
+        return data[0].identificador_veiculo;
+    }
+
+    // 2. None found — generate a new one and save to all rows
+    const newId = Math.random().toString(36).substring(2, 10).toUpperCase();
+    await supabase
+        .from("publicacoes_design_online")
+        .update({ identificador_veiculo: newId })
+        .in("id", imageIds);
+
+    return newId;
+}
