@@ -758,6 +758,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 sortedImagesList.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
             }
 
+            const identificadorVeiculo = Math.random().toString(36).substring(2, 10).toUpperCase();
+
             if (isInstant) {
                 const payload = {
                     client: client.name,
@@ -775,7 +777,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                     timezone: "America/Sao_Paulo",
                     timezone_offset: scheduledDateTime.getTimezoneOffset(),
                     is_carousel: currentPost.postType === "CARROSSEL",
-                    veiculo_gerado: currentPost.veiculo_gerado
+                    veiculo_gerado: currentPost.veiculo_gerado,
+                    identificador_veiculo: identificadorVeiculo
                 };
 
                 const res = await fetch("/api/proxy-webhook", {
@@ -798,7 +801,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         publicado_instagram: false,
                         webhook_disparado: true,
                         descricao: currentPost.caption,
-                        ordem: i
+                        ordem: i,
+                        identificador_veiculo: identificadorVeiculo
                     });
                     if (!result.success) console.error("Error updating image order:", result.error);
                 }
@@ -812,7 +816,8 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                         publicado_instagram: false,
                         webhook_disparado: false,
                         descricao: currentPost.caption,
-                        ordem: i
+                        ordem: i,
+                        identificador_veiculo: identificadorVeiculo
                     });
                     if (!result.success) throw new Error(result.error);
                 }
