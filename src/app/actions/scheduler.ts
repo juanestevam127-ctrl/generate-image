@@ -101,7 +101,7 @@ export async function updateGroupFormatAction(clientName: string, vehicle: strin
 export async function fetchAllScheduledPostsAction() {
     const { data: posts, error } = await supabase
         .from("publicacoes_design_online")
-        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao")
+        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao, identificador_veiculo")
         .not("data_agendamento", "is", null)
         .eq("publicado", false)
         .order("data_agendamento", { ascending: true });
@@ -160,7 +160,7 @@ export async function fetchGlobalScheduledPostsAction(selectedDate?: string) {
 
         const { data, error } = await supabase
             .from("publicacoes_design_online")
-            .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, publicado, publicado_instagram")
+            .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, publicado, publicado_instagram, identificador_veiculo")
             .not("data_agendamento", "is", null)
             .gte("data_agendamento", startISO)
             .lte("data_agendamento", endISO)
