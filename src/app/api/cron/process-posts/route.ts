@@ -116,6 +116,17 @@ export async function GET(request: Request) {
                 access_key_id: configRows[0].access_key_id
             } : {};
 
+            // Se ainda não tem identificador, gera e salva AGORA antes de enviar o webhook
+            let identificadorVeiculo = firstPost.identificador_veiculo;
+            if (!identificadorVeiculo) {
+                identificadorVeiculo = Math.random().toString(36).substring(2, 10).toUpperCase();
+                const postIds = posts.map((p: any) => p.id);
+                await supabase
+                    .from('publicacoes_design_online')
+                    .update({ identificador_veiculo: identificadorVeiculo })
+                    .in('id', postIds);
+            }
+
             const payload = {
                 client: client.name,
                 facebook_id: client.id_facebook,
@@ -137,7 +148,7 @@ export async function GET(request: Request) {
                 timezone_offset: -180, // Approximate for BRT
                 is_carousel: !isReels && posts.length > 1,
                 veiculo_gerado: firstPost.veiculo_gerado,
-                identificador_veiculo: firstPost.identificador_veiculo || null,
+                identificador_veiculo: identificadorVeiculo,
                 ...configData
             };
 
