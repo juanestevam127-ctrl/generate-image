@@ -279,7 +279,8 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                 timezone: "America/Sao_Paulo",
                 timezone_offset: scheduledDateTime.getTimezoneOffset(),
                 is_carousel: post.postType === "CARROSSEL",
-                veiculo_gerado: post.veiculo_gerado
+                veiculo_gerado: post.veiculo_gerado,
+                identificador_veiculo: Math.random().toString(36).substring(2, 10).toUpperCase()
             };
 
             const res = await fetch("/api/proxy-webhook", {
