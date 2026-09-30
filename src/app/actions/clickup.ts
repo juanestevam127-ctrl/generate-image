@@ -320,3 +320,51 @@ export async function getClickupTaskAction(taskId: string) {
         return { success: false, error: e.message };
     }
 }
+
+
+export async function updateClickupTaskDataAction(taskId: string, params: {
+    nomeVeiculo: string;
+    cor: string;
+    ano: string;
+    precoFormatado: string;
+    observacoesGOS?: string;
+}) {
+    try {
+        const taskName = `${params.nomeVeiculo} ${params.cor} ${params.ano}`.toUpperCase().trim();
+
+        let precoNumerico = 0;
+        if (params.precoFormatado) {
+            const limpo = params.precoFormatado.replace(/[R$\s.]/g, "").replace(",", ".");
+            precoNumerico = parseFloat(limpo) || 0;
+        }
+
+        const nameRes = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
+            method: "PUT",
+            headers: {
+                "Authorization": CLICKUP_TOKEN,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                name: taskName,
+                description: params.observacoesGOS || ""
+            })
+        });
+        if (!nameRes.ok) throw new Error("Falha ao atualizar nome no ClickUp: " + await nameRes.text());
+
+        const PRECO_FIELD_ID = "bb59624a-e911-4831-94e5-f77b50ed8e19";
+        const priceRes = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/field/${PRECO_FIELD_ID}`, {
+            method: "POST",
+            headers: {
+                "Authorization": CLICKUP_TOKEN,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ value: precoNumerico })
+        });
+        if (!priceRes.ok) throw new Error("Falha ao atualizar preço no ClickUp: " + await priceRes.text());
+
+        return { success: true };
+    } catch (e: any) {
+        console.error("ClickUp Update Error:", e);
+        return { success: false, error: e.message };
+    }
+}

@@ -124,6 +124,49 @@ export default function DashboardPage() {
         }
     };
 
+    
+    // Refazer Images Flow
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const refazerId = params.get('refazerId');
+            if (refazerId && clients.length > 0) {
+                const loadDesignState = async () => {
+                    const { supabase } = await import('@/lib/supabase');
+                    const { data } = await supabase.from('VeiculoOperador').select('*').eq('id', refazerId).single();
+                    if (data && data.design_state) {
+                        setViewMode('importacao');
+                        setSelectedClientId(data.clienteId);
+                        
+                        // Overwrite the design state price with the current price from 'dados'
+                        const state = { ...data.design_state };
+                        const client = clients.find(c => c.id === data.clienteId);
+                        if (client) {
+                            const getFieldVal = (d: any, keywords: string[]) => {
+                                let key = Object.keys(d).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
+                                if (key) return { key, val: d[key] };
+                                return null;
+                            };
+                            
+                            // Find which column is the price
+                            const priceField = client.columns.find((c: any) => c.name.toLowerCase().includes('pre') || c.name.toLowerCase().includes('valor'));
+                            const priceData = getFieldVal(data.dados, ['pre', 'valor']);
+                            
+                            if (priceField && priceData) {
+                                state[priceField.id] = priceData.val;
+                            }
+                        }
+                        
+                        setTableData([state]);
+                        // Clean up URL
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                };
+                loadDesignState();
+            }
+        }
+    }, [clients]);
+
     // Auto-import when entering importacao tab or changing client
     useEffect(() => {
         if (viewMode === "importacao" && selectedClientId) {
@@ -206,7 +249,7 @@ export default function DashboardPage() {
                                 updatedDados[c.name] = row[c.id];
                             }
                         });
-                        await supabase.from('VeiculoOperador').update({ dados: updatedDados }).eq('id', row._vehicleId);
+                        await supabase.from('VeiculoOperador').update({ dados: updatedDados, design_state: row }).eq('id', row._vehicleId);
                     }
                 } else if (row._clickupTaskId) {
                     // Create new record for imported task so we can track it later

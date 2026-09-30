@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2, Save, Car, LayoutList, Plus, Search, Filter, Trash2 } from "lucide-react";
 import { getPresignedUrlAction } from "@/app/actions/upload";
-import { getGosTasksAction, getClickupListStatusesAction, updateClickupTaskStatusAction } from "@/app/actions/clickup";
+import { getGosTasksAction, getClickupListStatusesAction, updateClickupTaskStatusAction, updateClickupTaskDataAction } from "@/app/actions/clickup";
+import { getVeiculoByTaskIdAction, updateVeiculoDadosAction } from "@/app/actions/veiculo";
 
 export default function VeiculosPage() {
     const { user, clients } = useStore();
@@ -59,6 +60,64 @@ export default function VeiculosPage() {
             setStatuses(statusesRes.statuses || []);
         }
         setIsLoadingTasks(false);
+    };
+
+    
+    // Edit Modal State
+    const [editingTask, setEditingTask] = useState<any>(null);
+    const [editingVeiculo, setEditingVeiculo] = useState<any>(null);
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+    const handleEditClick = async (task: any) => {
+        setEditingTask(task);
+        const res = await getVeiculoByTaskIdAction(task.id);
+        if (res.success && res.data) {
+            setEditingVeiculo(res.data);
+        } else {
+            setEditingVeiculo(null);
+            alert("Veículo não encontrado no banco de dados.");
+        }
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingTask || !editingVeiculo) return;
+        setIsSavingEdit(true);
+        try {
+            // Update DB
+            const sbRes = await updateVeiculoDadosAction(editingVeiculo.id, editingVeiculo.dados);
+            if (!sbRes.success) throw new Error("Erro no DB: " + sbRes.error);
+
+            // Fetch dynamic fields for ClickUp update (name, color, year, price, obs)
+            const d = editingVeiculo.dados;
+            const getFieldVal = (d: any, keywords: string[]) => {
+                let key = Object.keys(d).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
+                if (key) return d[key];
+                return "";
+            };
+            const nome = getFieldVal(d, ['vei', 'nome']) || "";
+            const cor = getFieldVal(d, ['cor']) || "";
+            const ano = getFieldVal(d, ['ano']) || "";
+            const preco = getFieldVal(d, ['pre', 'valor']) || "";
+
+            // Update ClickUp
+            const ckRes = await updateClickupTaskDataAction(editingTask.id, {
+                nomeVeiculo: nome,
+                cor: cor,
+                ano: ano,
+                precoFormatado: preco,
+                observacoesGOS: editingVeiculo.observacoesGOS || ""
+            });
+            if (!ckRes.success) throw new Error("Erro no ClickUp: " + ckRes.error);
+
+            alert("Veículo atualizado com sucesso!");
+            setEditingTask(null);
+            setEditingVeiculo(null);
+            loadGosData();
+        } catch(e: any) {
+            alert(e.message);
+        } finally {
+            setIsSavingEdit(false);
+        }
     };
 
     // Filter derivations
