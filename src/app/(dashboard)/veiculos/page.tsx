@@ -600,54 +600,54 @@ export default function VeiculosPage() {
                 </div>
 
             )}
+
+            {editingTask && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-white">Editar Veículo</h2>
+                            <button onClick={() => setEditingTask(null)} className="text-gray-400 hover:text-white"><X className="w-5 h-5"/></button>
+                        </div>
+                        {editingVeiculo ? (
+                            <div className="space-y-4">
+                                <p className="text-sm text-gray-400 mb-4">Modifique os dados abaixo. As alterações serão salvas no banco de dados e refletidas na tarefa do ClickUp vinculada.</p>
+                                
+                                {Object.keys(editingVeiculo.dados).map(k => (
+                                    <div key={k} className="space-y-1">
+                                        <Label className="text-gray-300">{k}</Label>
+                                        <Input 
+                                            value={editingVeiculo.dados[k]} 
+                                            onChange={(e) => {
+                                                const newDados = {...editingVeiculo.dados};
+                                                newDados[k] = e.target.value;
+                                                setEditingVeiculo({...editingVeiculo, dados: newDados});
+                                            }}
+                                            className="bg-black/50 border-white/10 text-white"
+                                        />
+                                    </div>
+                                ))}
+
+                                <div className="pt-4 flex justify-end gap-2 border-t border-white/10">
+                                    <Button variant="ghost" onClick={() => setEditingTask(null)} className="text-gray-400 hover:text-white">Cancelar</Button>
+                                    <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                                        {isSavingEdit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                                        Salvar Alterações
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center p-8 text-gray-400">
+                                <Loader2 className="w-8 h-8 animate-spin mb-2 text-indigo-500" />
+                                <p>Carregando dados do veículo...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
-
-
-                    {editingTask && (
-                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                            <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-xl font-bold text-white">Editar Veículo</h2>
-                                    <button onClick={() => setEditingTask(null)} className="text-gray-400 hover:text-white"><X className="w-5 h-5"/></button>
-                                </div>
-                                {editingVeiculo ? (
-                                    <div className="space-y-4">
-                                        <p className="text-sm text-gray-400 mb-4">Modifique os dados abaixo. As alterações serão salvas no banco de dados e refletidas na tarefa do ClickUp vinculada.</p>
-                                        
-                                        {Object.keys(editingVeiculo.dados).map(k => (
-                                            <div key={k} className="space-y-1">
-                                                <Label className="text-gray-300">{k}</Label>
-                                                <Input 
-                                                    value={editingVeiculo.dados[k]} 
-                                                    onChange={(e) => {
-                                                        const newDados = {...editingVeiculo.dados};
-                                                        newDados[k] = e.target.value;
-                                                        setEditingVeiculo({...editingVeiculo, dados: newDados});
-                                                    }}
-                                                    className="bg-black/50 border-white/10 text-white"
-                                                />
-                                            </div>
-                                        ))}
-
-                                        <div className="pt-4 flex justify-end gap-2 border-t border-white/10">
-                                            <Button variant="ghost" onClick={() => setEditingTask(null)} className="text-gray-400 hover:text-white">Cancelar</Button>
-                                            <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                                                {isSavingEdit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                                                Salvar Alterações
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center p-8 text-gray-400">
-                                        <Loader2 className="w-8 h-8 animate-spin mb-2 text-indigo-500" />
-                                        <p>Carregando dados do veículo...</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
 
 function MultiSelectDropdown({ options, selected, onChange, placeholder, renderLabel, valueKey }: any) {
     const [open, setOpen] = useState(false);
@@ -686,8 +686,52 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder, renderL
                         })}
                     </div>
                 </>
-
             )}
+
+            {editingTask && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-white">Editar Veículo</h2>
+                            <button onClick={() => setEditingTask(null)} className="text-gray-400 hover:text-white"><X className="w-5 h-5"/></button>
+                        </div>
+                        {editingVeiculo ? (
+                            <div className="space-y-4">
+                                <p className="text-sm text-gray-400 mb-4">Modifique os dados abaixo. As alterações serão salvas no banco de dados e refletidas na tarefa do ClickUp vinculada.</p>
+                                
+                                {Object.keys(editingVeiculo.dados).map(k => (
+                                    <div key={k} className="space-y-1">
+                                        <Label className="text-gray-300">{k}</Label>
+                                        <Input 
+                                            value={editingVeiculo.dados[k]} 
+                                            onChange={(e) => {
+                                                const newDados = {...editingVeiculo.dados};
+                                                newDados[k] = e.target.value;
+                                                setEditingVeiculo({...editingVeiculo, dados: newDados});
+                                            }}
+                                            className="bg-black/50 border-white/10 text-white"
+                                        />
+                                    </div>
+                                ))}
+
+                                <div className="pt-4 flex justify-end gap-2 border-t border-white/10">
+                                    <Button variant="ghost" onClick={() => setEditingTask(null)} className="text-gray-400 hover:text-white">Cancelar</Button>
+                                    <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                                        {isSavingEdit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                                        Salvar Alterações
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center p-8 text-gray-400">
+                                <Loader2 className="w-8 h-8 animate-spin mb-2 text-indigo-500" />
+                                <p>Carregando dados do veículo...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
