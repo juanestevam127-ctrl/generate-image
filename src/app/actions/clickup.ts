@@ -229,8 +229,26 @@ export async function updateClickupTaskStatusAction(taskId: string, status: stri
 
 export async function uploadStoryToClickupAction(taskId: string, imageUrl: string) {
     try {
+        
         const STORIES_FIELD_ID = 'c3825f6c-e9d3-428f-a424-758fa44110ff';
         const WORKSPACE_ID = '9007045623';
+
+        // Step 0: Check and clear existing images in the Stories field
+        const taskRes = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
+            headers: { 'Authorization': CLICKUP_TOKEN, 'Content-Type': 'application/json' }
+        });
+        if (taskRes.ok) {
+            const taskData = await taskRes.json();
+            const storiesField = taskData.custom_fields?.find((f: any) => f.id === STORIES_FIELD_ID);
+            if (storiesField && storiesField.value && Array.isArray(storiesField.value) && storiesField.value.length > 0) {
+                // Remove existing image
+                await fetch(`https://api.clickup.com/api/v2/task/${taskId}/field/${STORIES_FIELD_ID}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': CLICKUP_TOKEN, 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
 
         // Step 1: Download the image
         const imageRes = await fetch(imageUrl);

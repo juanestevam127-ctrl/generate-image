@@ -630,7 +630,7 @@ export default function VeiculosPage() {
 
                                 <div className="pt-4 flex justify-end gap-2 border-t border-white/10">
                                     <Button variant="ghost" onClick={() => setEditingTask(null)} className="text-gray-400 hover:text-white">Cancelar</Button>
-                                    <Button onClick={handleSaveEdit} disabled={isSavingEdit} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                                    <Button onClick={handleSaveEdit} disabled={isSavingEdit} variant="secondary" className="bg-gray-200 hover:bg-gray-300 text-indigo-900 font-bold">
                                         {isSavingEdit ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                                         Salvar Alterações
                                     </Button>
