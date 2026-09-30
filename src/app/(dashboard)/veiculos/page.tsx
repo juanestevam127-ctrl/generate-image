@@ -391,6 +391,21 @@ export default function VeiculosPage() {
                                                     <h3 className="text-white font-bold text-sm mb-1 line-clamp-2" title={task.name}>{task.name}</h3>
                                                     <p className="text-xs text-indigo-300 font-semibold">{cClient ? cClient.name : "Cliente Não Vinculado"}</p>
                                                 </div>
+                                                  <div className="flex items-center gap-1">
+                                                        <button onClick={() => handleEditClick(task)} className="p-1.5 text-indigo-400 hover:bg-indigo-500/20 rounded transition-colors" title="Editar Veículo">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                                        </button>
+                                                        <button onClick={async () => {
+                                                            const res = await getVeiculoByTaskIdAction(task.id);
+                                                            if (res.success && res.data) {
+                                                                window.location.href = `/dashboard?refazerId=${res.data.id}`;
+                                                            } else {
+                                                                alert("Veículo não encontrado no banco de dados.");
+                                                            }
+                                                        }} className="p-1.5 text-green-400 hover:bg-green-500/20 rounded transition-colors" title="Refazer Design">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"></path><path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path><path d="M21 22v-6h-6"></path><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path></svg>
+                                                        </button>
+                                                  </div>
                                                 {task.assignees?.length > 0 && (
                                                     <div className="flex -space-x-2">
                                                         {task.assignees.map((a: any) => (
