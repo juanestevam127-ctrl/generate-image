@@ -40,6 +40,12 @@ export async function GET(request: Request) {
 
         // 3. Process each group
         for (const [key, posts] of Object.entries(groups)) {
+            // Sort posts by 'ordem' ascending before processing
+            (posts as any[]).sort((a: any, b: any) => {
+                const oA = typeof a.ordem === 'number' ? a.ordem : 0;
+                const oB = typeof b.ordem === 'number' ? b.ordem : 0;
+                return oA - oB;
+            });
             const firstPost = posts[0];
             const clientName = firstPost.nome_empresa;
             
