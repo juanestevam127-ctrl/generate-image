@@ -42,7 +42,7 @@ export function VehicleCard({ vehicle, onAdd }: { vehicle: any, onAdd: (v: any) 
             for (let i = 0; i < fotos.length; i++) {
                 const url = fotos[i];
                 // Try fetching through proxy if it's external, otherwise direct
-                const proxyUrl = url.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url;
+                const proxyUrl = url;
                 
                 const res = await fetch(proxyUrl);
                 const blob = await res.blob();

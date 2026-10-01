@@ -1,16 +1,10 @@
 /**
- * Wraps a URL with the internal proxy to bypass network restrictions
- * and CORS issues.
+ * Adaptação para economia de banda na Vercel.
+ * Como o CORS do R2 já está configurado, podemos ler direto.
  */
 export function getProxiedUrl(url: string): string {
   if (!url) return url;
   
-  // If it's already a base64 or a local blob, return as is
-  if (url.startsWith('data:') || url.startsWith('blob:')) {
-    return url;
-  }
-
-
-
-  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+  // Retorna diretamente a URL do R2 em vez de passar pela API da Vercel
+  return url;
 }
