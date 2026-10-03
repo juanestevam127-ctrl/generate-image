@@ -28,7 +28,7 @@ export async function getPresignedUrlAction(filename: string, contentType: strin
         });
 
         const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
-        const publicUrl = `https://pub-4c1b7ac0df2a4c329a626eab3a923e47.r2.dev/${key}`;
+        const publicUrl = `https://cdn.artesdesignonline.com.br/${key}`;
 
         return { success: true, signedUrl, publicUrl };
     } catch (e: any) {

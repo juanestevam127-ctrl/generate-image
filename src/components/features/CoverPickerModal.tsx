@@ -1,3 +1,4 @@
+import { getProxiedUrl } from "@/lib/imageProxy";
 import { useState, useEffect, useRef } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,7 @@ export function CoverPickerModal({ isOpen, onClose, videoUrl, onSelect }: CoverP
     const loadSuggestions = async () => {
         setLoading(true);
         try {
-            const frames = await extractFrames(videoUrl, 8);
+            const frames = await extractFrames(getProxiedUrl(videoUrl), 8);
             setSuggestions(frames);
         } catch (error) {
             console.error("Error loading suggestions:", error);
@@ -127,7 +128,7 @@ export function CoverPickerModal({ isOpen, onClose, videoUrl, onSelect }: CoverP
                             <div className="aspect-[9/16] max-h-[400px] bg-black rounded-lg border border-white/10 overflow-hidden relative mx-auto">
                                 <video 
                                     ref={videoRef}
-                                    src={videoUrl} 
+                                    src={getProxiedUrl(videoUrl)} 
                                     crossOrigin="anonymous"
                                     className="w-full h-full object-contain"
                                     onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}

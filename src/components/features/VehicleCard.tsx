@@ -1,3 +1,4 @@
+import { getProxiedUrl } from "@/lib/imageProxy";
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ export function VehicleCard({ vehicle, onAdd }: { vehicle: any, onAdd: (v: any) 
             for (let i = 0; i < fotos.length; i++) {
                 const url = fotos[i];
                 // Try fetching through proxy if it's external, otherwise direct
-                const proxyUrl = url;
+                const proxyUrl = getProxiedUrl(url);
                 
                 const res = await fetch(proxyUrl);
                 const blob = await res.blob();
