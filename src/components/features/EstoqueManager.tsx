@@ -75,7 +75,7 @@ export function EstoqueManager() {
                             <Button 
                                 onClick={handleSync} 
                                 disabled={!selectedClientId || isLoading}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white w-full md:w-auto h-10"
+                                className="!bg-indigo-600 hover:!bg-indigo-700 !text-white w-full md:w-auto h-10"
                             >
                                 {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                                 Sincronizar BNDV

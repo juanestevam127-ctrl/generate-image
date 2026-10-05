@@ -38,10 +38,14 @@ export async function fetchBndvInventoryAction(clientId: string) {
         }
 
         const loginData = await loginRes.json();
-        const token = loginData[0]?.token;
+        console.log("BNDV Login Response:", JSON.stringify(loginData));
+        const token = Array.isArray(loginData) ? loginData[0]?.token : loginData?.token;
 
         if (!token) {
-            return { success: false, error: "Token não recebido do BNDV." };
+            return { 
+                success: false, 
+                error: `Falha BNDV: Token não recebido. Resposta da API: ${JSON.stringify(loginData).substring(0, 150)}` 
+            };
         }
 
         // 3. Fetch data via GraphQL
