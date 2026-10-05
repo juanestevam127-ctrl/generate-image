@@ -244,13 +244,31 @@ export async function GET(request: Request) {
                                 return nomeEncontrado && v.dados.clickup_status_updated !== true;
                             });
 
-                            if (matchingVehicle && matchingVehicle.clickupTaskId) {
-                                const res = await updateClickupTaskStatusAction(matchingVehicle.clickupTaskId, "falta anúncio");
+                                                        if (matchingVehicle && matchingVehicle.clickupTaskId) {
+                                const taskRes = await getClickupTaskAction(matchingVehicle.clickupTaskId);
+                                let hasStoryImage = false;
                                 
-                                if (res.success) {
+                                if (taskRes.success && taskRes.data) {
+                                    const STORIES_FIELD_ID = 'c3825f6c-e9d3-428f-a424-758fa44110ff';
+                                    const storiesField = taskRes.data.custom_fields?.find((f: any) => f.id === STORIES_FIELD_ID);
+                                    if (storiesField && storiesField.value && Array.isArray(storiesField.value) && storiesField.value.length > 0) {
+                                        hasStoryImage = true;
+                                    }
+                                }
+
+                                if (hasStoryImage) {
+                                    const res = await updateClickupTaskStatusAction(matchingVehicle.clickupTaskId, "falta anúncio");
+                                    if (res.success) {
+                                        const novosDados = { ...matchingVehicle.dados, clickup_status_updated: true };
+                                        await supabase.from('VeiculoOperador').update({ dados: novosDados }).eq('id', matchingVehicle.id);
+                                        results.push({ action: 'clickup_updated', vehicle: post.veiculo_gerado });
+                                    }
+                                } else {
+                                    // Se não tem imagem de story, a gente não altera o status,
+                                    // mas marca como atualizado para não ficar tentando eternamente
                                     const novosDados = { ...matchingVehicle.dados, clickup_status_updated: true };
                                     await supabase.from('VeiculoOperador').update({ dados: novosDados }).eq('id', matchingVehicle.id);
-                                    results.push({ action: 'clickup_updated', vehicle: post.veiculo_gerado });
+                                    results.push({ action: 'clickup_skipped_no_story', vehicle: post.veiculo_gerado });
                                 }
                             }
                         }

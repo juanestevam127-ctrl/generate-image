@@ -368,6 +368,8 @@ export async function updateClickupTaskDataAction(taskId: string, params: {
             })
         });
         if (!nameRes.ok) throw new Error("Falha ao atualizar nome no ClickUp: " + await nameRes.text());
+        
+        const taskData = await nameRes.json();
 
         const PRECO_FIELD_ID = "bb59624a-e911-4831-94e5-f77b50ed8e19";
         const priceRes = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/field/${PRECO_FIELD_ID}`, {
@@ -380,9 +382,31 @@ export async function updateClickupTaskDataAction(taskId: string, params: {
         });
         if (!priceRes.ok) throw new Error("Falha ao atualizar preço no ClickUp: " + await priceRes.text());
 
+        // Question 2 Logic: Check status and clear Stories field if applicable
+        const currentStatus = taskData.status?.status?.toLowerCase();
+        
+        if (currentStatus === "falta anuncio" || currentStatus === "falta anúncio" || currentStatus === "falta arte | edição" || currentStatus === "falta arte | edicao") {
+            const STORIES_FIELD_ID = 'c3825f6c-e9d3-428f-a424-758fa44110ff';
+            const storiesField = taskData.custom_fields?.find((f: any) => f.id === STORIES_FIELD_ID);
+            
+            if (storiesField && storiesField.value && Array.isArray(storiesField.value) && storiesField.value.length > 0) {
+                // Clear the stories field
+                await fetch(`https://api.clickup.com/api/v2/task/${taskId}/field/${STORIES_FIELD_ID}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': CLICKUP_TOKEN, 'Content-Type': 'application/json' }
+                });
+            }
+
+            // Change back to "falta arte | edição" if it was "falta anuncio"
+            if (currentStatus === "falta anuncio" || currentStatus === "falta anúncio") {
+                await updateClickupTaskStatusAction(taskId, "falta arte | edição");
+            }
+        }
+
         return { success: true };
     } catch (e: any) {
         console.error("ClickUp Update Error:", e);
         return { success: false, error: e.message };
     }
 }
+
