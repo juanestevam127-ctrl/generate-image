@@ -17,8 +17,10 @@ export function EstoqueManager() {
     const [error, setError] = useState<string | null>(null);
     const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadingSingle, setDownloadingSingle] = useState<number | null>(null);
 
-    const bndvClients = clients.filter(c => c.integracaoTipo === "BNDV");
+    // Filtra qualquer cliente que tenha integrao ativa (no s BNDV)
+    const integratedClients = clients.filter(c => c.integracaoTipo && c.integracaoTipo !== "none");
 
     const parsePictures = (pictureJs: string) => {
         if (!pictureJs) return [];
@@ -30,13 +32,47 @@ export function EstoqueManager() {
         }
     };
 
+    const parseItems = (itemJs: string) => {
+        if (!itemJs) return [];
+        try {
+            const parsed = JSON.parse(itemJs);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    };
+
+    const downloadSingleImage = async (url: string, index: number) => {
+        setDownloadingSingle(index);
+        try {
+            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error("Failed to fetch image");
+            const blob = await res.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = blobUrl;
+            a.download = `veiculo_foto_${index + 1}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+        } catch (err) {
+            console.error("Erro ao baixar foto:", err);
+            alert("Erro ao baixar a foto.");
+        } finally {
+            setDownloadingSingle(null);
+        }
+    };
+
     const handleDownloadImages = async (pictures: any[]) => {
         setIsDownloading(true);
         try {
             for (let i = 0; i < pictures.length; i++) {
                 const pic = pictures[i];
-                const url = `/api/proxy-image?url=${encodeURIComponent(pic.Link)}`;
-                const res = await fetch(url);
+                const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(pic.Link)}`;
+                const res = await fetch(proxyUrl);
                 if (!res.ok) continue;
                 const blob = await res.blob();
                 const blobUrl = window.URL.createObjectURL(blob);
@@ -64,12 +100,19 @@ export function EstoqueManager() {
         setError(null);
         setVehicles([]);
 
-        const result = await fetchBndvInventoryAction(selectedClientId);
+        // Aqui, futuramente podemos rotear para aes diferentes (BNDV, RevendaMais, etc) 
+        // baseado no integracaoTipo do cliente selecionado.
+        const client = integratedClients.find(c => c.id === selectedClientId);
         
-        if (result.success && result.data) {
-            setVehicles(result.data);
+        if (client?.integracaoTipo === "BNDV") {
+            const result = await fetchBndvInventoryAction(selectedClientId);
+            if (result.success && result.data) {
+                setVehicles(result.data);
+            } else {
+                setError(result.error || "Erro ao sincronizar estoque.");
+            }
         } else {
-            setError(result.error || "Erro ao sincronizar estoque.");
+            setError("Integração não suportada ainda.");
         }
         
         setIsLoading(false);
@@ -85,22 +128,22 @@ export function EstoqueManager() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {bndvClients.length === 0 ? (
+                    {integratedClients.length === 0 ? (
                         <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-200 text-sm flex gap-2">
                             <Info className="w-4 h-4 mt-0.5 shrink-0" />
-                            <p>Nenhum cliente possui integração de estoque configurada. Vá em Configurações Gerais - Gerenciar Clientes e adicione credenciais do BNDV.</p>
+                            <p>Nenhum cliente possui integração de estoque configurada. Vá em Configurações Gerais - Gerenciar Clientes e adicione as credenciais de integração.</p>
                         </div>
                     ) : (
                         <div className="flex flex-col md:flex-row gap-4 items-end">
                             <div className="flex-1 w-full">
-                                <label className="block text-sm font-medium mb-1 text-slate-300">Cliente (Integração BNDV)</label>
+                                <label className="block text-sm font-medium mb-1 text-slate-300">Cliente</label>
                                 <select 
                                     className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
                                     value={selectedClientId}
                                     onChange={(e) => setSelectedClientId(e.target.value)}
                                 >
                                     <option value="">Selecione um cliente...</option>
-                                    {bndvClients.map(c => (
+                                    {integratedClients.map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
                                 </select>
@@ -111,7 +154,7 @@ export function EstoqueManager() {
                                 className="!bg-indigo-600 hover:!bg-indigo-700 !text-white w-full md:w-auto h-10"
                             >
                                 {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                                Sincronizar BNDV
+                                Sincronizar Estoque
                             </Button>
                         </div>
                     )}
@@ -156,17 +199,17 @@ export function EstoqueManager() {
                                         </div>
                                     </div>
                                     <CardContent className="p-4 flex-1 flex flex-col">
-                                        <div className="flex justify-between items-start mb-2 gap-2">
-                                            <h3 className="font-bold text-slate-100 line-clamp-2 text-sm" title={`${v.markName} ${v.modelName} ${v.versionName}`}>
-                                                {v.markName} {v.modelName} {v.versionName}
-                                            </h3>
+                                        <div className="flex flex-col mb-4">
+                                            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">{v.markName}</span>
+                                            <span className="text-sm font-bold text-slate-100 leading-tight mb-1">{v.modelName}</span>
+                                            <span className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{v.versionName}</span>
                                         </div>
                                         <div className="mt-auto space-y-2">
-                                            <div className="flex justify-between text-xs text-slate-400">
+                                            <div className="flex justify-between text-xs text-slate-400 font-medium">
                                                 <span>{v.year}</span>
                                                 <span>{v.km?.toLocaleString('pt-BR')} km</span>
                                             </div>
-                                            <div className="text-lg font-bold text-indigo-400">
+                                            <div className="text-lg font-bold text-indigo-400 pt-2 border-t border-slate-700/50">
                                                 {v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "Sob consulta"}
                                             </div>
                                         </div>
@@ -182,16 +225,19 @@ export function EstoqueManager() {
                 <Modal
                     isOpen={!!selectedVehicle}
                     onClose={() => setSelectedVehicle(null)}
-                    title={`${selectedVehicle.markName} ${selectedVehicle.modelName} ${selectedVehicle.versionName}`}
+                    title={`${selectedVehicle.markName} ${selectedVehicle.modelName}`}
                     className="max-w-4xl h-[90vh]"
                 >
                     <div className="flex flex-col h-full space-y-6 overflow-y-auto pr-2 custom-scrollbar pb-10">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
                             <div>
-                                <h2 className="text-2xl font-bold text-white">
+                                <h2 className="text-2xl font-bold text-white mb-1">
                                     {selectedVehicle.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedVehicle.saleValue) : "Sob consulta"}
                                 </h2>
-                                <p className="text-slate-400 text-sm">
+                                <p className="text-slate-300 font-medium text-sm mb-0.5">
+                                    {selectedVehicle.versionName}
+                                </p>
+                                <p className="text-slate-400 text-xs">
                                     {selectedVehicle.year} - {selectedVehicle.km?.toLocaleString('pt-BR')} km - {selectedVehicle.color}
                                 </p>
                             </div>
@@ -206,7 +252,7 @@ export function EstoqueManager() {
                                 ) : (
                                     <Download className="w-4 h-4 mr-2" />
                                 )}
-                                Baixar {parsePictures(selectedVehicle.pictureJs).length} Fotos
+                                Baixar Todas ({parsePictures(selectedVehicle.pictureJs).length})
                             </Button>
                         </div>
 
@@ -221,7 +267,7 @@ export function EstoqueManager() {
                             </div>
                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                                 <p className="text-xs text-slate-400 mb-1">Placa / Final</p>
-                                <p className="text-sm font-semibold text-slate-200">{selectedVehicle.plate || `Final ${selectedVehicle.finalPlate}` || "N/A"}</p>
+                                <p className="text-sm font-semibold text-slate-200">{selectedVehicle.plate || (selectedVehicle.finalPlate ? `Final ${selectedVehicle.finalPlate}` : "N/A")}</p>
                             </div>
                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                                 <p className="text-xs text-slate-400 mb-1">Categoria</p>
@@ -229,9 +275,23 @@ export function EstoqueManager() {
                             </div>
                         </div>
 
+                        {/* Opcionais / Itens */}
+                        {parseItems(selectedVehicle.itemJs).length > 0 && (
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-300 mb-2">Opcionais do Veículo</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {parseItems(selectedVehicle.itemJs).map((item: any, idx: number) => (
+                                        <span key={idx} className="bg-slate-800/80 border border-slate-700 text-slate-300 text-xs px-2.5 py-1.5 rounded-md">
+                                            {typeof item === 'string' ? item : (item.Descricao || item.name || item.descricao || JSON.stringify(item))}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {selectedVehicle.description && (
                             <div>
-                                <h3 className="text-sm font-bold text-slate-300 mb-2">Descrição</h3>
+                                <h3 className="text-sm font-bold text-slate-300 mb-2">Descrição do Anúncio</h3>
                                 <div className="bg-slate-800/30 p-4 rounded-lg text-sm text-slate-400 whitespace-pre-wrap border border-slate-700/30">
                                     {selectedVehicle.description}
                                 </div>
@@ -251,6 +311,16 @@ export function EstoqueManager() {
                                             alt={`Foto ${i + 1}`} 
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                         />
+                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button
+                                                size="icon"
+                                                className="h-8 w-8 !bg-indigo-600 hover:!bg-indigo-700 !text-white shadow-lg"
+                                                onClick={() => downloadSingleImage(pic.Link, i)}
+                                                disabled={downloadingSingle === i}
+                                            >
+                                                {downloadingSingle === i ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                            </Button>
+                                        </div>
                                         <div className="absolute bottom-1 right-1 bg-black/60 px-1.5 py-0.5 rounded text-[10px] text-white">
                                             {i + 1}
                                         </div>
