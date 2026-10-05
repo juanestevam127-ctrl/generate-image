@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
-import { useStore } from "@/lib/store-context";
-import {
+import { Database, useRouter, usePathname } from "next/navigation";
+import { Database, useStore } from "@/lib/store-context";
+import { Database,
     LayoutDashboard,
     LogOut,
     User as UserIcon,
@@ -11,8 +11,8 @@ import {
     Layout,
     Settings,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Database, cn } from "@/lib/utils";
+import { Database, Button } from "@/components/ui/button";
 
 interface SidebarProps {
     isMobile: boolean;
@@ -32,12 +32,14 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
     if (user.role === "operador") {
         navItems = [
             { label: "Veículos", href: "/veiculos", icon: LayoutDashboard },
+            { label: "Estoque API", href: "/estoque", icon: Database },
         ];
     } else {
         navItems = [
             { label: "Gerenciar Imagens", href: "/dashboard", icon: LayoutDashboard },
             { label: "Gerenciar Imagens Vendidos", href: "/imagens-vendidos", icon: LayoutDashboard },
             { label: "Veículos", href: "/veiculos", icon: LayoutDashboard },
+            { label: "Estoque API", href: "/estoque", icon: Database },
             { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },
         ];
 

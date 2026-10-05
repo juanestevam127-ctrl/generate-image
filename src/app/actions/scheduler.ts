@@ -101,7 +101,7 @@ export async function updateGroupFormatAction(clientName: string, vehicle: strin
 export async function fetchAllScheduledPostsAction() {
     const { data: posts, error } = await supabase
         .from("publicacoes_design_online")
-        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao, identificador_veiculo")
+        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao, identificador_veiculo, post_type")
         .not("data_agendamento", "is", null)
         .eq("publicado", false)
         .order("data_agendamento", { ascending: true });

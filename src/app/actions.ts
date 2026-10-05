@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
@@ -39,7 +39,7 @@ export async function loadInitialDataAction() {
 
         // Fetch clientes first (most critical) — avoid parallel to prevent combined timeout
         const clientsRes = await supabase.from("clientes").select(
-            "id, name, webhook_url, webhook_postagens, columns, prompt, caption_template, id_facebook, id_instagram, token, divisao_developrs, horario_developers, guide_stories, guide_feed, cliente_ativo, id_clickup, clickup_tarefa_id, webhook_stories_seg_quar_sex"
+            "id, name, webhook_url, webhook_postagens, columns, prompt, caption_template, id_facebook, id_instagram, token, divisao_developrs, horario_developers, guide_stories, guide_feed, cliente_ativo, id_clickup, clickup_tarefa_id, webhook_stories_seg_quar_sex, integracao_tipo, bndv_external_key, bndv_password, bndv_customer_key"
         );
         if (clientsRes.error) throw clientsRes.error;
 
@@ -129,3 +129,4 @@ export async function serverUploadFile(formData: FormData, bucket: string = 'ima
         return { success: false, error: error.message || "Falha no upload do arquivo via servidor." };
     }
 }
+

@@ -43,11 +43,13 @@ export function processScheduledPosts(rawData: any[]): ScheduledPost[] {
                 r.data_agendamento === row.data_agendamento
             ).length;
 
-            let type = "ESTATICA";
-            const fmt = row.formato.toUpperCase();
-            if (fmt.includes("REELS")) type = "REELS";
-            else if (fmt.includes("STORY") || fmt.includes("STORIES")) type = "STORY";
-            else if (albumSize > 1) type = "CARROSSEL";
+            let type = row.post_type || "ESTATICA";
+            const fmt = row.formato?.toUpperCase() || "";
+            if (!row.post_type) {
+                if (fmt.includes("REELS")) type = "REELS";
+                else if (fmt.includes("STORY") || fmt.includes("STORIES")) type = "STORY";
+                else if (albumSize > 1) type = "CARROSSEL";
+            }
 
             grouped[key] = {
                 ...row,
@@ -85,7 +87,7 @@ export function checkSchedulingConflicts(
             post.divisao_developrs !== undefined &&
             proposedGroup !== null &&
             post.divisao_developrs !== null &&
-            proposedGroup !== post.divisao_developrs
+            Number(proposedGroup) !== Number(post.divisao_developrs)
         ) {
             return;
         }

@@ -67,7 +67,11 @@ export async function addClientAction(data: any) {
         cliente_ativo: data.clienteAtivo,
         id_clickup: data.idClickup,
         clickup_tarefa_id: data.clickupTarefaId,
-        webhook_stories_seg_quar_sex: data.webhookStoriesSegQuarSex
+        webhook_stories_seg_quar_sex: data.webhookStoriesSegQuarSex,
+        integracao_tipo: data.integracaoTipo,
+        bndv_external_key: data.bndvExternalKey,
+        bndv_password: data.bndvPassword,
+        bndv_customer_key: data.bndvCustomerKey
     };
 
     try {
@@ -103,6 +107,10 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.idClickup !== undefined) dbUpdates.id_clickup = updates.idClickup;
     if (updates.clickupTarefaId !== undefined) dbUpdates.clickup_tarefa_id = updates.clickupTarefaId;
     if (updates.webhookStoriesSegQuarSex !== undefined) dbUpdates.webhook_stories_seg_quar_sex = updates.webhookStoriesSegQuarSex;
+    if (updates.integracaoTipo !== undefined) dbUpdates.integracao_tipo = updates.integracaoTipo;
+    if (updates.bndvExternalKey !== undefined) dbUpdates.bndv_external_key = updates.bndvExternalKey;
+    if (updates.bndvPassword !== undefined) dbUpdates.bndv_password = updates.bndvPassword;
+    if (updates.bndvCustomerKey !== undefined) dbUpdates.bndv_customer_key = updates.bndvCustomerKey;
 
     try {
         // If activation status is specified, we check if we need to assign or clear group/schedule

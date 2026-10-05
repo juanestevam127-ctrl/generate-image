@@ -35,6 +35,10 @@ export function ClientManager() {
     const [idClickup, setIdClickup] = useState("");
     const [clickupTarefaId, setClickupTarefaId] = useState("");
     const [webhookStoriesSegQuarSex, setWebhookStoriesSegQuarSex] = useState("");
+    const [integracaoTipo, setIntegracaoTipo] = useState("none");
+    const [bndvExternalKey, setBndvExternalKey] = useState("");
+    const [bndvPassword, setBndvPassword] = useState("");
+    const [bndvCustomerKey, setBndvCustomerKey] = useState("");
     const [activeTab, setActiveTab] = useState("geral");
 
     // Clickup Clients data
@@ -72,6 +76,10 @@ export function ClientManager() {
         setClienteAtivo(true);
         setIdClickup("");
         setWebhookStoriesSegQuarSex("");
+        setIntegracaoTipo("none");
+        setBndvExternalKey("");
+        setBndvPassword("");
+        setBndvCustomerKey("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
         
@@ -97,6 +105,10 @@ export function ClientManager() {
         setIdClickup(client.idClickup || "");
         setClickupTarefaId(client.clickupTarefaId || "");
         setWebhookStoriesSegQuarSex(client.webhookStoriesSegQuarSex || "");
+        setIntegracaoTipo(client.integracaoTipo || "none");
+        setBndvExternalKey(client.bndvExternalKey || "");
+        setBndvPassword(client.bndvPassword || "");
+        setBndvCustomerKey(client.bndvCustomerKey || "");
         setColumns([...client.columns]);
         setIsUploading({ stories: false, feed: false });
         setIsModalOpen(true);
@@ -120,6 +132,10 @@ export function ClientManager() {
             idClickup,
             clickupTarefaId,
             webhookStoriesSegQuarSex,
+            integracaoTipo,
+            bndvExternalKey,
+            bndvPassword,
+            bndvCustomerKey,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
@@ -504,6 +520,62 @@ export function ClientManager() {
                             ))}
                             {columns.length === 0 && (
                                 <p className="text-center text-muted-foreground text-sm py-4">Nenhuma coluna definida.</p>
+                            )}
+                        </div>
+                    </div>
+
+                                        {/* SEÇÃO INTEGRAÇÕES */}
+                    <div className="space-y-4 pt-6 border-t border-indigo-500/20">
+                        <div>
+                            <h3 className="text-lg font-medium text-slate-100 flex items-center">
+                                Integrações (Estoque)
+                            </h3>
+                            <p className="text-sm text-slate-400">Configure a conexão com sistemas externos de estoque.</p>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Tipo de Integração</label>
+                                <select 
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={integracaoTipo}
+                                    onChange={(e) => setIntegracaoTipo(e.target.value)}
+                                >
+                                    <option value="none">Nenhuma</option>
+                                    <option value="BNDV">BNDV</option>
+                                </select>
+                            </div>
+
+                            {integracaoTipo === "BNDV" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10">
+                                    <div className="md:col-span-2">
+                                        <h4 className="font-semibold text-sm text-indigo-300 mb-2">Credenciais BNDV</h4>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Customer Key</label>
+                                        <Input
+                                            value={bndvCustomerKey}
+                                            onChange={(e) => setBndvCustomerKey(e.target.value)}
+                                            placeholder="Ex: {customerKey}"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">External Key</label>
+                                        <Input
+                                            value={bndvExternalKey}
+                                            onChange={(e) => setBndvExternalKey(e.target.value)}
+                                            placeholder="Chave external key"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Password</label>
+                                        <Input
+                                            type="password"
+                                            value={bndvPassword}
+                                            onChange={(e) => setBndvPassword(e.target.value)}
+                                            placeholder="Senha do cliente"
+                                        />
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>

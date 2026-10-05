@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { verifyLoginAction, loadInitialDataAction } from "@/app/actions";
@@ -62,6 +62,10 @@ export interface Client {
     idClickup?: string;
     clickupTarefaId?: string; // NOVO: Para vincular na criação de veículos
     webhookStoriesSegQuarSex?: string;
+    integracaoTipo?: string;
+    bndvExternalKey?: string;
+    bndvPassword?: string;
+    bndvCustomerKey?: string;
 }
 
 export interface LayoutClient {
@@ -168,7 +172,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     clienteAtivo: c.cliente_ativo ?? true,
                     idClickup: c.id_clickup,
                     clickupTarefaId: c.clickup_tarefa_id,
-                    webhookStoriesSegQuarSex: c.webhook_stories_seg_quar_sex
+                    webhookStoriesSegQuarSex: c.webhook_stories_seg_quar_sex,
+                    integracaoTipo: c.integracao_tipo,
+                    bndvExternalKey: c.bndv_external_key,
+                    bndvPassword: c.bndv_password,
+                    bndvCustomerKey: c.bndv_customer_key
                 }));
                 setClients(formattedClients);
 
@@ -323,7 +331,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             clienteAtivo: result.data.cliente_ativo ?? true,
             idClickup: result.data.id_clickup,
             clickupTarefaId: result.data.clickup_tarefa_id,
-            webhookStoriesSegQuarSex: result.data.webhook_stories_seg_quar_sex
+            webhookStoriesSegQuarSex: result.data.webhook_stories_seg_quar_sex,
+            integracaoTipo: result.data.integracao_tipo,
+            bndvExternalKey: result.data.bndv_external_key,
+            bndvPassword: result.data.bndv_password,
+            bndvCustomerKey: result.data.bndv_customer_key
         };
 
         setClients((prev) => [...prev, newClient]);
@@ -485,3 +497,5 @@ export function useStore() {
     }
     return context;
 }
+
+
