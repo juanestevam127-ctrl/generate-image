@@ -213,7 +213,7 @@ export async function GET(request: Request) {
                 .select('nome_empresa, veiculo_gerado')
                 .eq('publicado', true)
                 .eq('publicado_instagram', true)
-                .gte('data_agendamento', sevenDaysAgo);
+                .gte('created_at', sevenDaysAgo);
 
             if (completedPosts && completedPosts.length > 0) {
                 const uniqueCompleted = completedPosts.filter((v, i, a) => a.findIndex(t => (t.veiculo_gerado === v.veiculo_gerado && t.nome_empresa === v.nome_empresa)) === i);
