@@ -1,7 +1,7 @@
 "use client";
 
-import { Database, useRouter, usePathname } from "next/navigation";
-import { Database, useStore } from "@/lib/store-context";
+import { useRouter, usePathname } from "next/navigation";
+import { useStore } from "@/lib/store-context";
 import { Database,
     LayoutDashboard,
     LogOut,
@@ -11,8 +11,8 @@ import { Database,
     Layout,
     Settings,
 } from "lucide-react";
-import { Database, cn } from "@/lib/utils";
-import { Database, Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
     isMobile: boolean;
