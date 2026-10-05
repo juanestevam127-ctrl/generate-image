@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { useStore } from "@/lib/store-context";
@@ -13,19 +13,29 @@ export function EstoqueManager() {
     const { clients } = useStore();
     const [selectedClientId, setSelectedClientId] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-        const [vehicles, setVehicles] = useState<any[]>([]);
+    const [vehicles, setVehicles] = useState<any[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
 
     const bndvClients = clients.filter(c => c.integracaoTipo === "BNDV");
 
+    const parsePictures = (pictureJs: string) => {
+        if (!pictureJs) return [];
+        try {
+            const parsed = JSON.parse(pictureJs);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    };
+
     const handleDownloadImages = async (pictures: any[]) => {
         setIsDownloading(true);
         try {
             for (let i = 0; i < pictures.length; i++) {
                 const pic = pictures[i];
-                const url = `/api/proxy-image • url=${encodeURIComponent(pic.Link)}`;
+                const url = `/api/proxy-image?url=${encodeURIComponent(pic.Link)}`;
                 const res = await fetch(url);
                 if (!res.ok) continue;
                 const blob = await res.blob();
@@ -38,7 +48,7 @@ export function EstoqueManager() {
                 a.click();
                 window.URL.revokeObjectURL(blobUrl);
                 document.body.removeChild(a);
-                await new Promise(r => setTimeout(r, 200)); // pequeno intervalo para não travar o navegador
+                await new Promise(r => setTimeout(r, 200)); 
             }
         } catch (err) {
             console.error("Erro ao baixar fotos:", err);
@@ -65,16 +75,6 @@ export function EstoqueManager() {
         setIsLoading(false);
     };
 
-    const parsePictures = (pictureJs: string) => {
-        if (!pictureJs) return [];
-        try {
-            const parsed = JSON.parse(pictureJs);
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-            return [];
-        }
-    };
-
     return (
         <div className="space-y-6">
             <Card className="bg-slate-900 border-slate-800">
@@ -85,7 +85,7 @@ export function EstoqueManager() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {bndvClients.length === 0 • (
+                    {bndvClients.length === 0 ? (
                         <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-200 text-sm flex gap-2">
                             <Info className="w-4 h-4 mt-0.5 shrink-0" />
                             <p>Nenhum cliente possui integração de estoque configurada. Vá em Configurações Gerais - Gerenciar Clientes e adicione credenciais do BNDV.</p>
@@ -110,7 +110,7 @@ export function EstoqueManager() {
                                 disabled={!selectedClientId || isLoading}
                                 className="!bg-indigo-600 hover:!bg-indigo-700 !text-white w-full md:w-auto h-10"
                             >
-                                {isLoading • <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                                 Sincronizar BNDV
                             </Button>
                         </div>
@@ -134,16 +134,16 @@ export function EstoqueManager() {
 
                             return (
                                 <Card 
-    key={v.vehicleExternalKey || idx} 
-    className="bg-slate-800 border-slate-700 overflow-hidden flex flex-col cursor-pointer hover:border-indigo-500 transition-colors"
-    onClick={() => setSelectedVehicle(v)}
->
+                                    key={v.vehicleExternalKey || idx} 
+                                    className="bg-slate-800 border-slate-700 overflow-hidden flex flex-col cursor-pointer hover:border-indigo-500 transition-colors"
+                                    onClick={() => setSelectedVehicle(v)}
+                                >
                                     <div className="aspect-[4/3] bg-slate-900 relative group">
-                                        {principalPic • (
+                                        {principalPic ? (
                                             <img 
                                                 src={principalPic.Link} 
                                                 alt={v.versionName} 
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                             />
                                         ) : (
                                             <div className="w-full h-full flex flex-col items-center justify-center text-slate-600">
@@ -164,10 +164,10 @@ export function EstoqueManager() {
                                         <div className="mt-auto space-y-2">
                                             <div className="flex justify-between text-xs text-slate-400">
                                                 <span>{v.year}</span>
-                                                <span>{v.km • .toLocaleString('pt-BR')} km</span>
+                                                <span>{v.km?.toLocaleString('pt-BR')} km</span>
                                             </div>
                                             <div className="text-lg font-bold text-indigo-400">
-                                                {v.saleValue • new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "Sob consulta"}
+                                                {v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "Sob consulta"}
                                             </div>
                                         </div>
                                     </CardContent>
@@ -178,7 +178,6 @@ export function EstoqueManager() {
                 </div>
             )}
 
-            {/* Modal de Detalhes do Veículo */}
             {selectedVehicle && (
                 <Modal
                     isOpen={!!selectedVehicle}
@@ -187,15 +186,13 @@ export function EstoqueManager() {
                     className="max-w-4xl h-[90vh]"
                 >
                     <div className="flex flex-col h-full space-y-6 overflow-y-auto pr-2 custom-scrollbar pb-10">
-                        
-                        {/* Ações e Info Básica */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
                             <div>
                                 <h2 className="text-2xl font-bold text-white">
-                                    {selectedVehicle.saleValue • new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedVehicle.saleValue) : "Sob consulta"}
+                                    {selectedVehicle.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedVehicle.saleValue) : "Sob consulta"}
                                 </h2>
                                 <p className="text-slate-400 text-sm">
-                                    {selectedVehicle.year} - {selectedVehicle.km • .toLocaleString('pt-BR')} km - {selectedVehicle.color}
+                                    {selectedVehicle.year} - {selectedVehicle.km?.toLocaleString('pt-BR')} km - {selectedVehicle.color}
                                 </p>
                             </div>
                             
@@ -204,7 +201,7 @@ export function EstoqueManager() {
                                 disabled={isDownloading || parsePictures(selectedVehicle.pictureJs).length === 0}
                                 className="!bg-indigo-600 hover:!bg-indigo-700 !text-white w-full md:w-auto"
                             >
-                                {isDownloading • (
+                                {isDownloading ? (
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                 ) : (
                                     <Download className="w-4 h-4 mr-2" />
@@ -213,7 +210,6 @@ export function EstoqueManager() {
                             </Button>
                         </div>
 
-                        {/* Mais detalhes técnicos */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                                 <p className="text-xs text-slate-400 mb-1">Câmbio</p>
@@ -233,7 +229,6 @@ export function EstoqueManager() {
                             </div>
                         </div>
 
-                        {/* Descrição */}
                         {selectedVehicle.description && (
                             <div>
                                 <h3 className="text-sm font-bold text-slate-300 mb-2">Descrição</h3>
@@ -243,7 +238,6 @@ export function EstoqueManager() {
                             </div>
                         )}
 
-                        {/* Galeria de Fotos */}
                         <div>
                             <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center">
                                 <ImageIcon className="w-4 h-4 mr-2 text-indigo-400" />
