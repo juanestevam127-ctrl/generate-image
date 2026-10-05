@@ -35,8 +35,10 @@ export function EstoqueManager() {
     };
 
     const parsePictures = (pictureJs: string) => {
+        if (!pictureJs) return [];
         try {
-            return JSON.parse(pictureJs);
+            const parsed = JSON.parse(pictureJs);
+            return Array.isArray(parsed) ? parsed : [];
         } catch (e) {
             return [];
         }
