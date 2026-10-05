@@ -282,7 +282,7 @@ export function EstoqueManager() {
                                 <div className="flex flex-wrap gap-2">
                                     {parseItems(selectedVehicle.itemJs).map((item: any, idx: number) => (
                                         <span key={idx} className="bg-slate-800/80 border border-slate-700 text-slate-300 text-xs px-2.5 py-1.5 rounded-md">
-                                            {typeof item === 'string' ? item : (item.Descricao || item.name || item.descricao || JSON.stringify(item))}
+                                            {typeof item === 'string' ? item : (item.value || item.Descricao || item.name || item.descricao || JSON.stringify(item))}
                                         </span>
                                     ))}
                                 </div>
