@@ -69,7 +69,7 @@ export function EstoqueManager() {
         if (!pictureJs) return [];
         try {
             const parsed = JSON.parse(pictureJs);
-            return Array.isArray(parsed) • parsed : [];
+            return Array.isArray(parsed) ? parsed : [];
         } catch (e) {
             return [];
         }
@@ -195,7 +195,7 @@ export function EstoqueManager() {
                                     {selectedVehicle.saleValue • new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedVehicle.saleValue) : "Sob consulta"}
                                 </h2>
                                 <p className="text-slate-400 text-sm">
-                                    {selectedVehicle.year} • {selectedVehicle.km • .toLocaleString('pt-BR')} km • {selectedVehicle.color}
+                                    {selectedVehicle.year} - {selectedVehicle.km • .toLocaleString('pt-BR')} km - {selectedVehicle.color}
                                 </p>
                             </div>
                             
