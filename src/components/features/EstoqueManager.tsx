@@ -20,7 +20,9 @@ export function EstoqueManager() {
     const [downloadingSingle, setDownloadingSingle] = useState<number | null>(null);
 
     // Filtra qualquer cliente que tenha integrao ativa (no s BNDV)
-    const integratedClients = clients.filter(c => c.integracaoTipo && c.integracaoTipo !== "none");
+    const integratedClients = clients
+        .filter(c => c.integracaoTipo && c.integracaoTipo !== "none")
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     const parsePictures = (pictureJs: string) => {
         if (!pictureJs) return [];
@@ -106,6 +108,13 @@ export function EstoqueManager() {
         
         if (client?.integracaoTipo === "BNDV") {
             const result = await fetchBndvInventoryAction(selectedClientId);
+            if (result.success && result.data) {
+                setVehicles(result.data);
+            } else {
+                setError(result.error || "Erro ao sincronizar estoque.");
+            }
+        } else if (client?.integracaoTipo === "BOOM") {
+            const result = await fetchBoomInventoryAction(selectedClientId);
             if (result.success && result.data) {
                 setVehicles(result.data);
             } else {
