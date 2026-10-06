@@ -172,7 +172,7 @@ export async function fetchBoomInventoryAction(clientId: string) {
                 description: extractTag(vXml, 'observacao') || "",
                 itemJs: "[]", // Opcionais se tiver
                 pictureJs: JSON.stringify(pictures),
-                finalPlate: extractTag(vXml, 'placa') ? extractTag(vXml, 'placa').slice(-1) : ""
+                finalPlate: extractTag(vXml, 'placa')?.slice(-1) || ""
             });
         }
 
