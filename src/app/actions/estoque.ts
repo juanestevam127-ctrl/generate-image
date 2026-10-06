@@ -353,7 +353,7 @@ export async function fetchAutoCertoInventoryAction(clientId: string) {
             method: "GET",
             headers: {
                 "accept": "application/json",
-                "authorization": \Bearer \\
+                "authorization": `Bearer ${token}`
             }
         });
 
