@@ -71,7 +71,8 @@ export async function addClientAction(data: any) {
         integracao_tipo: data.integracaoTipo,
         bndv_external_key: data.bndvExternalKey,
         bndv_password: data.bndvPassword,
-        bndv_customer_key: data.bndvCustomerKey
+        bndv_customer_key: data.bndvCustomerKey,
+        loja_conectada_token: data.lojaConectadaToken
     };
 
     try {
@@ -111,6 +112,7 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.bndvExternalKey !== undefined) dbUpdates.bndv_external_key = updates.bndvExternalKey;
     if (updates.bndvPassword !== undefined) dbUpdates.bndv_password = updates.bndvPassword;
     if (updates.bndvCustomerKey !== undefined) dbUpdates.bndv_customer_key = updates.bndvCustomerKey;
+    if (updates.lojaConectadaToken !== undefined) dbUpdates.loja_conectada_token = updates.lojaConectadaToken;
 
     try {
         // If activation status is specified, we check if we need to assign or clear group/schedule

@@ -69,6 +69,7 @@ export interface Client {
     boomToken?: string;
     boomCustomerKey?: string;
     boomUrl?: string;
+    lojaConectadaToken?: string;
 }
 
 export interface LayoutClient {
@@ -180,7 +181,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     bndvExternalKey: c.bndv_external_key,
                     bndvPassword: c.bndv_password,
                     bndvCustomerKey: c.bndv_customer_key,
-                    boomUrl: c.boom_url
+                    boomUrl: c.boom_url,
+                    lojaConectadaToken: c.loja_conectada_token
                 }));
                 setClients(formattedClients);
 
@@ -339,7 +341,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             integracaoTipo: result.data.integracao_tipo,
             bndvExternalKey: result.data.bndv_external_key,
             bndvPassword: result.data.bndv_password,
-            bndvCustomerKey: result.data.bndv_customer_key
+            bndvCustomerKey: result.data.bndv_customer_key,
+            lojaConectadaToken: result.data.loja_conectada_token
         };
 
         setClients((prev) => [...prev, newClient]);

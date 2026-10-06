@@ -42,6 +42,7 @@ export function ClientManager() {
     const [boomToken, setBoomToken] = useState("");
     const [boomCustomerKey, setBoomCustomerKey] = useState("");
     const [boomUrl, setBoomUrl] = useState("");
+    const [lojaConectadaToken, setLojaConectadaToken] = useState("");
     const [activeTab, setActiveTab] = useState("geral");
 
     // Clickup Clients data
@@ -86,6 +87,7 @@ export function ClientManager() {
         setBoomToken("");
         setBoomCustomerKey("");
         setBoomUrl("");
+        setLojaConectadaToken("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
         
@@ -118,6 +120,7 @@ export function ClientManager() {
         setBoomToken(client.boomToken || "");
         setBoomCustomerKey(client.boomCustomerKey || "");
         setBoomUrl(client.boomUrl || "");
+        setLojaConectadaToken(client.lojaConectadaToken || "");
         setColumns([...client.columns]);
         setIsUploading({ stories: false, feed: false });
         setIsModalOpen(true);
@@ -146,6 +149,7 @@ export function ClientManager() {
             bndvPassword,
             bndvCustomerKey,
             boomUrl,
+            lojaConectadaToken,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
