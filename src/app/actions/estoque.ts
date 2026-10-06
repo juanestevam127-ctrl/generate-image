@@ -102,9 +102,11 @@ export async function fetchBoomInventoryAction(clientId: string) {
 
         const token = client.boom_token;
         const customerKey = client.boom_customer_key;
+        const boomUrl = client.boom_url;
 
         console.log(`Buscando Boom API para ${customerKey}...`);
-        const res = await fetch(`https://boomsistemas.com.br/api/integration-api/xml/${customerKey}`, {
+        const fetchUrl = boomUrl || `https://boomsistemas.com.br/api/integration-api/xml/${customerKey}`;
+        const res = await fetch(fetchUrl, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

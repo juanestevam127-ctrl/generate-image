@@ -1,11 +1,11 @@
-﻿with open("src/components/features/EstoqueManager.tsx", "r", encoding="utf-8") as f:
+﻿with open("src/components/features/ClientManager.tsx", "r", encoding="utf-8") as f:
     c = f.read()
 
-c = c.replace("Array.isArray(parsed) • parsed : []", "Array.isArray(parsed) ? parsed : []")
-c = c.replace("selectedVehicle.year} • {", "selectedVehicle.year} - {")
-c = c.replace("toLocaleString('pt-BR')} km • {", "toLocaleString('pt-BR')} km - {")
+c = c.replace(
+    'const [boomCustomerKey,\n            boomUrl, setBoomCustomerKey] = useState("");',
+    'const [boomCustomerKey, setBoomCustomerKey] = useState("");'
+)
 
-with open("src/components/features/EstoqueManager.tsx", "w", encoding="utf-8") as f:
+with open("src/components/features/ClientManager.tsx", "w", encoding="utf-8") as f:
     f.write(c)
-
-print("Fixed syntax error")
+print("Fixed ClientManager")

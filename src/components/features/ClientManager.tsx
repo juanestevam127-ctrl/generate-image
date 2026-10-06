@@ -41,6 +41,7 @@ export function ClientManager() {
     const [bndvCustomerKey, setBndvCustomerKey] = useState("");
     const [boomToken, setBoomToken] = useState("");
     const [boomCustomerKey, setBoomCustomerKey] = useState("");
+    const [boomUrl, setBoomUrl] = useState("");
     const [activeTab, setActiveTab] = useState("geral");
 
     // Clickup Clients data
@@ -84,6 +85,7 @@ export function ClientManager() {
         setBndvCustomerKey("");
         setBoomToken("");
         setBoomCustomerKey("");
+        setBoomUrl("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
         
@@ -115,6 +117,7 @@ export function ClientManager() {
         setBndvCustomerKey(client.bndvCustomerKey || "");
         setBoomToken(client.boomToken || "");
         setBoomCustomerKey(client.boomCustomerKey || "");
+        setBoomUrl(client.boomUrl || "");
         setColumns([...client.columns]);
         setIsUploading({ stories: false, feed: false });
         setIsModalOpen(true);
@@ -557,6 +560,15 @@ export function ClientManager() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
                                     <div className="md:col-span-2">
                                         <h4 className="font-semibold text-sm text-indigo-300 mb-2">Credenciais Boom Sistemas</h4>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1">URL da API</label>
+                                        <Input
+                                            value={boomUrl}
+                                            onChange={(e) => setBoomUrl(e.target.value)}
+                                            placeholder="Ex: https://boomsistemas.com.br/api/integration-api/xml/MotosPrime-..."
+                                            className="bg-slate-900 border-slate-700 text-white"
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Customer Key</label>
