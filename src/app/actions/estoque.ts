@@ -133,7 +133,7 @@ export async function fetchBoomInventoryAction(clientId: string) {
         const vehicles = [];
 
         const extractTag = (xml: string, tag: string) => {
-            const regex = new RegExp(`<${tag}>([\s\S]*?)<\/${tag}>`);
+            const regex = new RegExp('<' + tag + '>([\\s\\S]*?)<\\/' + tag + '>', 'i');
             const match = xml.match(regex);
             return match ? match[1].trim() : null;
         }

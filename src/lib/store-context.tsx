@@ -179,7 +179,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     integracaoTipo: c.integracao_tipo,
                     bndvExternalKey: c.bndv_external_key,
                     bndvPassword: c.bndv_password,
-                    bndvCustomerKey: c.bndv_customer_key
+                    bndvCustomerKey: c.bndv_customer_key,
+                    boomUrl: c.boom_url
                 }));
                 setClients(formattedClients);
 

@@ -145,6 +145,7 @@ export function ClientManager() {
             bndvExternalKey,
             bndvPassword,
             bndvCustomerKey,
+            boomUrl,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
