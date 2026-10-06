@@ -1,5 +1,3 @@
-"use server";
-
 import { supabase } from "@/lib/supabase";
 import { unstable_noStore as noStore } from "next/cache";
 
@@ -16,6 +14,13 @@ export async function fetchImportQueueAction() {
             .eq("importado", false);
 
         if (vError) throw vError;
+
+        // 1.5 Fetch all clients to map clickup ID to supabase UUID
+        const { data: clientsDb, error: cError } = await supabase
+            .from("clientes")
+            .select("id, clickup_tarefa_id, name");
+
+        if (cError) throw cError;
 
         // 2. Fetch GOS tasks from ClickUp
         let allTasks: any[] = [];
@@ -78,8 +83,19 @@ export async function fetchImportQueueAction() {
             // Get Client name from task relationship or text
             const clientField = t.custom_fields?.find((cf: any) => cf.id === "1bbe66ba-1e2a-4827-b1c2-75c5c615de51");
             let clickupClientName = "Desconhecido";
+            let clickupClientId = null;
             if (clientField?.value && clientField.value.length > 0) {
                 clickupClientName = clientField.value[0].name || "Desconhecido";
+                clickupClientId = clientField.value[0].id || null;
+            }
+
+            // Map ClickUp Client ID to Supabase Client ID
+            let realClienteId = null;
+            if (clickupClientId) {
+                const matchedClient = clientsDb?.find(c => c.clickup_tarefa_id === clickupClientId);
+                if (matchedClient) {
+                    realClienteId = matchedClient.id;
+                }
             }
 
             // Find matching VeiculoOperador
@@ -100,7 +116,7 @@ export async function fetchImportQueueAction() {
                 clickupTaskId: t.id,
                 taskName: t.name,
                 clientName: clientName,
-                clientId: veiculoDb?.clienteId || null, // Supabase Client ID if exists
+                clientId: realClienteId || veiculoDb?.clienteId || null, // Prefer mapped ID, fallback to DB
                 preco: preco,
                 url: t.url,
                 // Attach VeiculoOperador data if exists
