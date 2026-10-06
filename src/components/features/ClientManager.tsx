@@ -39,6 +39,8 @@ export function ClientManager() {
     const [bndvExternalKey, setBndvExternalKey] = useState("");
     const [bndvPassword, setBndvPassword] = useState("");
     const [bndvCustomerKey, setBndvCustomerKey] = useState("");
+    const [boomToken, setBoomToken] = useState("");
+    const [boomCustomerKey, setBoomCustomerKey] = useState("");
     const [activeTab, setActiveTab] = useState("geral");
 
     // Clickup Clients data
@@ -80,6 +82,8 @@ export function ClientManager() {
         setBndvExternalKey("");
         setBndvPassword("");
         setBndvCustomerKey("");
+        setBoomToken("");
+        setBoomCustomerKey("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
         
@@ -109,6 +113,8 @@ export function ClientManager() {
         setBndvExternalKey(client.bndvExternalKey || "");
         setBndvPassword(client.bndvPassword || "");
         setBndvCustomerKey(client.bndvCustomerKey || "");
+        setBoomToken(client.boomToken || "");
+        setBoomCustomerKey(client.boomCustomerKey || "");
         setColumns([...client.columns]);
         setIsUploading({ stories: false, feed: false });
         setIsModalOpen(true);
@@ -542,9 +548,37 @@ export function ClientManager() {
                                 >
                                     <option value="none">Nenhuma</option>
                                     <option value="BNDV">BNDV</option>
+                                    <option value="BOOM">Boom Sistemas</option>
                                 </select>
                             </div>
 
+                            
+                            {integracaoTipo === "BOOM" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
+                                    <div className="md:col-span-2">
+                                        <h4 className="font-semibold text-sm text-indigo-300 mb-2">Credenciais Boom Sistemas</h4>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Customer Key</label>
+                                        <Input
+                                            value={boomCustomerKey}
+                                            onChange={(e) => setBoomCustomerKey(e.target.value)}
+                                            placeholder="Ex: MotosPrime-0WxGYEtQCDS4Iji"
+                                            className="bg-slate-900 border-slate-700 text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Token</label>
+                                        <Input
+                                            value={boomToken}
+                                            onChange={(e) => setBoomToken(e.target.value)}
+                                            placeholder="Ex: eyJhbG..."
+                                            className="bg-slate-900 border-slate-700 text-white"
+                                            type="password"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                             {integracaoTipo === "BNDV" && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10">
                                     <div className="md:col-span-2">

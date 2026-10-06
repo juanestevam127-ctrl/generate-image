@@ -66,6 +66,8 @@ export interface Client {
     bndvExternalKey?: string;
     bndvPassword?: string;
     bndvCustomerKey?: string;
+    boomToken?: string;
+    boomCustomerKey?: string;
 }
 
 export interface LayoutClient {

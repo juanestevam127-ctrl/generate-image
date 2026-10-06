@@ -1,8 +1,10 @@
-"use client";
+﻿const fs = require('fs');
+
+const content = `"use client";
 
 import React, { useState } from "react";
 import { useStore } from "@/lib/store-context";
-import { fetchBndvInventoryAction, fetchBoomInventoryAction } from "@/app/actions/estoque";
+import { fetchBndvInventoryAction } from "@/app/actions/estoque";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, RefreshCw, Car, Info, Image as ImageIcon, Download, CheckCircle2 } from "lucide-react";
@@ -45,7 +47,7 @@ export function EstoqueManager() {
     const downloadSingleImage = async (url: string, index: number) => {
         setDownloadingSingle(index);
         try {
-            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+            const proxyUrl = \`/api/proxy-image?url=\${encodeURIComponent(url)}\`;
             const res = await fetch(proxyUrl);
             if (!res.ok) throw new Error("Failed to fetch image");
             const blob = await res.blob();
@@ -53,7 +55,7 @@ export function EstoqueManager() {
             const a = document.createElement("a");
             a.style.display = "none";
             a.href = blobUrl;
-            a.download = `veiculo_foto_${index + 1}.jpg`;
+            a.download = \`veiculo_foto_\${index + 1}.jpg\`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(blobUrl);
@@ -71,7 +73,7 @@ export function EstoqueManager() {
         try {
             for (let i = 0; i < pictures.length; i++) {
                 const pic = pictures[i];
-                const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(pic.Link)}`;
+                const proxyUrl = \`/api/proxy-image?url=\${encodeURIComponent(pic.Link)}\`;
                 const res = await fetch(proxyUrl);
                 if (!res.ok) continue;
                 const blob = await res.blob();
@@ -79,7 +81,7 @@ export function EstoqueManager() {
                 const a = document.createElement("a");
                 a.style.display = "none";
                 a.href = blobUrl;
-                a.download = `veiculo_foto_${i + 1}.jpg`;
+                a.download = \`veiculo_foto_\${i + 1}.jpg\`;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(blobUrl);
@@ -225,7 +227,7 @@ export function EstoqueManager() {
                 <Modal
                     isOpen={!!selectedVehicle}
                     onClose={() => setSelectedVehicle(null)}
-                    title={`${selectedVehicle.markName} ${selectedVehicle.modelName}`}
+                    title={\`\${selectedVehicle.markName} \${selectedVehicle.modelName}\`}
                     className="max-w-4xl h-[90vh]"
                 >
                     <div className="flex flex-col h-full space-y-6 overflow-y-auto pr-2 custom-scrollbar pb-10">
@@ -267,7 +269,7 @@ export function EstoqueManager() {
                             </div>
                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                                 <p className="text-xs text-slate-400 mb-1">Placa / Final</p>
-                                <p className="text-sm font-semibold text-slate-200">{selectedVehicle.plate || (selectedVehicle.finalPlate ? `Final ${selectedVehicle.finalPlate}` : "N/A")}</p>
+                                <p className="text-sm font-semibold text-slate-200">{selectedVehicle.plate || (selectedVehicle.finalPlate ? \`Final \${selectedVehicle.finalPlate}\` : "N/A")}</p>
                             </div>
                             <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
                                 <p className="text-xs text-slate-400 mb-1">Categoria</p>
@@ -282,7 +284,7 @@ export function EstoqueManager() {
                                 <div className="flex flex-wrap gap-2">
                                     {parseItems(selectedVehicle.itemJs).map((item: any, idx: number) => (
                                         <span key={idx} className="bg-slate-800/80 border border-slate-700 text-slate-300 text-xs px-2.5 py-1.5 rounded-md">
-                                            {typeof item === 'string' ? item : (item.value || item.Descricao || item.name || item.descricao || JSON.stringify(item))}
+                                            {item.Descricao || item.name || item.descricao || typeof item === 'string' ? item : JSON.stringify(item)}
                                         </span>
                                     ))}
                                 </div>
@@ -308,7 +310,7 @@ export function EstoqueManager() {
                                     <div key={i} className="aspect-[4/3] rounded-md overflow-hidden bg-slate-900 border border-slate-700 relative group">
                                         <img 
                                             src={pic.Link} 
-                                            alt={`Foto ${i + 1}`} 
+                                            alt={\`Foto \${i + 1}\`} 
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                         />
                                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -339,3 +341,7 @@ export function EstoqueManager() {
         </div>
     );
 }
+`;
+
+fs.writeFileSync('src/components/features/EstoqueManager.tsx', content, 'utf8');
+console.log('Successfully wrote EstoqueManager.tsx with individual download and separated grid texts.');
