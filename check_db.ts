@@ -1,38 +1,17 @@
-import { supabase } from './src/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 async function check() {
-    console.log("Checking publicacoes_design_online table...");
+    const { data: v } = await supabase.from('VeiculoOperador').select('*').ilike('dados->>Nome do Veiculo', '%15190%');
+    console.log("Veiculos found:", v);
     
-    // Count all
-    const { count: total, error: err1 } = await supabase
-        .from('publicacoes_design_online')
-        .select('*', { count: 'exact', head: true });
-    
-    console.log("Total records:", total);
-    
-    // Count unpublished
-    const { count: unpublished, error: err2 } = await supabase
-        .from('publicacoes_design_online')
-        .select('*', { count: 'exact', head: true })
-        .eq('publicado', false);
-    
-    console.log("Unpublished records:", unpublished);
-    
-    // Count published
-    const { count: published, error: err3 } = await supabase
-        .from('publicacoes_design_online')
-        .select('*', { count: 'exact', head: true })
-        .eq('publicado', true);
-    
-    console.log("Published records:", published);
-
-    // Count with data_agendamento
-    const { count: scheduled, error: err4 } = await supabase
-        .from('publicacoes_design_online')
-        .select('*', { count: 'exact', head: true })
-        .not('data_agendamento', 'is', null);
-    
-    console.log("Scheduled records:", scheduled);
+    if (v && v.length > 0) {
+        const clientId = v[0].clienteId;
+        const { data: c } = await supabase.from('clientes').select('name, webhook_url, clickup_tarefa_id').eq('id', clientId);
+        console.log("Client in DB:", c);
+    }
 }
-
 check();

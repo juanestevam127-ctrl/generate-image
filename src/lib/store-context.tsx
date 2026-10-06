@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { verifyLoginAction, loadInitialDataAction } from "@/app/actions";
@@ -70,6 +70,8 @@ export interface Client {
     boomCustomerKey?: string;
     boomUrl?: string;
     lojaConectadaToken?: string;
+    autocertoUsername?: string;
+    autocertoPassword?: string;
 }
 
 export interface LayoutClient {
@@ -181,8 +183,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     bndvExternalKey: c.bndv_external_key,
                     bndvPassword: c.bndv_password,
                     bndvCustomerKey: c.bndv_customer_key,
+                    boomToken: c.boom_token,
+                    boomCustomerKey: c.boom_customer_key,
                     boomUrl: c.boom_url,
-                    lojaConectadaToken: c.loja_conectada_token
+                    lojaConectadaToken: c.loja_conectada_token,
+                    autocertoUsername: c.autocerto_username,
+                    autocertoPassword: c.autocerto_password
                 }));
                 setClients(formattedClients);
 
@@ -342,7 +348,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             bndvExternalKey: result.data.bndv_external_key,
             bndvPassword: result.data.bndv_password,
             bndvCustomerKey: result.data.bndv_customer_key,
-            lojaConectadaToken: result.data.loja_conectada_token
+            boomToken: result.data.boom_token,
+            boomCustomerKey: result.data.boom_customer_key,
+            boomUrl: result.data.boom_url,
+            lojaConectadaToken: result.data.loja_conectada_token,
+            autocertoUsername: result.data.autocerto_username,
+            autocertoPassword: result.data.autocerto_password
         };
 
         setClients((prev) => [...prev, newClient]);

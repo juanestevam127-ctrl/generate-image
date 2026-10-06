@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { supabase } from "@/lib/supabase";
 
@@ -309,6 +309,89 @@ export async function fetchLojaConectadaInventoryAction(clientId: string) {
         return { success: true, data: vehicles };
     } catch (error: any) {
         console.error("Erro em fetchLojaConectadaInventoryAction:", error);
+        return { success: false, error: "Erro interno: " + error.message };
+    }
+}
+
+export async function fetchAutoCertoInventoryAction(clientId: string) {
+    try {
+        const { data: client, error } = await supabase
+            .from("clientes")
+            .select("integracao_tipo, autocerto_username, autocerto_password")
+            .eq("id", clientId)
+            .single();
+
+        if (error) throw error;
+        if (client.integracao_tipo !== "AUTOCERTO") {
+            return { success: false, error: "Cliente não possui integração AutoCerto configurada." };
+        }
+        if (!client.autocerto_username || !client.autocerto_password) {
+            return { success: false, error: "Credenciais AutoCerto incompletas." };
+        }
+
+        const authBody = new URLSearchParams();
+        authBody.append("grant_type", "password");
+        authBody.append("username", client.autocerto_username);
+        authBody.append("password", client.autocerto_password);
+
+        const authRes = await fetch("https://integracao.autocerto.com/oauth/token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: authBody.toString()
+        });
+
+        if (!authRes.ok) {
+            return { success: false, error: "Falha na autenticação AutoCerto." };
+        }
+
+        const authData = await authRes.json();
+        const token = authData.access_token;
+
+        const inventoryRes = await fetch("https://integracao.autocerto.com/api/Veiculo/ObterEstoque", {
+            method: "GET",
+            headers: {
+                "accept": "application/json",
+                "authorization": \Bearer \\
+            }
+        });
+
+        if (!inventoryRes.ok) {
+            return { success: false, error: "Falha ao buscar estoque AutoCerto." };
+        }
+
+        const items = await inventoryRes.json();
+
+        const vehicles = items.map((v: any) => {
+            const pictures = (v.Fotos || []).map((f: any, idx: number) => ({
+                Link: f.URL,
+                Principal: f.Posicao === 1 || idx === 0
+            }));
+            const optionals = (v.Opcionais || []).map((o: any) => o.Descricao);
+            
+            return {
+                vehicleExternalKey: String(v.Codigo),
+                markName: v.Marca || "N/A",
+                modelName: v.Modelo || "N/A",
+                versionName: v.Versao || "N/A",
+                year: (v.AnoFabricacao && v.AnoModelo) ? `${v.AnoFabricacao}/${v.AnoModelo}` : (v.AnoModelo || v.AnoFabricacao || ""),
+                km: parseInt(v.Km || "0") || 0,
+                saleValue: v.Preco || 0,
+                color: v.Cor || "N/A",
+                transmissionName: v.Cambio || "N/A",
+                fuelName: v.Combustivel || "N/A",
+                plate: v.Placa || "",
+                subCategoryName: v.TipoVeiculo || "N/A",
+                description: v.Observacao || "",
+                itemJs: JSON.stringify(optionals),
+                pictureJs: JSON.stringify(pictures),
+            };
+        });
+
+        return { success: true, data: vehicles };
+    } catch (error: any) {
+        console.error("Erro em fetchAutoCertoInventoryAction:", error);
         return { success: false, error: "Erro interno: " + error.message };
     }
 }

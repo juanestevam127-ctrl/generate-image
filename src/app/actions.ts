@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
@@ -39,7 +39,7 @@ export async function loadInitialDataAction() {
 
         // Fetch clientes first (most critical) — avoid parallel to prevent combined timeout
         const clientsRes = await supabase.from("clientes").select(
-            "id, name, webhook_url, webhook_postagens, columns, prompt, caption_template, id_facebook, id_instagram, token, divisao_developrs, horario_developers, guide_stories, guide_feed, cliente_ativo, id_clickup, clickup_tarefa_id, webhook_stories_seg_quar_sex, integracao_tipo, bndv_external_key, bndv_password, bndv_customer_key, boom_token, boom_customer_key, boom_url"
+            "id, name, webhook_url, webhook_postagens, columns, prompt, caption_template, id_facebook, id_instagram, token, divisao_developrs, horario_developers, guide_stories, guide_feed, cliente_ativo, id_clickup, clickup_tarefa_id, webhook_stories_seg_quar_sex, integracao_tipo, bndv_external_key, bndv_password, bndv_customer_key, boom_token, boom_customer_key, boom_url, loja_conectada_token, autocerto_username, autocerto_password"
         );
         if (clientsRes.error) throw clientsRes.error;
 

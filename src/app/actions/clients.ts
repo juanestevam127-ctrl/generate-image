@@ -72,7 +72,12 @@ export async function addClientAction(data: any) {
         bndv_external_key: data.bndvExternalKey,
         bndv_password: data.bndvPassword,
         bndv_customer_key: data.bndvCustomerKey,
-        loja_conectada_token: data.lojaConectadaToken
+        boom_token: data.boomToken,
+        boom_customer_key: data.boomCustomerKey,
+        boom_url: data.boomUrl,
+        loja_conectada_token: data.lojaConectadaToken,
+        autocerto_username: data.autocertoUsername,
+        autocerto_password: data.autocertoPassword
     };
 
     try {
@@ -112,7 +117,12 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.bndvExternalKey !== undefined) dbUpdates.bndv_external_key = updates.bndvExternalKey;
     if (updates.bndvPassword !== undefined) dbUpdates.bndv_password = updates.bndvPassword;
     if (updates.bndvCustomerKey !== undefined) dbUpdates.bndv_customer_key = updates.bndvCustomerKey;
+    if (updates.boomToken !== undefined) dbUpdates.boom_token = updates.boomToken;
+    if (updates.boomCustomerKey !== undefined) dbUpdates.boom_customer_key = updates.boomCustomerKey;
+    if (updates.boomUrl !== undefined) dbUpdates.boom_url = updates.boomUrl;
     if (updates.lojaConectadaToken !== undefined) dbUpdates.loja_conectada_token = updates.lojaConectadaToken;
+    if (updates.autocertoUsername !== undefined) dbUpdates.autocerto_username = updates.autocertoUsername;
+    if (updates.autocertoPassword !== undefined) dbUpdates.autocerto_password = updates.autocertoPassword;
 
     try {
         // If activation status is specified, we check if we need to assign or clear group/schedule

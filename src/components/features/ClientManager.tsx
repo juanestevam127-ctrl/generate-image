@@ -43,6 +43,8 @@ export function ClientManager() {
     const [boomCustomerKey, setBoomCustomerKey] = useState("");
     const [boomUrl, setBoomUrl] = useState("");
     const [lojaConectadaToken, setLojaConectadaToken] = useState("");
+    const [autocertoUsername, setAutocertoUsername] = useState("");
+    const [autocertoPassword, setAutocertoPassword] = useState("");
     const [activeTab, setActiveTab] = useState("geral");
 
     // Clickup Clients data
@@ -88,6 +90,8 @@ export function ClientManager() {
         setBoomCustomerKey("");
         setBoomUrl("");
         setLojaConectadaToken("");
+        setAutocertoUsername("");
+        setAutocertoPassword("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setIsModalOpen(true);
         
@@ -121,6 +125,8 @@ export function ClientManager() {
         setBoomCustomerKey(client.boomCustomerKey || "");
         setBoomUrl(client.boomUrl || "");
         setLojaConectadaToken(client.lojaConectadaToken || "");
+        setAutocertoUsername(client.autocertoUsername || "");
+        setAutocertoPassword(client.autocertoPassword || "");
         setColumns([...client.columns]);
         setIsUploading({ stories: false, feed: false });
         setIsModalOpen(true);
@@ -148,8 +154,12 @@ export function ClientManager() {
             bndvExternalKey,
             bndvPassword,
             bndvCustomerKey,
+            boomToken,
+            boomCustomerKey,
             boomUrl,
             lojaConectadaToken,
+            autocertoUsername,
+            autocertoPassword,
             columns: columns.filter((c) => c.name.trim() !== ""),
         };
 
@@ -558,10 +568,37 @@ export function ClientManager() {
                                     <option value="BNDV">BNDV</option>
                                     <option value="BOOM">Boom Sistemas</option>
                                     <option value="LOJA_CONECTADA">Loja Conectada</option>
+                                    <option value="AUTOCERTO">AutoCerto</option>
                                 </select>
                             </div>
 
-                            
+                            {integracaoTipo === "AUTOCERTO" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
+                                    <div className="md:col-span-2">
+                                        <h4 className="font-semibold text-sm text-indigo-300 mb-2">Credenciais AutoCerto</h4>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Usuário</label>
+                                        <Input
+                                            value={autocertoUsername}
+                                            onChange={(e) => setAutocertoUsername(e.target.value)}
+                                            placeholder="Usuário"
+                                            className="bg-slate-900 border-slate-700 text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Senha</label>
+                                        <Input
+                                            type="password"
+                                            value={autocertoPassword}
+                                            onChange={(e) => setAutocertoPassword(e.target.value)}
+                                            placeholder="Senha"
+                                            className="bg-slate-900 border-slate-700 text-white"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             {integracaoTipo === "LOJA_CONECTADA" && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
                                     <div className="md:col-span-2">
