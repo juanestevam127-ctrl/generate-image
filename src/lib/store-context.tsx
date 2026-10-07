@@ -72,6 +72,7 @@ export interface Client {
     lojaConectadaToken?: string;
     autocertoUsername?: string;
     autocertoPassword?: string;
+    revendaMaisUrl?: string;
 }
 
 export interface LayoutClient {
@@ -188,7 +189,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     boomUrl: c.boom_url,
                     lojaConectadaToken: c.loja_conectada_token,
                     autocertoUsername: c.autocerto_username,
-                    autocertoPassword: c.autocerto_password
+                    autocertoPassword: c.autocerto_password,
+                    revendaMaisUrl: c.revenda_mais_url
                 }));
                 setClients(formattedClients);
 
@@ -353,7 +355,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             boomUrl: result.data.boom_url,
             lojaConectadaToken: result.data.loja_conectada_token,
             autocertoUsername: result.data.autocerto_username,
-            autocertoPassword: result.data.autocerto_password
+            autocertoPassword: result.data.autocerto_password,
+            revendaMaisUrl: result.data.revenda_mais_url
         };
 
         setClients((prev) => [...prev, newClient]);

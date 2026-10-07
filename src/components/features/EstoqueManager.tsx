@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/lib/store-context";
-import { fetchBndvInventoryAction, fetchBoomInventoryAction, fetchLojaConectadaInventoryAction, fetchAutoCertoInventoryAction } from "@/app/actions/estoque";
+import { fetchBndvInventoryAction, fetchBoomInventoryAction, fetchLojaConectadaInventoryAction, fetchAutoCertoInventoryAction, fetchRevendaMaisInventoryAction } from "@/app/actions/estoque";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, RefreshCw, Car, Info, Image as ImageIcon, Download, CheckCircle2 } from "lucide-react";
@@ -134,6 +134,13 @@ export function EstoqueManager() {
                 setVehicles(result.data);
             } else {
                 setError(result.error || "Erro ao sincronizar estoque AutoCerto.");
+            }
+        } else if (client?.integracaoTipo === "REVENDA_MAIS") {
+            const result = await fetchRevendaMaisInventoryAction(selectedClientId);
+            if (result.success && result.data) {
+                setVehicles(result.data);
+            } else {
+                setError(result.error || "Erro ao sincronizar estoque Revenda Mais.");
             }
         } else {
             setError("Integração não suportada ainda.");

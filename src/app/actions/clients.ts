@@ -65,6 +65,7 @@ export async function addClientAction(data: any) {
         guide_stories: data.guideStories,
         guide_feed: data.guideFeed,
         cliente_ativo: data.clienteAtivo,
+        revenda_mais_url: data.revendaMaisUrl,
         id_clickup: data.idClickup,
         clickup_tarefa_id: data.clickupTarefaId,
         webhook_stories_seg_quar_sex: data.webhookStoriesSegQuarSex,
@@ -77,7 +78,8 @@ export async function addClientAction(data: any) {
         boom_url: data.boomUrl,
         loja_conectada_token: data.lojaConectadaToken,
         autocerto_username: data.autocertoUsername,
-        autocerto_password: data.autocertoPassword
+        autocerto_password: data.autocertoPassword,
+        revenda_mais_url: data.revendaMaisUrl
     };
 
     try {
@@ -109,6 +111,7 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.jsonStories !== undefined) dbUpdates.json_stories = updates.jsonStories;
     if (updates.guideStories !== undefined) dbUpdates.guide_stories = updates.guideStories;
     if (updates.guideFeed !== undefined) dbUpdates.guide_feed = updates.guideFeed;
+    if (updates.revendaMaisUrl !== undefined) dbUpdates.revenda_mais_url = updates.revendaMaisUrl;
     if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;
     if (updates.idClickup !== undefined) dbUpdates.id_clickup = updates.idClickup;
     if (updates.clickupTarefaId !== undefined) dbUpdates.clickup_tarefa_id = updates.clickupTarefaId;
@@ -123,6 +126,7 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.lojaConectadaToken !== undefined) dbUpdates.loja_conectada_token = updates.lojaConectadaToken;
     if (updates.autocertoUsername !== undefined) dbUpdates.autocerto_username = updates.autocertoUsername;
     if (updates.autocertoPassword !== undefined) dbUpdates.autocerto_password = updates.autocertoPassword;
+    if (updates.revendaMaisUrl !== undefined) dbUpdates.revenda_mais_url = updates.revendaMaisUrl;
 
     try {
         // If activation status is specified, we check if we need to assign or clear group/schedule

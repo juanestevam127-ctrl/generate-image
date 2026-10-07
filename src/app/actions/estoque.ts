@@ -1,4 +1,5 @@
 "use server";
+import { XMLParser } from "fast-xml-parser";
 
 import { supabase } from "@/lib/supabase";
 
@@ -392,6 +393,82 @@ export async function fetchAutoCertoInventoryAction(clientId: string) {
         return { success: true, data: vehicles };
     } catch (error: any) {
         console.error("Erro em fetchAutoCertoInventoryAction:", error);
+        return { success: false, error: "Erro interno: " + error.message };
+    }
+}
+
+
+
+export async function fetchRevendaMaisInventoryAction(clientId: string) {
+    try {
+        const { data: client, error } = await supabase
+            .from("clientes")
+            .select("integracao_tipo, revenda_mais_url")
+            .eq("id", clientId)
+            .single();
+
+        if (error) throw error;
+
+        if (client.integracao_tipo !== "REVENDA_MAIS") {
+            return { success: false, error: "Cliente não possui integração Revenda Mais configurada." };
+        }
+
+        if (!client.revenda_mais_url) {
+            return { success: false, error: "URL do Revenda Mais não configurada." };
+        }
+
+        const url = client.revenda_mais_url;
+        const res = await fetch(url, { headers: { accept: "application/json" } });
+        if (!res.ok) throw new Error("Falha ao buscar API: " + res.statusText);
+
+        const data = await res.json();
+        
+        let xmlData = "";
+        if (Array.isArray(data) && data.length > 0 && data[0].data) {
+            xmlData = data[0].data;
+        } else if (data.data) {
+            xmlData = data.data;
+        } else {
+            throw new Error("Formato de resposta inválido ou XML não encontrado no campo data.");
+        }
+
+        const parser = new XMLParser({ ignoreAttributes: false, parseAttributeValue: true });
+        const parsed = parser.parse(xmlData);
+
+        if (!parsed || !parsed.ADS || !parsed.ADS.AD) {
+            return { success: true, data: [] }; // Nenhum veículo encontrado
+        }
+
+        let ads = parsed.ADS.AD;
+        if (!Array.isArray(ads)) {
+            ads = [ads];
+        }
+
+        const vehicles = ads.map((ad: any) => {
+            const pics = ad.IMAGES_LARGE?.IMAGE_URL_LARGE || ad.IMAGES?.IMAGE_URL || [];
+            const pictures = Array.isArray(pics) ? pics : [pics];
+
+            return {
+                source: "revenda_mais",
+                id: ad.ID?.toString() || crypto.randomUUID(),
+                marca: ad.MAKE || "",
+                modelo: ad.MODEL || "",
+                versao: ad.MODEL || "",
+                anoFabricacao: parseInt(ad.FABRIC_YEAR) || 0,
+                anoModelo: parseInt(ad.YEAR) || 0,
+                combustivel: ad.FUEL || "",
+                cambio: ad.GEAR || "",
+                cor: ad.COLOR || "",
+                km: parseInt(ad.MILEAGE) || 0,
+                placa: ad.PLATE || "",
+                preco: parseFloat(ad.PRICE || ad.PROMOTION_PRICE) || 0,
+                pictureJs: JSON.stringify(pictures),
+            };
+        });
+
+        return { success: true, data: vehicles };
+    } catch (error: any) {
+        console.error("Erro em fetchRevendaMaisInventoryAction:", error);
         return { success: false, error: "Erro interno: " + error.message };
     }
 }
