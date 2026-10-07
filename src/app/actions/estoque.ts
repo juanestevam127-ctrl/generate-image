@@ -421,15 +421,22 @@ export async function fetchRevendaMaisInventoryAction(clientId: string) {
         const res = await fetch(url, { headers: { accept: "application/json" } });
         if (!res.ok) throw new Error("Falha ao buscar API: " + res.statusText);
 
-        const data = await res.json();
+        const rawText = await res.text();
         
         let xmlData = "";
-        if (Array.isArray(data) && data.length > 0 && data[0].data) {
-            xmlData = data[0].data;
-        } else if (data.data) {
-            xmlData = data.data;
-        } else {
-            throw new Error("Formato de resposta inválido ou XML não encontrado no campo data.");
+        try {
+            // Tenta parsear como JSON caso venha encapsulado (ex: [{"data": "<?xml..."}])
+            const data = JSON.parse(rawText);
+            if (Array.isArray(data) && data.length > 0 && data[0].data) {
+                xmlData = data[0].data;
+            } else if (data.data) {
+                xmlData = data.data;
+            } else {
+                xmlData = rawText; // Fallback caso não encontre 'data'
+            }
+        } catch (e) {
+            // Se falhar o parse do JSON, é porque já veio o XML cru (começando com <)
+            xmlData = rawText;
         }
 
         const parser = new XMLParser({ ignoreAttributes: false, parseAttributeValue: true });
