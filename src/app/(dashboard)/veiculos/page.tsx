@@ -295,7 +295,7 @@ export default function VeiculosPage() {
     };
 
     if (!user) return null;
-    const availableClients = clients.filter(c => c.clickupTarefaId).sort((a, b) => a.name.localeCompare(b.name));
+    const availableClients = clients.filter(c => c.clickupTarefaId && c.clienteAtivo !== false).sort((a, b) => a.name.localeCompare(b.name));
 
     return (
         <div className="space-y-6 pb-20">

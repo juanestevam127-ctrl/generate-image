@@ -152,6 +152,26 @@ export async function updateClientAction(id: string, updates: any) {
             .select();
 
         if (error) throw error;
+
+        if (updates.clienteAtivo === false && updated && updated[0]) {
+            const clientName = updated[0].name;
+            const baseNameMatch = clientName.match(/^(.*?)\s*\(LAYOUT/i);
+            const baseName = baseNameMatch ? baseNameMatch[1].trim() : clientName.trim();
+
+            const { data: activeLayouts, error: checkError } = await supabase
+                .from("clientes")
+                .select("id")
+                .ilike("name", `${baseName}%`)
+                .eq("cliente_ativo", true);
+            
+            if (!checkError && (!activeLayouts || activeLayouts.length === 0)) {
+                await supabase
+                    .from("clientes_vendidos")
+                    .update({ cliente_ativo: false })
+                    .ilike("name", baseName);
+            }
+        }
+
         return { success: true, data: updated ? updated[0] : null };
     } catch (e: any) {
         console.error("Update Client Error:", e);
