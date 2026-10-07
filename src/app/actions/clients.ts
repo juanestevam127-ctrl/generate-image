@@ -65,7 +65,6 @@ export async function addClientAction(data: any) {
         guide_stories: data.guideStories,
         guide_feed: data.guideFeed,
         cliente_ativo: data.clienteAtivo,
-        revenda_mais_url: data.revendaMaisUrl,
         id_clickup: data.idClickup,
         clickup_tarefa_id: data.clickupTarefaId,
         webhook_stories_seg_quar_sex: data.webhookStoriesSegQuarSex,
@@ -111,7 +110,6 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.jsonStories !== undefined) dbUpdates.json_stories = updates.jsonStories;
     if (updates.guideStories !== undefined) dbUpdates.guide_stories = updates.guideStories;
     if (updates.guideFeed !== undefined) dbUpdates.guide_feed = updates.guideFeed;
-    if (updates.revendaMaisUrl !== undefined) dbUpdates.revenda_mais_url = updates.revendaMaisUrl;
     if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;
     if (updates.idClickup !== undefined) dbUpdates.id_clickup = updates.idClickup;
     if (updates.clickupTarefaId !== undefined) dbUpdates.clickup_tarefa_id = updates.clickupTarefaId;
