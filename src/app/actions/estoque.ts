@@ -453,22 +453,29 @@ export async function fetchRevendaMaisInventoryAction(clientId: string) {
 
         const vehicles = ads.map((ad: any) => {
             const pics = ad.IMAGES_LARGE?.IMAGE_URL_LARGE || ad.IMAGES?.IMAGE_URL || [];
-            const pictures = Array.isArray(pics) ? pics : [pics];
+            const picturesArr = Array.isArray(pics) ? pics : [pics];
+            const pictures = picturesArr.filter(Boolean).map((url, index) => ({
+                Link: url,
+                Principal: index === 0 ? "true" : "false"
+            }));
+            const optionals = ad.ACCESSORIES ? String(ad.ACCESSORIES).split(',').filter(Boolean).map(o => o.trim()) : [];
 
             return {
-                source: "revenda_mais",
-                id: ad.ID?.toString() || crypto.randomUUID(),
-                marca: ad.MAKE || "",
-                modelo: ad.MODEL || "",
-                versao: ad.MODEL || "",
-                anoFabricacao: parseInt(ad.FABRIC_YEAR) || 0,
-                anoModelo: parseInt(ad.YEAR) || 0,
-                combustivel: ad.FUEL || "",
-                cambio: ad.GEAR || "",
-                cor: ad.COLOR || "",
-                km: parseInt(ad.MILEAGE) || 0,
-                placa: ad.PLATE || "",
-                preco: parseFloat(ad.PRICE || ad.PROMOTION_PRICE) || 0,
+                vehicleExternalKey: ad.ID?.toString() || crypto.randomUUID(),
+                markName: ad.MAKE || "N/A",
+                modelName: ad.MODEL || "N/A",
+                versionName: ad.BASE_MODEL || "N/A",
+                year: (ad.FABRIC_YEAR && ad.YEAR) ? `${ad.FABRIC_YEAR}/${ad.YEAR}` : (ad.YEAR || ad.FABRIC_YEAR || ""),
+                km: parseInt(ad.MILEAGE || "0") || 0,
+                saleValue: parseFloat(ad.PROMOTION_PRICE || ad.PRICE || "0") || 0,
+                color: ad.COLOR || "N/A",
+                transmissionName: ad.GEAR || "N/A",
+                fuelName: ad.FUEL || "N/A",
+                plate: ad.PLATE || "N/A",
+                finalPlate: ad.PLATE ? String(ad.PLATE).slice(-1) : "",
+                subCategoryName: ad.CATEGORY || ad.BODY_TYPE || "N/A",
+                description: ad.DESCRIPTION || "",
+                itemJs: JSON.stringify(optionals),
                 pictureJs: JSON.stringify(pictures),
             };
         });
