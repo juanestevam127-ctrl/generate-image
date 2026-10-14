@@ -488,6 +488,154 @@ export async function fetchRevendaMaisInventoryAction(clientId: string) {
 }
 
 
+export async function fetchAutoConfInventoryAction(clientId: string) {
+    try {
+        const { data: client, error } = await supabase
+            .from("clientes")
+            .select("integracao_tipo, revenda_mais_url, boom_url")
+            .eq("id", clientId)
+            .single();
+
+        if (error) throw error;
+
+        if (client.integracao_tipo !== "AUTOCONF") {
+            return { success: false, error: "Cliente não possui integração AutoConf configurada." };
+        }
+
+        const url = client.revenda_mais_url || client.boom_url;
+        if (!url) {
+            return { success: false, error: "URL do XML do AutoConf não configurada." };
+        }
+
+        const res = await fetch(url, { 
+            headers: { 
+                accept: "application/json, text/xml, application/xml, */*" 
+            },
+            cache: 'no-store'
+        });
+        if (!res.ok) throw new Error("Falha ao buscar XML do AutoConf: " + res.statusText);
+
+        const rawText = await res.text();
+        
+        let xmlData = "";
+        try {
+            // Tenta parsear caso venha encapsulado em JSON (ex: [{"data": "<?xml..."}] ou { "data": "..." })
+            const data = JSON.parse(rawText);
+            if (Array.isArray(data) && data.length > 0 && data[0]?.data) {
+                xmlData = data[0].data;
+            } else if (data?.data) {
+                xmlData = data.data;
+            } else {
+                xmlData = rawText;
+            }
+        } catch (e) {
+            // Se já for XML puro começando com <
+            xmlData = rawText;
+        }
+
+        const parser = new XMLParser({ ignoreAttributes: false, parseAttributeValue: true });
+        const parsed = parser.parse(xmlData);
+
+        if (!parsed || !parsed.ADS || !parsed.ADS.AD) {
+            return { success: true, data: [] }; // Nenhum veículo encontrado
+        }
+
+        let ads = parsed.ADS.AD;
+        if (!Array.isArray(ads)) {
+            ads = [ads];
+        }
+
+        const vehicles = ads.map((ad: any) => {
+            // Extração de fotos
+            // AutoConf vem com múltiplos <IMAGES><IMAGE_URL>url</IMAGE_URL></IMAGES>
+            // ou um único <IMAGES> com array ou objeto
+            let picturesArr: string[] = [];
+            if (ad.IMAGES) {
+                const imgContainer = Array.isArray(ad.IMAGES) ? ad.IMAGES : [ad.IMAGES];
+                for (const item of imgContainer) {
+                    if (item?.IMAGE_URL) {
+                        if (Array.isArray(item.IMAGE_URL)) {
+                            picturesArr.push(...item.IMAGE_URL);
+                        } else if (typeof item.IMAGE_URL === "string") {
+                            picturesArr.push(item.IMAGE_URL);
+                        }
+                    } else if (typeof item === "string") {
+                        picturesArr.push(item);
+                    }
+                }
+            } else if (ad.IMAGES_LARGE) {
+                const l = ad.IMAGES_LARGE.IMAGE_URL_LARGE || ad.IMAGES_LARGE;
+                picturesArr = Array.isArray(l) ? l : [l];
+            }
+
+            const pictures = picturesArr.filter(Boolean).map((url, index) => ({
+                Link: String(url).trim(),
+                Principal: index === 0 ? "true" : "false"
+            }));
+
+            // Extração de opcionais / features
+            let optionals: string[] = [];
+            if (ad.FEATURES) {
+                const featContainer = Array.isArray(ad.FEATURES) ? ad.FEATURES : [ad.FEATURES];
+                for (const f of featContainer) {
+                    if (f?.FEATURE) {
+                        if (Array.isArray(f.FEATURE)) {
+                            optionals.push(...f.FEATURE.map((x: any) => String(x).trim()));
+                        } else {
+                            optionals.push(String(f.FEATURE).trim());
+                        }
+                    } else if (typeof f === "string") {
+                        optionals.push(f.trim());
+                    }
+                }
+            } else if (ad.ACCESSORIES) {
+                optionals = String(ad.ACCESSORIES).split(',').filter(Boolean).map(o => o.trim());
+            }
+
+            // Ano formatado (FABRIC_YEAR/YEAR)
+            const yearFab = ad.FABRIC_YEAR ? String(ad.FABRIC_YEAR).trim() : "";
+            const yearMod = ad.YEAR ? String(ad.YEAR).trim() : "";
+            const yearFormatted = (yearFab && yearMod && yearFab !== yearMod) 
+                ? `${yearFab}/${yearMod}` 
+                : (yearMod || yearFab || "");
+
+            // Valor de venda
+            const salePrice = parseFloat(String(ad.PRICES?.PROMOTION_PRICE || ad.PRICES?.REGULAR_PRICE || ad.PRICE || "0").replace(/[^0-9.]/g, "")) || 0;
+
+            // Quilometragem
+            const km = parseInt(String(ad.MILEAGE || "0").replace(/[^0-9]/g, "")) || 0;
+
+            // Placa
+            const plate = ad.FULL_PLATE || ad.PLATE || "";
+
+            return {
+                vehicleExternalKey: ad.ID?.toString() || crypto.randomUUID(),
+                markName: ad.MAKE || "N/A",
+                modelName: ad.MODEL || "N/A",
+                versionName: ad.VERSION || ad.AD_VERSION || ad.TITLE || "N/A",
+                year: yearFormatted,
+                km: km,
+                saleValue: salePrice,
+                color: ad.COLOR || "N/A",
+                transmissionName: ad.gear || ad.GEAR || "N/A",
+                fuelName: ad.FUEL || "N/A",
+                plate: plate,
+                finalPlate: plate ? String(plate).slice(-1) : "",
+                subCategoryName: ad.CATEGORY || ad.BODY || ad.BODY_TYPE || "N/A",
+                description: ad.DESCRIPTION || "",
+                itemJs: JSON.stringify(optionals),
+                pictureJs: JSON.stringify(pictures),
+            };
+        });
+
+        return { success: true, data: vehicles };
+    } catch (error: any) {
+        console.error("Erro em fetchAutoConfInventoryAction:", error);
+        return { success: false, error: "Erro interno AutoConf: " + error.message };
+    }
+}
+
+
 export async function importEstoqueVehiclesAction(params: {
     clienteId: string;
     items: Array<{

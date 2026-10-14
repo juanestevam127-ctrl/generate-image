@@ -574,6 +574,7 @@ export function ClientManager() {
                                     <option value="LOJA_CONECTADA">Loja Conectada</option>
                                     <option value="AUTOCERTO">AutoCerto</option>
                                     <option value="REVENDA_MAIS">Revenda Mais</option>
+                                    <option value="AUTOCONF">AutoConf</option>
                                 </select>
                             </div>
 
@@ -617,6 +618,24 @@ export function ClientManager() {
                                             placeholder="URL que retorna o XML"
                                             className="bg-slate-900 border-slate-700 text-white"
                                         />
+                                    </div>
+                                </div>
+                            )}
+
+                            {integracaoTipo === "AUTOCONF" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
+                                    <div className="md:col-span-2">
+                                        <h4 className="font-semibold text-sm text-indigo-300 mb-2">Configuração AutoConf</h4>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1">URL do XML</label>
+                                        <Input
+                                            value={revendaMaisUrl}
+                                            onChange={(e) => setRevendaMaisUrl(e.target.value)}
+                                            placeholder="Link/URL do feed XML do AutoConf"
+                                            className="bg-slate-900 border-slate-700 text-white"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Cole aqui o link do XML gerado pelo AutoConf.</p>
                                     </div>
                                 </div>
                             )}

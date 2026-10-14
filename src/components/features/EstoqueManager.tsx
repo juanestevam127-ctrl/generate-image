@@ -8,6 +8,7 @@ import {
     fetchLojaConectadaInventoryAction, 
     fetchAutoCertoInventoryAction, 
     fetchRevendaMaisInventoryAction,
+    fetchAutoConfInventoryAction,
     importEstoqueVehiclesAction,
     linkEstoqueVehicleToClickupAction,
     unlinkEstoqueVehicleAction
@@ -243,6 +244,13 @@ export function EstoqueManager() {
                     fetchedList = result.data;
                 } else {
                     setError(result.error || "Erro ao sincronizar estoque Revenda Mais.");
+                }
+            } else if (client?.integracaoTipo === "AUTOCONF") {
+                const result = await fetchAutoConfInventoryAction(selectedClientId);
+                if (result.success && result.data) {
+                    fetchedList = result.data;
+                } else {
+                    setError(result.error || "Erro ao sincronizar estoque AutoConf.");
                 }
             } else {
                 setError("Integração não suportada ainda.");
