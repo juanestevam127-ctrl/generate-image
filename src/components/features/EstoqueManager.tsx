@@ -2,10 +2,35 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/lib/store-context";
-import { fetchBndvInventoryAction, fetchBoomInventoryAction, fetchLojaConectadaInventoryAction, fetchAutoCertoInventoryAction, fetchRevendaMaisInventoryAction } from "@/app/actions/estoque";
+import { 
+    fetchBndvInventoryAction, 
+    fetchBoomInventoryAction, 
+    fetchLojaConectadaInventoryAction, 
+    fetchAutoCertoInventoryAction, 
+    fetchRevendaMaisInventoryAction,
+    importEstoqueVehiclesAction
+} from "@/app/actions/estoque";
+import { getVeiculosOperadorByClienteAction } from "@/app/actions/veiculo";
+import { getClickupTasksStatusesAction } from "@/app/actions/clickup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, RefreshCw, Car, Info, Image as ImageIcon, Download, CheckCircle2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { 
+    Loader2, 
+    RefreshCw, 
+    Car, 
+    Info, 
+    Image as ImageIcon, 
+    Download, 
+    CheckCircle2, 
+    UploadCloud, 
+    CheckSquare, 
+    Square, 
+    Video, 
+    ExternalLink,
+    Filter,
+    Search
+} from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +44,24 @@ export function EstoqueManager() {
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadingSingle, setDownloadingSingle] = useState<number | null>(null);
 
-    // Filtra qualquer cliente que tenha integrao ativa (no s BNDV)
+    // Multi-selection
+    const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    // Clickup Tracking State: map from externalKey/plate/name to { clickupTaskId, status, statusColor }
+    const [importedTracking, setImportedTracking] = useState<Record<string, { taskId: string; status: string; statusColor?: string }>>({});
+    
+    // Import Modal State
+    const [importModalOpen, setImportModalOpen] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
+    const [importContemVideo, setImportContemVideo] = useState(false);
+    const [importObservacoes, setImportObservacoes] = useState("");
+    const [vehiclesToImport, setVehiclesToImport] = useState<any[]>([]);
+    const [customTextFields, setCustomTextFields] = useState<Record<string, Record<string, string>>>({});
+
+    const activeClient = clients.find(c => c.id === selectedClientId);
+
+    // Filtra clientes que têm integração de estoque configurada
     const integratedClients = clients
         .filter(c => c.integracaoTipo && c.integracaoTipo !== "none")
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -96,58 +138,235 @@ export function EstoqueManager() {
         }
     };
 
+    // Recarrega status dos veículos importados no ClickUp
+    const refreshImportedTracking = async (clientId: string, currentVehicles: any[]) => {
+        try {
+            const opRes = await getVeiculosOperadorByClienteAction(clientId);
+            if (!opRes.success || !opRes.data) return;
+
+            const existingOps = opRes.data;
+            const taskIdsToFetch: string[] = [];
+            const mapping: Record<string, { taskId: string; status: string; statusColor?: string }> = {};
+
+            existingOps.forEach((op: any) => {
+                if (op.clickupTaskId) {
+                    taskIdsToFetch.push(op.clickupTaskId);
+                }
+            });
+
+            let statusesMap: Record<string, { status: string; statusColor?: string }> = {};
+            if (taskIdsToFetch.length > 0) {
+                const sRes = await getClickupTasksStatusesAction(taskIdsToFetch);
+                if (sRes.success && sRes.data) {
+                    statusesMap = sRes.data;
+                }
+            }
+
+            currentVehicles.forEach((v) => {
+                const vKey = String(v.vehicleExternalKey || "");
+                const vPlate = String(v.plate || "").trim().toUpperCase();
+                const vModel = String(v.modelName || "").trim().toUpperCase();
+
+                const match = existingOps.find((op: any) => {
+                    const d = op.dados || {};
+                    if (d._externalKey && String(d._externalKey) === vKey) return true;
+                    if (vPlate && vPlate !== "N/A" && Object.values(d).some(val => String(val).toUpperCase().includes(vPlate))) return true;
+                    if (vModel && vModel.length > 3 && Object.values(d).some(val => String(val).toUpperCase().includes(vModel))) return true;
+                    return false;
+                });
+
+                if (match && match.clickupTaskId) {
+                    const st = statusesMap[match.clickupTaskId] || { status: "Vinculado", statusColor: "#6366f1" };
+                    mapping[vKey] = {
+                        taskId: match.clickupTaskId,
+                        status: st.status,
+                        statusColor: st.statusColor
+                    };
+                }
+            });
+
+            setImportedTracking(mapping);
+        } catch (err) {
+            console.error("Error loading imported tracking:", err);
+        }
+    };
+
     const handleSync = async () => {
         if (!selectedClientId) return;
         setIsLoading(true);
         setError(null);
         setVehicles([]);
+        setSelectedKeys([]);
+        setImportedTracking({});
+        
+        const client = clients.find(c => c.id === selectedClientId);
+        let fetchedList: any[] = [];
+        
+        try {
+            if (client?.integracaoTipo === "BNDV") {
+                const result = await fetchBndvInventoryAction(selectedClientId);
+                if (result.success && result.data) {
+                    fetchedList = result.data;
+                } else {
+                    setError(result.error || "Erro ao sincronizar estoque.");
+                }
+            } else if (client?.integracaoTipo === "BOOM") {
+                const result = await fetchBoomInventoryAction(selectedClientId);
+                if (result.success && result.data) {
+                    fetchedList = result.data;
+                } else {
+                    setError(result.error || "Erro ao sincronizar estoque.");
+                }
+            } else if (client?.integracaoTipo === "LOJA_CONECTADA") {
+                const result = await fetchLojaConectadaInventoryAction(selectedClientId);
+                if (result.success && result.data) {
+                    fetchedList = result.data;
+                } else {
+                    setError(result.error || "Erro ao sincronizar estoque da Loja Conectada.");
+                }
+            } else if (client?.integracaoTipo === "AUTOCERTO") {
+                const result = await fetchAutoCertoInventoryAction(selectedClientId);
+                if (result.success && result.data) {
+                    fetchedList = result.data;
+                } else {
+                    setError(result.error || "Erro ao sincronizar estoque AutoCerto.");
+                }
+            } else if (client?.integracaoTipo === "REVENDA_MAIS") {
+                const result = await fetchRevendaMaisInventoryAction(selectedClientId);
+                if (result.success && result.data) {
+                    fetchedList = result.data;
+                } else {
+                    setError(result.error || "Erro ao sincronizar estoque Revenda Mais.");
+                }
+            } else {
+                setError("Integração não suportada ainda.");
+            }
 
-        // Aqui, futuramente podemos rotear para aes diferentes (BNDV, RevendaMais, etc) 
-        // baseado no integracaoTipo do cliente selecionado.
-        const client = integratedClients.find(c => c.id === selectedClientId);
-        
-        if (client?.integracaoTipo === "BNDV") {
-            const result = await fetchBndvInventoryAction(selectedClientId);
-            if (result.success && result.data) {
-                setVehicles(result.data);
-            } else {
-                setError(result.error || "Erro ao sincronizar estoque.");
+            setVehicles(fetchedList);
+            if (fetchedList.length > 0) {
+                await refreshImportedTracking(selectedClientId, fetchedList);
             }
-        } else if (client?.integracaoTipo === "BOOM") {
-            const result = await fetchBoomInventoryAction(selectedClientId);
-            if (result.success && result.data) {
-                setVehicles(result.data);
-            } else {
-                setError(result.error || "Erro ao sincronizar estoque.");
-            }
-        } else if (client?.integracaoTipo === "LOJA_CONECTADA") {
-            const result = await fetchLojaConectadaInventoryAction(selectedClientId);
-            if (result.success && result.data) {
-                setVehicles(result.data);
-                
-            } else {
-                setError(result.error || "Erro ao sincronizar estoque da Loja Conectada.");
-            }
-        } else if (client?.integracaoTipo === "AUTOCERTO") {
-            const result = await fetchAutoCertoInventoryAction(selectedClientId);
-            if (result.success && result.data) {
-                setVehicles(result.data);
-            } else {
-                setError(result.error || "Erro ao sincronizar estoque AutoCerto.");
-            }
-        } else if (client?.integracaoTipo === "REVENDA_MAIS") {
-            const result = await fetchRevendaMaisInventoryAction(selectedClientId);
-            if (result.success && result.data) {
-                setVehicles(result.data);
-            } else {
-                setError(result.error || "Erro ao sincronizar estoque Revenda Mais.");
-            }
-        } else {
-            setError("Integração não suportada ainda.");
+        } catch (e: any) {
+            setError("Erro interno ao sincronizar: " + e.message);
+        } finally {
+            setIsLoading(false);
         }
-        
-        setIsLoading(false);
     };
+
+    // Selection handlers
+    const toggleSelectAll = () => {
+        const unimported = filteredVehicles.filter(v => !importedTracking[String(v.vehicleExternalKey)]);
+        if (selectedKeys.length === unimported.length && unimported.length > 0) {
+            setSelectedKeys([]);
+        } else {
+            setSelectedKeys(unimported.map(v => String(v.vehicleExternalKey)));
+        }
+    };
+
+    const toggleSelectVehicle = (key: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (importedTracking[key]) return; // Já importado
+        setSelectedKeys(prev => 
+            prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+        );
+    };
+
+    // Open Import Modal
+    const openImportModal = (vehicleList: any[]) => {
+        if (!activeClient?.clickupTarefaId) {
+            alert("Atenção: Este cliente não possui a Tarefa de Serviços do ClickUp vinculada no cadastro de clientes!");
+            return;
+        }
+        setVehiclesToImport(vehicleList);
+        setImportContemVideo(false);
+        setImportObservacoes("");
+        
+        // Inicializa mapeamento com base nas colunas
+        const initialCustom: Record<string, Record<string, string>> = {};
+        vehicleList.forEach(v => {
+            const vKey = String(v.vehicleExternalKey);
+            initialCustom[vKey] = {};
+            activeClient?.columns.forEach((col: any) => {
+                if (col.type === "text" || col.type === "checkbox") {
+                    const cName = col.name.toLowerCase();
+                    if (cName.includes("nome") || cName.includes("veiculo") || cName.includes("modelo") || cName.includes("carro")) {
+                        initialCustom[vKey][col.id] = (v.markName && v.markName !== "N/A" ? `${v.markName} ` : "") + (v.modelName || v.versionName || "");
+                    } else if (cName.includes("ano")) {
+                        initialCustom[vKey][col.id] = v.year ? String(v.year) : "";
+                    } else if (cName.includes("cor")) {
+                        initialCustom[vKey][col.id] = v.color && v.color !== "N/A" ? v.color : "";
+                    } else if (cName.includes("pre") || cName.includes("valor")) {
+                        initialCustom[vKey][col.id] = v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "";
+                    } else if (cName.includes("km") || cName.includes("quilo")) {
+                        initialCustom[vKey][col.id] = v.km ? `${v.km.toLocaleString('pt-BR')} km` : "";
+                    } else if (cName.includes("cambio") || cName.includes("câmbio")) {
+                        initialCustom[vKey][col.id] = v.transmissionName && v.transmissionName !== "N/A" ? v.transmissionName : "";
+                    } else if (cName.includes("combustivel") || cName.includes("combustível")) {
+                        initialCustom[vKey][col.id] = v.fuelName && v.fuelName !== "N/A" ? v.fuelName : "";
+                    } else if (cName.includes("placa")) {
+                        initialCustom[vKey][col.id] = v.plate && v.plate !== "N/A" ? v.plate : "";
+                    }
+                }
+            });
+        });
+
+        setCustomTextFields(initialCustom);
+        setImportModalOpen(true);
+    };
+
+    // Execute Import
+    const handleExecuteImport = async () => {
+        if (!activeClient || vehiclesToImport.length === 0) return;
+        setIsImporting(true);
+
+        try {
+            const payloadItems = vehiclesToImport.map(v => {
+                const vKey = String(v.vehicleExternalKey);
+                return {
+                    vehicle: v,
+                    textFields: customTextFields[vKey] || {},
+                    observacoesGOS: importObservacoes,
+                    contemVideo: importContemVideo
+                };
+            });
+
+            const res = await importEstoqueVehiclesAction({
+                clienteId: activeClient.id,
+                items: payloadItems
+            });
+
+            if (!res.success) {
+                throw new Error(res.error || "Erro ao importar veículos.");
+            }
+
+            alert(`${vehiclesToImport.length} veículo(s) importado(s) com sucesso para o ClickUp!`);
+            setImportModalOpen(false);
+            setSelectedKeys([]);
+            if (selectedVehicle) setSelectedVehicle(null);
+
+            // Atualiza status na tela
+            await refreshImportedTracking(activeClient.id, vehicles);
+
+        } catch (err: any) {
+            alert("Erro durante importação: " + err.message);
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
+    const filteredVehicles = vehicles.filter(v => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            v.markName?.toLowerCase().includes(term) ||
+            v.modelName?.toLowerCase().includes(term) ||
+            v.versionName?.toLowerCase().includes(term) ||
+            v.plate?.toLowerCase().includes(term) ||
+            String(v.year)?.toLowerCase().includes(term)
+        );
+    });
+
+    const unimportedCount = filteredVehicles.filter(v => !importedTracking[String(v.vehicleExternalKey)]).length;
 
     return (
         <div className="space-y-6">
@@ -171,7 +390,12 @@ export function EstoqueManager() {
                                 <select 
                                     className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
                                     value={selectedClientId}
-                                    onChange={(e) => setSelectedClientId(e.target.value)}
+                                    onChange={(e) => {
+                                        setSelectedClientId(e.target.value);
+                                        setVehicles([]);
+                                        setSelectedKeys([]);
+                                        setImportedTracking({});
+                                    }}
                                 >
                                     <option value="">Selecione um cliente...</option>
                                     {integratedClients.map(c => (
@@ -200,58 +424,378 @@ export function EstoqueManager() {
 
             {vehicles.length > 0 && (
                 <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-slate-200">Veículos Sincronizados ({vehicles.length})</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {vehicles.map((v, idx) => {
-                            const pictures = parsePictures(v.pictureJs);
-                            const principalPic = pictures.find((p: any) => p.Principal === "true") || pictures[0];
+                    {/* Toolbar Superior */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-lg font-bold text-slate-200">
+                                Veículos no Estoque ({filteredVehicles.length})
+                            </h2>
+                            {selectedKeys.length > 0 && (
+                                <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2.5 py-1 rounded-full font-semibold">
+                                    {selectedKeys.length} selecionado(s)
+                                </span>
+                            )}
+                        </div>
 
-                            return (
-                                <Card 
-                                    key={v.vehicleExternalKey || idx} 
-                                    className="bg-slate-800 border-slate-700 overflow-hidden flex flex-col cursor-pointer hover:border-indigo-500 transition-colors"
-                                    onClick={() => setSelectedVehicle(v)}
+                        <div className="flex flex-wrap items-center gap-3">
+                            {/* Campo de Busca */}
+                            <div className="relative min-w-[220px]">
+                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <Input 
+                                    placeholder="Buscar por modelo, marca..." 
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="bg-slate-800 border-slate-700 pl-9 text-xs text-white h-9"
+                                />
+                            </div>
+
+                            {/* Botão de Selecionar Todos Disponíveis */}
+                            <Button 
+                                variant="outline"
+                                size="sm"
+                                onClick={toggleSelectAll}
+                                className="border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs h-9"
+                            >
+                                {selectedKeys.length === unimportedCount && unimportedCount > 0 ? (
+                                    <CheckSquare className="w-4 h-4 mr-1.5 text-indigo-400" />
+                                ) : (
+                                    <Square className="w-4 h-4 mr-1.5 text-slate-400" />
+                                )}
+                                Selecionar Disponíveis ({unimportedCount})
+                            </Button>
+
+                            {/* Botão de Importação em Lote */}
+                            {selectedKeys.length > 0 && (
+                                <Button 
+                                    size="sm"
+                                    onClick={() => {
+                                        const selectedVehiclesList = vehicles.filter(v => selectedKeys.includes(String(v.vehicleExternalKey)));
+                                        openImportModal(selectedVehiclesList);
+                                    }}
+                                    className="!bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs h-9 font-semibold shadow-lg shadow-indigo-600/20"
                                 >
-                                    <div className="aspect-[4/3] bg-slate-900 relative group">
-                                        {principalPic ? (
-                                            <img 
-                                                src={principalPic.Link} 
-                                                alt={v.versionName} 
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    <UploadCloud className="w-4 h-4 mr-1.5" />
+                                    Importar Selecionados ({selectedKeys.length})
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* LISTAGEM EM LINHAS (Estilo Windows Explorer / Lista Moderna) */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-800/60 border-b border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <tr>
+                                        <th className="py-3 px-3 w-10 text-center">
+                                            <input 
+                                                type="checkbox"
+                                                checked={selectedKeys.length === unimportedCount && unimportedCount > 0}
+                                                onChange={toggleSelectAll}
+                                                className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
                                             />
-                                        ) : (
-                                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-600">
-                                                <ImageIcon className="w-8 h-8 mb-2" />
-                                                <span className="text-xs">Sem foto</span>
-                                            </div>
-                                        )}
-                                        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-xs px-2 py-1 rounded text-white font-medium">
-                                            {pictures.length} fotos
-                                        </div>
-                                    </div>
-                                    <CardContent className="p-4 flex-1 flex flex-col">
-                                        <div className="flex flex-col mb-4">
-                                            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">{v.markName}</span>
-                                            <span className="text-sm font-bold text-slate-100 leading-tight mb-1">{v.modelName}</span>
-                                            <span className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{v.versionName}</span>
-                                        </div>
-                                        <div className="mt-auto space-y-2">
-                                            <div className="flex justify-between text-xs text-slate-400 font-medium">
-                                                <span>{v.year}</span>
-                                                <span>{v.km?.toLocaleString('pt-BR')} km</span>
-                                            </div>
-                                            <div className="text-lg font-bold text-indigo-400 pt-2 border-t border-slate-700/50">
-                                                {v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "Sob consulta"}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
+                                        </th>
+                                        <th className="py-3 px-3 w-16">Foto</th>
+                                        <th className="py-3 px-4">Veículo / Modelo</th>
+                                        <th className="py-3 px-4">Ano</th>
+                                        <th className="py-3 px-4">Km</th>
+                                        <th className="py-3 px-4">Preço</th>
+                                        <th className="py-3 px-4">Placa</th>
+                                        <th className="py-3 px-4">Status ClickUp</th>
+                                        <th className="py-3 px-4 text-right">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/60">
+                                    {filteredVehicles.map((v, idx) => {
+                                        const vKey = String(v.vehicleExternalKey || idx);
+                                        const pictures = parsePictures(v.pictureJs);
+                                        const principalPic = pictures.find((p: any) => p.Principal === "true") || pictures[0];
+                                        const isImported = !!importedTracking[vKey];
+                                        const tracking = importedTracking[vKey];
+                                        const isSelected = selectedKeys.includes(vKey);
+
+                                        return (
+                                            <tr 
+                                                key={vKey} 
+                                                className={cn(
+                                                    "hover:bg-slate-800/40 transition-colors cursor-pointer group",
+                                                    isSelected && "bg-indigo-950/20 hover:bg-indigo-950/30"
+                                                )}
+                                                onClick={() => setSelectedVehicle(v)}
+                                            >
+                                                {/* Checkbox */}
+                                                <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                                    <input 
+                                                        type="checkbox"
+                                                        disabled={isImported}
+                                                        checked={isSelected}
+                                                        onChange={() => toggleSelectVehicle(vKey)}
+                                                        className={cn(
+                                                            "w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0 focus:ring-offset-0",
+                                                            isImported ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                                                        )}
+                                                    />
+                                                </td>
+
+                                                {/* Thumbnail */}
+                                                <td className="py-3 px-3">
+                                                    <div className="w-14 h-10 rounded-md overflow-hidden bg-slate-800 border border-slate-700 relative shrink-0">
+                                                        {principalPic ? (
+                                                            <img 
+                                                                src={principalPic.Link} 
+                                                                alt="" 
+                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                                                <ImageIcon className="w-4 h-4" />
+                                                            </div>
+                                                        )}
+                                                        {pictures.length > 0 && (
+                                                            <span className="absolute bottom-0.5 right-0.5 bg-black/70 text-[9px] px-1 rounded text-white font-medium">
+                                                                {pictures.length}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                {/* Modelo / Marca */}
+                                                <td className="py-3 px-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                                                            {v.markName || "N/A"}
+                                                        </span>
+                                                        <span className="text-sm font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">
+                                                            {v.modelName}
+                                                        </span>
+                                                        {v.versionName && v.versionName !== v.modelName && (
+                                                            <span className="text-xs text-slate-400 line-clamp-1 max-w-xs">
+                                                                {v.versionName}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                {/* Ano */}
+                                                <td className="py-3 px-4 font-medium text-slate-300 whitespace-nowrap">
+                                                    {v.year || "—"}
+                                                </td>
+
+                                                {/* Km */}
+                                                <td className="py-3 px-4 text-slate-300 whitespace-nowrap text-xs">
+                                                    {v.km ? `${v.km.toLocaleString('pt-BR')} km` : "0 km"}
+                                                </td>
+
+                                                {/* Preço */}
+                                                <td className="py-3 px-4 font-bold text-emerald-400 whitespace-nowrap">
+                                                    {v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "Sob consulta"}
+                                                </td>
+
+                                                {/* Placa */}
+                                                <td className="py-3 px-4 text-xs font-mono text-slate-400 uppercase whitespace-nowrap">
+                                                    {v.plate && v.plate !== "N/A" ? v.plate : (v.finalPlate ? `Final ${v.finalPlate}` : "—")}
+                                                </td>
+
+                                                {/* Status no ClickUp */}
+                                                <td className="py-3 px-4 whitespace-nowrap">
+                                                    {isImported ? (
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-indigo-500/10 border-indigo-500/20 text-indigo-300">
+                                                            <span 
+                                                                className="w-2 h-2 rounded-full shrink-0" 
+                                                                style={{ backgroundColor: tracking.statusColor || "#6366f1" }}
+                                                            />
+                                                            <span className="capitalize">{tracking.status}</span>
+                                                            <span className="text-[10px] text-slate-400 font-mono">#{tracking.taskId}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-500 italic">
+                                                            Não importado
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                {/* Botão de Ação */}
+                                                <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                                    {isImported ? (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="border-slate-700 bg-slate-800 text-slate-400 text-xs h-8 cursor-default opacity-60"
+                                                            disabled
+                                                        >
+                                                            <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                                                            Importado
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => openImportModal([v])}
+                                                            className="!bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs h-8 font-medium shadow-sm"
+                                                        >
+                                                            <UploadCloud className="w-3.5 h-3.5 mr-1" />
+                                                            Importar
+                                                        </Button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}
 
+            {/* MODAL DE IMPORTAÇÃO (Configuração de Campos, Vídeo e Confirmação) */}
+            <Modal
+                isOpen={importModalOpen}
+                onClose={() => !isImporting && setImportModalOpen(false)}
+                title={`Importar ${vehiclesToImport.length} veículo(s) para o ClickUp`}
+                className="max-w-3xl"
+            >
+                <div className="space-y-6 pt-2">
+                    <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-xs text-indigo-300 flex items-start gap-2.5">
+                        <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-semibold mb-1">Mapeamento Automático Concluído</p>
+                            <p className="text-indigo-300/80">
+                                As fotos, nome, preço, ano e opcionais foram extraídos do estoque. As tarefas serão criadas no ClickUp com status <strong>Falta Arte | Edição</strong> e vinculadas ao cliente <strong>{activeClient?.name}</strong>.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Lista resumida de veículos a importar */}
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+                        {vehiclesToImport.map((v, i) => {
+                            const vKey = String(v.vehicleExternalKey);
+                            const pics = parsePictures(v.pictureJs);
+                            const fields = customTextFields[vKey] || {};
+
+                            return (
+                                <div key={vKey} className="bg-slate-800/50 p-3.5 rounded-lg border border-slate-700/60 space-y-3">
+                                    <div className="flex items-center justify-between gap-3 border-b border-slate-700/50 pb-2.5">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-300 text-xs font-bold flex items-center justify-center shrink-0">
+                                                {i + 1}
+                                            </span>
+                                            <div>
+                                                <h4 className="font-bold text-sm text-slate-100">
+                                                    {v.markName} {v.modelName}
+                                                </h4>
+                                                <p className="text-xs text-slate-400">
+                                                    {v.year} • {v.km ? `${v.km.toLocaleString('pt-BR')} km` : '0 km'} • {v.color}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="font-bold text-emerald-400 text-sm">
+                                                {v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "Sob consulta"}
+                                            </span>
+                                            <p className="text-[11px] text-slate-400">{pics.length} foto(s)</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Campos Customizados mapeados do Cliente */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                        {activeClient?.columns.map((col: any) => {
+                                            if (col.type !== "text" && col.type !== "checkbox") return null;
+                                            if (col.name.toLowerCase() === "formato") return null;
+
+                                            return (
+                                                <div key={col.id} className="text-xs">
+                                                    <label className="text-slate-400 font-medium block mb-1">
+                                                        {col.name}
+                                                    </label>
+                                                    <Input
+                                                        value={fields[col.id] || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setCustomTextFields(prev => ({
+                                                                ...prev,
+                                                                [vKey]: {
+                                                                    ...prev[vKey],
+                                                                    [col.id]: val
+                                                                }
+                                                            }));
+                                                        }}
+                                                        placeholder={`Preencher ${col.name}...`}
+                                                        className="h-8 bg-slate-900 border-slate-700 text-white text-xs"
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Opções Gerais de Importação (Vídeo e Observações) */}
+                    <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/60 space-y-4">
+                        <label className="flex items-center gap-3 cursor-pointer select-none">
+                            <input 
+                                type="checkbox"
+                                checked={importContemVideo}
+                                onChange={(e) => setImportContemVideo(e.target.checked)}
+                                className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                            />
+                            <div className="flex items-center gap-2">
+                                <Video className="w-4 h-4 text-indigo-400" />
+                                <span className="text-sm font-semibold text-slate-200">
+                                    Contém Vídeo?
+                                </span>
+                                <span className="text-xs text-slate-400">
+                                    (Marca formato como "Arte, Video" e bloqueia mudança de etapa automática)
+                                </span>
+                            </div>
+                        </label>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                Observações para o GOS / ClickUp (Opcional)
+                            </label>
+                            <Input 
+                                placeholder="Algum detalhe ou aviso sobre este(s) veículo(s)..."
+                                value={importObservacoes}
+                                onChange={(e) => setImportObservacoes(e.target.value)}
+                                className="bg-slate-900 border-slate-700 text-white text-xs h-9"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Rodapé / Botão de Confirmação */}
+                    <div className="flex justify-end gap-3 pt-2 border-t border-slate-800">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setImportModalOpen(false)}
+                            disabled={isImporting}
+                            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            onClick={handleExecuteImport}
+                            disabled={isImporting}
+                            className="!bg-indigo-600 hover:!bg-indigo-700 !text-white font-semibold"
+                        >
+                            {isImporting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Importando para o ClickUp...
+                                </>
+                            ) : (
+                                <>
+                                    <UploadCloud className="w-4 h-4 mr-2" />
+                                    Confirmar Importação ({vehiclesToImport.length})
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* MODAL DE DETALHES DO VEÍCULO (Ao clicar na linha) */}
             {selectedVehicle && (
                 <Modal
                     isOpen={!!selectedVehicle}
@@ -273,18 +817,36 @@ export function EstoqueManager() {
                                 </p>
                             </div>
                             
-                            <Button 
-                                onClick={() => handleDownloadImages(parsePictures(selectedVehicle.pictureJs))}
-                                disabled={isDownloading || parsePictures(selectedVehicle.pictureJs).length === 0}
-                                className="!bg-indigo-600 hover:!bg-indigo-700 !text-white w-full md:w-auto"
-                            >
-                                {isDownloading ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                                {!importedTracking[String(selectedVehicle.vehicleExternalKey)] ? (
+                                    <Button 
+                                        onClick={() => openImportModal([selectedVehicle])}
+                                        className="!bg-indigo-600 hover:!bg-indigo-700 !text-white w-full md:w-auto font-semibold shadow-md"
+                                    >
+                                        <UploadCloud className="w-4 h-4 mr-2" />
+                                        Importar Veículo
+                                    </Button>
                                 ) : (
-                                    <Download className="w-4 h-4 mr-2" />
+                                    <div className="px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-center gap-2">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                        <span>ClickUp: #{importedTracking[String(selectedVehicle.vehicleExternalKey)].taskId}</span>
+                                    </div>
                                 )}
-                                Baixar Todas ({parsePictures(selectedVehicle.pictureJs).length})
-                            </Button>
+
+                                <Button 
+                                    onClick={() => handleDownloadImages(parsePictures(selectedVehicle.pictureJs))}
+                                    disabled={isDownloading || parsePictures(selectedVehicle.pictureJs).length === 0}
+                                    variant="outline"
+                                    className="border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 w-full md:w-auto"
+                                >
+                                    {isDownloading ? (
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <Download className="w-4 h-4 mr-2" />
+                                    )}
+                                    Baixar Fotos ({parsePictures(selectedVehicle.pictureJs).length})
+                                </Button>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

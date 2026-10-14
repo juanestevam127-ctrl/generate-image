@@ -486,3 +486,159 @@ export async function fetchRevendaMaisInventoryAction(clientId: string) {
         return { success: false, error: "Erro interno: " + error.message };
     }
 }
+
+
+export async function importEstoqueVehiclesAction(params: {
+    clienteId: string;
+    items: Array<{
+        vehicle: any;
+        textFields?: Record<string, string>;
+        observacoesGOS?: string;
+        contemVideo?: boolean;
+    }>;
+}) {
+    try {
+        const { clienteId, items } = params;
+        if (!items || items.length === 0) return { success: false, error: "Nenhum veículo selecionado para importação." };
+
+        const { data: client, error: cErr } = await supabase
+            .from("clientes")
+            .select("id, name, columns, clickup_tarefa_id")
+            .eq("id", clienteId)
+            .single();
+
+        if (cErr || !client) return { success: false, error: "Cliente não encontrado." };
+        if (!client.clickup_tarefa_id) {
+            return { success: false, error: "Cliente não possui tarefa vinculada no ClickUp (Aba Serviços)." };
+        }
+
+        const { createClickupTaskAction } = await import("@/app/actions/clickup");
+        const results: any[] = [];
+
+        for (const item of items) {
+            const v = item.vehicle;
+            const pics = (() => {
+                if (!v.pictureJs) return [];
+                try {
+                    const p = JSON.parse(v.pictureJs);
+                    return Array.isArray(p) ? p.map((x: any) => typeof x === "string" ? x : x.Link).filter(Boolean) : [];
+                } catch (e) {
+                    return [];
+                }
+            })();
+
+            // Build dados based on client columns or intelligent mapping
+            const dados: Record<string, string> = {};
+            const clientColumns: any[] = client.columns || [];
+
+            // Helper to find column match
+            const findCol = (keywords: string[]) => {
+                return clientColumns.find((c: any) =>
+                    keywords.some(kw => c.name.toLowerCase() === kw.toLowerCase() || c.name.toLowerCase().startsWith(kw.toLowerCase()))
+                );
+            };
+
+            const colNome = findCol(["nome", "veiculo", "veículo", "carro", "titulo", "modelo"]);
+            const colCor = findCol(["cor"]);
+            const colAno = findCol(["ano"]);
+            const colPreco = findCol(["pre", "valor"]);
+            const colKm = findCol(["km", "quilo"]);
+            const colCambio = findCol(["cambio", "câmbio"]);
+            const colCombustivel = findCol(["combustivel", "combustível"]);
+            const colPlaca = findCol(["placa"]);
+
+            // Preenche dados padrão das colunas
+            clientColumns.forEach((col: any) => {
+                if (col.type === "text" || col.type === "checkbox") {
+                    if (col.name.toLowerCase() !== "formato") {
+                        dados[col.name] = item.textFields?.[col.id] || "";
+                    }
+                }
+            });
+
+            // Nome do veículo
+            const rawNome = (v.markName && v.markName !== "N/A" ? `${v.markName} ` : "") + (v.modelName || v.versionName || "Veículo");
+            const nomeFinal = (colNome && dados[colNome.name]) ? dados[colNome.name] : rawNome.trim();
+            if (colNome && !dados[colNome.name]) dados[colNome.name] = nomeFinal;
+
+            // Cor
+            const corFinal = (colCor && dados[colCor.name]) ? dados[colCor.name] : (v.color && v.color !== "N/A" ? v.color : "");
+            if (colCor && !dados[colCor.name]) dados[colCor.name] = corFinal;
+
+            // Ano
+            const anoFinal = (colAno && dados[colAno.name]) ? dados[colAno.name] : (v.year ? String(v.year) : "");
+            if (colAno && !dados[colAno.name]) dados[colAno.name] = anoFinal;
+
+            // Preço
+            const precoFormatado = v.saleValue
+                ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v.saleValue)
+                : "";
+            const precoFinal = (colPreco && dados[colPreco.name]) ? dados[colPreco.name] : precoFormatado;
+            if (colPreco && !dados[colPreco.name]) dados[colPreco.name] = precoFinal;
+
+            // KM
+            if (colKm && !dados[colKm.name] && v.km) {
+                dados[colKm.name] = `${v.km.toLocaleString("pt-BR")} km`;
+            }
+
+            // Câmbio
+            if (colCambio && !dados[colCambio.name] && v.transmissionName && v.transmissionName !== "N/A") {
+                dados[colCambio.name] = v.transmissionName;
+            }
+
+            // Combustível
+            if (colCombustivel && !dados[colCombustivel.name] && v.fuelName && v.fuelName !== "N/A") {
+                dados[colCombustivel.name] = v.fuelName;
+            }
+
+            // Placa
+            if (colPlaca && !dados[colPlaca.name] && v.plate && v.plate !== "N/A") {
+                dados[colPlaca.name] = v.plate;
+            }
+
+            // Guarda chave externa do estoque dentro de dados para identificar reimportação
+            if (v.vehicleExternalKey) {
+                dados["_externalKey"] = String(v.vehicleExternalKey);
+            }
+
+            // Criação no ClickUp
+            const clickupRes = await createClickupTaskAction({
+                nomeVeiculo: nomeFinal,
+                cor: corFinal,
+                ano: anoFinal,
+                precoFormatado: precoFinal,
+                clienteClickupId: client.clickup_tarefa_id,
+                observacoesGOS: item.observacoesGOS || "",
+                contemVideo: !!item.contemVideo
+            });
+
+            if (!clickupRes.success) {
+                throw new Error("Erro ClickUp: " + clickupRes.error);
+            }
+
+            const taskId = clickupRes.data?.taskId;
+
+            // Salva no banco de dados Supabase na tabela VeiculoOperador
+            const { data: inserted, error: sbError } = await supabase.from("VeiculoOperador").insert([{
+                clienteId: client.id,
+                dados: dados,
+                fotos: pics,
+                clickupTaskId: taskId,
+                importado: false
+            }]).select().single();
+
+            if (sbError) throw sbError;
+
+            results.push({
+                vehicleExternalKey: v.vehicleExternalKey,
+                clickupTaskId: taskId,
+                veiculoId: inserted.id
+            });
+        }
+
+        return { success: true, data: results };
+    } catch (e: any) {
+        console.error("importEstoqueVehiclesAction error:", e);
+        return { success: false, error: e.message || "Erro ao importar veículos do estoque." };
+    }
+}

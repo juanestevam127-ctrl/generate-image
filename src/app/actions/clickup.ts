@@ -410,3 +410,38 @@ export async function updateClickupTaskDataAction(taskId: string, params: {
     }
 }
 
+
+
+export async function getClickupTasksStatusesAction(taskIds: string[]) {
+    try {
+        if (!taskIds || taskIds.length === 0) return { success: true, data: {} };
+        const results: Record<string, { status: string; statusColor?: string }> = {};
+
+        // Fetch task info in parallel batches of 5 to avoid rate-limiting
+        const chunks: string[][] = [];
+        for (let i = 0; i < taskIds.length; i += 5) {
+            chunks.push(taskIds.slice(i, i + 5));
+        }
+
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(async (id) => {
+                try {
+                    const res = await fetch(`https://api.clickup.com/api/v2/task/${id}`, {
+                        headers: { "Authorization": CLICKUP_TOKEN }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        results[id] = {
+                            status: data.status?.status || "desconhecido",
+                            statusColor: data.status?.color
+                        };
+                    }
+                } catch (e) {}
+            }));
+        }
+
+        return { success: true, data: results };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}

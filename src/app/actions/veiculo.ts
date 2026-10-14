@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 
@@ -26,6 +26,21 @@ export async function updateVeiculoDadosAction(id: string, novosDados: any) {
         revalidatePath("/veiculos");
         revalidatePath("/dashboard");
         return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+
+export async function getVeiculosOperadorByClienteAction(clienteId: string) {
+    try {
+        const { data, error } = await supabase
+            .from("VeiculoOperador")
+            .select("id, clickupTaskId, dados")
+            .eq("clienteId", clienteId);
+
+        if (error) throw error;
+        return { success: true, data: data || [] };
     } catch (e: any) {
         return { success: false, error: e.message };
     }
