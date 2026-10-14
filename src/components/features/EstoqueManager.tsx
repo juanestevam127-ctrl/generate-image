@@ -164,15 +164,12 @@ export function EstoqueManager() {
 
             currentVehicles.forEach((v) => {
                 const vKey = String(v.vehicleExternalKey || "");
-                const vPlate = String(v.plate || "").trim().toUpperCase();
-                const vModel = String(v.modelName || "").trim().toUpperCase();
+                if (!vKey) return;
 
+                // Só casa se foi um veículo importado explicitamente por esta tela (com _externalKey gravado)
                 const match = existingOps.find((op: any) => {
                     const d = op.dados || {};
-                    if (d._externalKey && String(d._externalKey) === vKey) return true;
-                    if (vPlate && vPlate !== "N/A" && Object.values(d).some(val => String(val).toUpperCase().includes(vPlate))) return true;
-                    if (vModel && vModel.length > 3 && Object.values(d).some(val => String(val).toUpperCase().includes(vModel))) return true;
-                    return false;
+                    return d._externalKey && String(d._externalKey) === vKey;
                 });
 
                 if (match && match.clickupTaskId) {
