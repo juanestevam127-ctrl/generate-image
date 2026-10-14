@@ -539,6 +539,7 @@ export async function importEstoqueVehiclesAction(params: {
             };
 
             const colNome = findCol(["nome", "veiculo", "veículo", "carro", "titulo", "modelo"]);
+            const colMarca = findCol(["marca", "fabricante"]);
             const colCor = findCol(["cor"]);
             const colAno = findCol(["ano"]);
             const colPreco = findCol(["pre", "valor"]);
@@ -555,6 +556,11 @@ export async function importEstoqueVehiclesAction(params: {
                     }
                 }
             });
+
+            // Marca
+            if (colMarca && !dados[colMarca.name] && v.markName && v.markName !== "N/A") {
+                dados[colMarca.name] = v.markName;
+            }
 
             // Nome do veículo
             const rawNome = (v.markName && v.markName !== "N/A" ? `${v.markName} ` : "") + (v.modelName || v.versionName || "Veículo");
@@ -573,7 +579,7 @@ export async function importEstoqueVehiclesAction(params: {
             const precoFormatado = v.saleValue
                 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v.saleValue)
                 : "";
-            const precoFinal = (colPreco && dados[colPreco.name]) ? dados[colPreco.name] : precoFormatado;
+            const precoFinal = (colPreco && dados[colPreco.name]) ? dados[colPreco.name] : (item.textFields?.["_extraValor"] || precoFormatado);
             if (colPreco && !dados[colPreco.name]) dados[colPreco.name] = precoFinal;
 
             // KM

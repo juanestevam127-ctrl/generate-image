@@ -54,10 +54,10 @@ export function EstoqueManager() {
     // Import Modal State
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
-    const [importContemVideo, setImportContemVideo] = useState(false);
-    const [importObservacoes, setImportObservacoes] = useState("");
     const [vehiclesToImport, setVehiclesToImport] = useState<any[]>([]);
     const [customTextFields, setCustomTextFields] = useState<Record<string, Record<string, string>>>({});
+    const [importContemVideoMap, setImportContemVideoMap] = useState<Record<string, boolean>>({});
+    const [importObservacoesMap, setImportObservacoesMap] = useState<Record<string, string>>({});
 
     const activeClient = clients.find(c => c.id === selectedClientId);
 
@@ -278,18 +278,24 @@ export function EstoqueManager() {
             return;
         }
         setVehiclesToImport(vehicleList);
-        setImportContemVideo(false);
-        setImportObservacoes("");
         
         // Inicializa mapeamento com base nas colunas
         const initialCustom: Record<string, Record<string, string>> = {};
+        const initialVideo: Record<string, boolean> = {};
+        const initialObs: Record<string, string> = {};
+
         vehicleList.forEach(v => {
             const vKey = String(v.vehicleExternalKey);
             initialCustom[vKey] = {};
+            initialVideo[vKey] = false;
+            initialObs[vKey] = "";
+
             activeClient?.columns.forEach((col: any) => {
                 if (col.type === "text" || col.type === "checkbox") {
                     const cName = col.name.toLowerCase();
-                    if (cName.includes("nome") || cName.includes("veiculo") || cName.includes("modelo") || cName.includes("carro")) {
+                    if (cName.includes("marca") || cName.includes("fabricante")) {
+                        initialCustom[vKey][col.id] = v.markName && v.markName !== "N/A" ? v.markName : "";
+                    } else if (cName.includes("nome") || cName.includes("veiculo") || cName.includes("veículo") || cName.includes("modelo") || cName.includes("carro")) {
                         initialCustom[vKey][col.id] = (v.markName && v.markName !== "N/A" ? `${v.markName} ` : "") + (v.modelName || v.versionName || "");
                     } else if (cName.includes("ano")) {
                         initialCustom[vKey][col.id] = v.year ? String(v.year) : "";
@@ -308,9 +314,17 @@ export function EstoqueManager() {
                     }
                 }
             });
+
+            // Valor extra caso o cliente não tenha coluna de valor
+            const hasValorCol = activeClient?.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco'));
+            if (!hasValorCol) {
+                initialCustom[vKey]["_extraValor"] = v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "";
+            }
         });
 
         setCustomTextFields(initialCustom);
+        setImportContemVideoMap(initialVideo);
+        setImportObservacoesMap(initialObs);
         setImportModalOpen(true);
     };
 
@@ -325,8 +339,8 @@ export function EstoqueManager() {
                 return {
                     vehicle: v,
                     textFields: customTextFields[vKey] || {},
-                    observacoesGOS: importObservacoes,
-                    contemVideo: importContemVideo
+                    observacoesGOS: importObservacoesMap[vKey] || "",
+                    contemVideo: !!importContemVideoMap[vKey]
                 };
             });
 
@@ -647,120 +661,188 @@ export function EstoqueManager() {
                 </div>
             )}
 
-            {/* MODAL DE IMPORTAÇÃO (Configuração de Campos, Vídeo e Confirmação) */}
+            {/* MODAL DE IMPORTAÇÃO (Formato em Linha Horizontal idêntico ao Adicionar Veículo) */}
             <Modal
                 isOpen={importModalOpen}
                 onClose={() => !isImporting && setImportModalOpen(false)}
                 title={`Importar ${vehiclesToImport.length} veículo(s) para o ClickUp`}
-                className="max-w-3xl"
+                className="max-w-6xl w-[95vw]"
             >
-                <div className="space-y-6 pt-2">
-                    <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-xs text-indigo-300 flex items-start gap-2.5">
-                        <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="space-y-5 pt-2">
+                    <div className="p-3.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-xs text-indigo-300 flex items-start gap-2.5">
+                        <Info className="w-4 h-4 shrink-0 mt-0.5 text-indigo-400" />
                         <div>
-                            <p className="font-semibold mb-1">Mapeamento Automático Concluído</p>
+                            <p className="font-semibold mb-0.5">Mapeamento em Linhas por Veículo</p>
                             <p className="text-indigo-300/80">
-                                As fotos, nome, preço, ano e opcionais foram extraídos do estoque. As tarefas serão criadas no ClickUp com status <strong>Falta Arte | Edição</strong> e vinculadas ao cliente <strong>{activeClient?.name}</strong>.
+                                Preencha ou revise as informações nas colunas abaixo. Cada linha possui seu próprio campo de <strong>Observações</strong> e a opção individual <strong>Contém Vídeo</strong>.
                             </p>
                         </div>
                     </div>
 
-                    {/* Lista resumida de veículos a importar */}
-                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
-                        {vehiclesToImport.map((v, i) => {
-                            const vKey = String(v.vehicleExternalKey);
-                            const pics = parsePictures(v.pictureJs);
-                            const fields = customTextFields[vKey] || {};
+                    {/* Tabela Horizontal de Linhas */}
+                    <div className="overflow-x-auto w-full pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[60vh]">
+                        <div className="min-w-max flex flex-col gap-2.5">
+                            {/* Cabeçalho das Colunas */}
+                            <div className="flex items-center gap-3 px-3 text-xs font-semibold text-slate-400 border-b border-white/10 pb-2">
+                                <div className="w-16 shrink-0">Foto</div>
+                                {activeClient?.columns.map((c: any) => {
+                                    if (c.name.toLowerCase() === 'formato') return null;
+                                    if (c.type !== 'text' && c.type !== 'checkbox') return null;
+                                    return (
+                                        <div key={c.id} className="w-44 shrink-0">
+                                            {c.name}
+                                        </div>
+                                    );
+                                })}
+                                {!activeClient?.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                    <div className="w-32 shrink-0">Valor (ClickUp)</div>
+                                )}
+                                <div className="w-56 shrink-0">Observações - GOS</div>
+                                <div className="w-24 shrink-0 text-center">Contém Vídeo?</div>
+                            </div>
 
-                            return (
-                                <div key={vKey} className="bg-slate-800/50 p-3.5 rounded-lg border border-slate-700/60 space-y-3">
-                                    <div className="flex items-center justify-between gap-3 border-b border-slate-700/50 pb-2.5">
-                                        <div className="flex items-center gap-2.5">
-                                            <span className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-300 text-xs font-bold flex items-center justify-center shrink-0">
-                                                {i + 1}
-                                            </span>
-                                            <div>
-                                                <h4 className="font-bold text-sm text-slate-100">
-                                                    {v.markName} {v.modelName}
-                                                </h4>
-                                                <p className="text-xs text-slate-400">
-                                                    {v.year} • {v.km ? `${v.km.toLocaleString('pt-BR')} km` : '0 km'} • {v.color}
-                                                </p>
+                            {/* Linhas de Veículos */}
+                            {vehiclesToImport.map((v) => {
+                                const vKey = String(v.vehicleExternalKey);
+                                const pics = parsePictures(v.pictureJs);
+                                const principalPic = pics.find((p: any) => p.Principal === "true") || pics[0];
+                                const fields = customTextFields[vKey] || {};
+
+                                return (
+                                    <div 
+                                        key={vKey} 
+                                        className="flex items-center gap-3 bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/50 hover:bg-slate-800/70 transition-colors"
+                                    >
+                                        {/* Foto / Miniatura */}
+                                        <div className="w-16 shrink-0 flex items-center justify-center">
+                                            <div className="w-14 h-10 rounded overflow-hidden bg-slate-900 border border-slate-700 relative shrink-0">
+                                                {principalPic ? (
+                                                    <img src={principalPic.Link} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                                        <ImageIcon className="w-3.5 h-3.5" />
+                                                    </div>
+                                                )}
+                                                {pics.length > 0 && (
+                                                    <span className="absolute bottom-0 right-0 bg-black/70 text-[9px] px-1 rounded-tl text-white">
+                                                        {pics.length}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="font-bold text-emerald-400 text-sm">
-                                                {v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "Sob consulta"}
-                                            </span>
-                                            <p className="text-[11px] text-slate-400">{pics.length} foto(s)</p>
-                                        </div>
-                                    </div>
 
-                                    {/* Campos Customizados mapeados do Cliente */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                                        {activeClient?.columns.map((col: any) => {
-                                            if (col.type !== "text" && col.type !== "checkbox") return null;
-                                            if (col.name.toLowerCase() === "formato") return null;
+                                        {/* Colunas personalizadas do cliente */}
+                                        {activeClient?.columns.map((c: any) => {
+                                            if (c.name.toLowerCase() === 'formato') return null;
+                                            if (c.type !== 'text' && c.type !== 'checkbox') return null;
 
                                             return (
-                                                <div key={col.id} className="text-xs">
-                                                    <label className="text-slate-400 font-medium block mb-1">
-                                                        {col.name}
-                                                    </label>
-                                                    <Input
-                                                        value={fields[col.id] || ""}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            setCustomTextFields(prev => ({
-                                                                ...prev,
-                                                                [vKey]: {
-                                                                    ...prev[vKey],
-                                                                    [col.id]: val
-                                                                }
-                                                            }));
-                                                        }}
-                                                        placeholder={`Preencher ${col.name}...`}
-                                                        className="h-8 bg-slate-900 border-slate-700 text-white text-xs"
-                                                    />
+                                                <div key={c.id} className="w-44 shrink-0">
+                                                    {c.type === "checkbox" ? (
+                                                        <div className="flex items-center gap-3 h-9 px-2 bg-slate-900/60 border border-slate-700/60 rounded">
+                                                            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-300">
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-indigo-600"
+                                                                    checked={(fields[c.id] || "").includes("Stories")}
+                                                                    onChange={(e) => {
+                                                                        let current = fields[c.id] ? fields[c.id].split(', ') : [];
+                                                                        if (e.target.checked) { if (!current.includes("Stories")) current.push("Stories"); }
+                                                                        else { current = current.filter(x => x !== "Stories"); }
+                                                                        const newVal = current.join(', ');
+                                                                        setCustomTextFields(prev => ({
+                                                                            ...prev,
+                                                                            [vKey]: { ...prev[vKey], [c.id]: newVal }
+                                                                        }));
+                                                                    }}
+                                                                /> Stories
+                                                            </label>
+                                                            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-300">
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-indigo-600"
+                                                                    checked={(fields[c.id] || "").includes("Feed")}
+                                                                    onChange={(e) => {
+                                                                        let current = fields[c.id] ? fields[c.id].split(', ') : [];
+                                                                        if (e.target.checked) { if (!current.includes("Feed")) current.push("Feed"); }
+                                                                        else { current = current.filter(x => x !== "Feed"); }
+                                                                        const newVal = current.join(', ');
+                                                                        setCustomTextFields(prev => ({
+                                                                            ...prev,
+                                                                            [vKey]: { ...prev[vKey], [c.id]: newVal }
+                                                                        }));
+                                                                    }}
+                                                                /> Feed
+                                                            </label>
+                                                        </div>
+                                                    ) : (
+                                                        <Input 
+                                                            type="text" 
+                                                            className="h-9 bg-slate-900 border-slate-700 text-xs text-white" 
+                                                            value={fields[c.id] || ''} 
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setCustomTextFields(prev => ({
+                                                                    ...prev,
+                                                                    [vKey]: { ...prev[vKey], [c.id]: val }
+                                                                }));
+                                                            }} 
+                                                            placeholder={`${c.name}`} 
+                                                        />
+                                                    )}
                                                 </div>
                                             );
                                         })}
+
+                                        {/* Valor extra (caso o cliente não tenha coluna de valor) */}
+                                        {!activeClient?.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                            <div className="w-32 shrink-0">
+                                                <Input 
+                                                    className="h-9 bg-slate-900 border-slate-700 text-xs text-white" 
+                                                    value={fields["_extraValor"] || ''} 
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setCustomTextFields(prev => ({
+                                                            ...prev,
+                                                            [vKey]: { ...prev[vKey], _extraValor: val }
+                                                        }));
+                                                    }} 
+                                                    placeholder="R$ 0,00" 
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Observações - GOS por linha */}
+                                        <div className="w-56 shrink-0">
+                                            <Input 
+                                                className="h-9 bg-slate-900 border-slate-700 text-xs text-white" 
+                                                value={importObservacoesMap[vKey] || ''} 
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setImportObservacoesMap(prev => ({ ...prev, [vKey]: val }));
+                                                }} 
+                                                placeholder="Observações GOS..." 
+                                            />
+                                        </div>
+
+                                        {/* Contém Vídeo por linha */}
+                                        <div className="w-24 shrink-0 flex items-center justify-center h-9 bg-slate-900/60 border border-slate-700/60 rounded">
+                                            <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-300 w-full h-full justify-center select-none">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer" 
+                                                    checked={!!importContemVideoMap[vKey]} 
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setImportContemVideoMap(prev => ({ ...prev, [vKey]: checked }));
+                                                    }} 
+                                                />
+                                                Sim
+                                            </label>
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Opções Gerais de Importação (Vídeo e Observações) */}
-                    <div className="p-4 bg-slate-800/40 rounded-xl border border-slate-700/60 space-y-4">
-                        <label className="flex items-center gap-3 cursor-pointer select-none">
-                            <input 
-                                type="checkbox"
-                                checked={importContemVideo}
-                                onChange={(e) => setImportContemVideo(e.target.checked)}
-                                className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                            />
-                            <div className="flex items-center gap-2">
-                                <Video className="w-4 h-4 text-indigo-400" />
-                                <span className="text-sm font-semibold text-slate-200">
-                                    Contém Vídeo?
-                                </span>
-                                <span className="text-xs text-slate-400">
-                                    (Marca formato como "Arte, Video" e bloqueia mudança de etapa automática)
-                                </span>
-                            </div>
-                        </label>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-1">
-                                Observações para o GOS / ClickUp (Opcional)
-                            </label>
-                            <Input 
-                                placeholder="Algum detalhe ou aviso sobre este(s) veículo(s)..."
-                                value={importObservacoes}
-                                onChange={(e) => setImportObservacoes(e.target.value)}
-                                className="bg-slate-900 border-slate-700 text-white text-xs h-9"
-                            />
+                                );
+                            })}
                         </div>
                     </div>
 
