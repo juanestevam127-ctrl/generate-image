@@ -8,7 +8,9 @@ import {
     fetchLojaConectadaInventoryAction, 
     fetchAutoCertoInventoryAction, 
     fetchRevendaMaisInventoryAction,
-    importEstoqueVehiclesAction
+    importEstoqueVehiclesAction,
+    linkEstoqueVehicleToClickupAction,
+    unlinkEstoqueVehicleAction
 } from "@/app/actions/estoque";
 import { getVeiculosOperadorByClienteAction } from "@/app/actions/veiculo";
 import { getClickupTasksStatusesAction } from "@/app/actions/clickup";
@@ -29,7 +31,9 @@ import {
     Video, 
     ExternalLink,
     Filter,
-    Search
+    Search,
+    Link as LinkIcon,
+    Unlink
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
@@ -58,6 +62,11 @@ export function EstoqueManager() {
     const [customTextFields, setCustomTextFields] = useState<Record<string, Record<string, string>>>({});
     const [importContemVideoMap, setImportContemVideoMap] = useState<Record<string, boolean>>({});
     const [importObservacoesMap, setImportObservacoesMap] = useState<Record<string, string>>({});
+
+    // Link Task Modal State
+    const [linkModalVehicle, setLinkModalVehicle] = useState<any | null>(null);
+    const [manualTaskIdInput, setManualTaskIdInput] = useState("");
+    const [isLinking, setIsLinking] = useState(false);
 
     const activeClient = clients.find(c => c.id === selectedClientId);
 
@@ -365,6 +374,84 @@ export function EstoqueManager() {
         }
     };
 
+    // Open Link Task Modal
+    const openLinkModal = (vehicle: any, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        const vKey = String(vehicle.vehicleExternalKey || "");
+        const currentTracking = importedTracking[vKey];
+        setLinkModalVehicle(vehicle);
+        setManualTaskIdInput(currentTracking ? currentTracking.taskId : "");
+    };
+
+    // Confirm Link Task
+    const handleConfirmLink = async () => {
+        if (!activeClient || !linkModalVehicle || !manualTaskIdInput.trim()) return;
+        setIsLinking(true);
+
+        try {
+            const res = await linkEstoqueVehicleToClickupAction({
+                clienteId: activeClient.id,
+                vehicle: linkModalVehicle,
+                clickupTaskId: manualTaskIdInput.trim()
+            });
+
+            if (!res.success) {
+                throw new Error(res.error || "Erro ao vincular tarefa.");
+            }
+
+            const vKey = String(linkModalVehicle.vehicleExternalKey || "");
+            setImportedTracking(prev => ({
+                ...prev,
+                [vKey]: {
+                    taskId: res.data!.taskId,
+                    status: res.data!.status,
+                    statusColor: res.data!.statusColor
+                }
+            }));
+
+            // Remove de seleções caso estivesse marcado
+            setSelectedKeys(prev => prev.filter(k => k !== vKey));
+            setLinkModalVehicle(null);
+            alert("Veículo vinculado com sucesso à tarefa do ClickUp!");
+        } catch (err: any) {
+            alert("Erro ao vincular: " + err.message);
+        } finally {
+            setIsLinking(false);
+        }
+    };
+
+    // Unlink Task
+    const handleUnlink = async () => {
+        if (!activeClient || !linkModalVehicle) return;
+        if (!confirm("Deseja realmente desvincular este veículo da tarefa do ClickUp?")) return;
+        setIsLinking(true);
+
+        try {
+            const vKey = String(linkModalVehicle.vehicleExternalKey || "");
+            const res = await unlinkEstoqueVehicleAction({
+                clienteId: activeClient.id,
+                vehicleExternalKey: vKey
+            });
+
+            if (!res.success) {
+                throw new Error(res.error || "Erro ao desvincular.");
+            }
+
+            setImportedTracking(prev => {
+                const updated = { ...prev };
+                delete updated[vKey];
+                return updated;
+            });
+
+            setLinkModalVehicle(null);
+            alert("Vínculo removido com sucesso!");
+        } catch (err: any) {
+            alert("Erro ao desvincular: " + err.message);
+        } finally {
+            setIsLinking(false);
+        }
+    };
+
     const filteredVehicles = vehicles.filter(v => {
         if (!searchTerm) return true;
         const term = searchTerm.toLowerCase();
@@ -608,20 +695,30 @@ export function EstoqueManager() {
                                                 </td>
 
                                                 {/* Status no ClickUp */}
-                                                <td className="py-3 px-4 whitespace-nowrap">
+                                                <td className="py-3 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                                                     {isImported ? (
-                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-indigo-500/10 border-indigo-500/20 text-indigo-300">
+                                                        <div 
+                                                            onClick={(e) => openLinkModal(v, e)}
+                                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-indigo-500/10 border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20 cursor-pointer transition-colors group/status"
+                                                            title="Clique para alterar ou desvincular a tarefa do ClickUp"
+                                                        >
                                                             <span 
                                                                 className="w-2 h-2 rounded-full shrink-0" 
                                                                 style={{ backgroundColor: tracking.statusColor || "#6366f1" }}
                                                             />
                                                             <span className="capitalize">{tracking.status}</span>
                                                             <span className="text-[10px] text-slate-400 font-mono">#{tracking.taskId}</span>
+                                                            <LinkIcon className="w-3 h-3 ml-0.5 opacity-0 group-hover/status:opacity-100 transition-opacity text-indigo-400" />
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-slate-500 italic">
-                                                            Não importado
-                                                        </span>
+                                                        <button
+                                                            onClick={(e) => openLinkModal(v, e)}
+                                                            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-400 transition-colors py-1 px-2 rounded-md hover:bg-slate-800 border border-transparent hover:border-slate-700"
+                                                            title="Vincular este veículo a uma tarefa existente no ClickUp"
+                                                        >
+                                                            <LinkIcon className="w-3.5 h-3.5 text-slate-500" />
+                                                            <span>Vincular tarefa</span>
+                                                        </button>
                                                     )}
                                                 </td>
 
@@ -1004,6 +1101,90 @@ export function EstoqueManager() {
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* MODAL PARA VINCULAR TAREFA DO CLICKUP */}
+            {linkModalVehicle && (
+                <Modal
+                    isOpen={!!linkModalVehicle}
+                    onClose={() => !isLinking && setLinkModalVehicle(null)}
+                    title="Vincular Tarefa do ClickUp"
+                    className="max-w-md"
+                >
+                    <div className="space-y-4 pt-2">
+                        <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/60 text-xs text-slate-300 space-y-1">
+                            <p className="font-bold text-white text-sm">
+                                {linkModalVehicle.markName} {linkModalVehicle.modelName}
+                            </p>
+                            <p className="text-slate-400">
+                                {linkModalVehicle.year} • {linkModalVehicle.km ? `${linkModalVehicle.km.toLocaleString('pt-BR')} km` : '0 km'} • {linkModalVehicle.plate || 'Sem placa'}
+                            </p>
+                            <p className="text-emerald-400 font-semibold pt-1">
+                                {linkModalVehicle.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(linkModalVehicle.saleValue) : 'Sob consulta'}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                                ID da Tarefa do ClickUp ou Link da Tarefa
+                            </label>
+                            <Input 
+                                placeholder="Ex: 86akrwxt9 ou https://app.clickup.com/t/..."
+                                value={manualTaskIdInput}
+                                onChange={(e) => setManualTaskIdInput(e.target.value)}
+                                className="bg-slate-900 border-slate-700 text-white text-sm h-10"
+                                autoFocus
+                            />
+                            <p className="text-[11px] text-slate-500 mt-1">
+                                Você pode colar apenas o ID da tarefa (ex: 86akrwxt9) ou o link completo do ClickUp.
+                            </p>
+                        </div>
+
+                        {importedTracking[String(linkModalVehicle.vehicleExternalKey)] && (
+                            <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-md text-xs text-indigo-300 flex items-center justify-between">
+                                <span>Atualmente vinculado a: <strong>#{importedTracking[String(linkModalVehicle.vehicleExternalKey)].taskId}</strong></span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleUnlink}
+                                    disabled={isLinking}
+                                    className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                >
+                                    <Unlink className="w-3.5 h-3.5 mr-1" />
+                                    Desvincular
+                                </Button>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-800">
+                            <Button
+                                variant="outline"
+                                onClick={() => setLinkModalVehicle(null)}
+                                disabled={isLinking}
+                                className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleConfirmLink}
+                                disabled={isLinking || !manualTaskIdInput.trim()}
+                                className="!bg-indigo-600 hover:!bg-indigo-700 !text-white font-semibold"
+                            >
+                                {isLinking ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Vinculando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <LinkIcon className="w-4 h-4 mr-2" />
+                                        Salvar Vínculo
+                                    </>
+                                )}
+                            </Button>
                         </div>
                     </div>
                 </Modal>

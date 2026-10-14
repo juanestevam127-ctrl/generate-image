@@ -648,3 +648,166 @@ export async function importEstoqueVehiclesAction(params: {
         return { success: false, error: e.message || "Erro ao importar veículos do estoque." };
     }
 }
+
+
+export async function linkEstoqueVehicleToClickupAction(params: {
+    clienteId: string;
+    vehicle: any;
+    clickupTaskId: string;
+}) {
+    try {
+        const { clienteId, vehicle, clickupTaskId } = params;
+        if (!clienteId || !vehicle || !clickupTaskId) {
+            return { success: false, error: "Dados incompletos para vincular." };
+        }
+
+        // Clean taskId: remove # or URL components if pasted as URL
+        let cleanTaskId = clickupTaskId.trim();
+        if (cleanTaskId.startsWith("#")) cleanTaskId = cleanTaskId.substring(1);
+        if (cleanTaskId.includes("/t/")) {
+            const parts = cleanTaskId.split("/t/");
+            cleanTaskId = parts[parts.length - 1].split("/")[0].split("?")[0];
+        }
+
+        const vKey = String(vehicle.vehicleExternalKey || "");
+        if (!vKey) return { success: false, error: "Chave externa do veículo não encontrada." };
+
+        const { data: existingList } = await supabase
+            .from("VeiculoOperador")
+            .select("id, dados, clickupTaskId")
+            .eq("clienteId", clienteId);
+
+        const existing = existingList?.find((op: any) => {
+            const d = op.dados || {};
+            return d._externalKey && String(d._externalKey) === vKey;
+        });
+
+        const pics = (() => {
+            if (!vehicle.pictureJs) return [];
+            try {
+                const p = JSON.parse(vehicle.pictureJs);
+                return Array.isArray(p) ? p.map((x: any) => typeof x === "string" ? x : x.Link).filter(Boolean) : [];
+            } catch (e) {
+                return [];
+            }
+        })();
+
+        if (existing) {
+            const { error: upErr } = await supabase
+                .from("VeiculoOperador")
+                .update({ 
+                    clickupTaskId: cleanTaskId,
+                    fotos: (existing as any).fotos?.length ? (existing as any).fotos : pics
+                })
+                .eq("id", existing.id);
+
+            if (upErr) throw upErr;
+        } else {
+            const { data: client } = await supabase
+                .from("clientes")
+                .select("id, columns")
+                .eq("id", clienteId)
+                .single();
+
+            const dados: Record<string, string> = {
+                _externalKey: vKey
+            };
+
+            const clientColumns: any[] = client?.columns || [];
+            const findCol = (keywords: string[]) => {
+                return clientColumns.find((c: any) =>
+                    keywords.some(kw => c.name.toLowerCase() === kw.toLowerCase() || c.name.toLowerCase().startsWith(kw.toLowerCase()))
+                );
+            };
+
+            const colNome = findCol(["nome", "veiculo", "veículo", "carro", "titulo", "modelo"]);
+            const colMarca = findCol(["marca", "fabricante"]);
+            const colAno = findCol(["ano"]);
+            const colPreco = findCol(["pre", "valor"]);
+            const colKm = findCol(["km", "quilo"]);
+            const colCor = findCol(["cor"]);
+            const colPlaca = findCol(["placa"]);
+
+            if (colMarca && vehicle.markName && vehicle.markName !== "N/A") dados[colMarca.name] = vehicle.markName;
+            const rawNome = (vehicle.markName && vehicle.markName !== "N/A" ? `${vehicle.markName} ` : "") + (vehicle.modelName || vehicle.versionName || "Veículo");
+            if (colNome) dados[colNome.name] = rawNome.trim();
+            if (colAno && vehicle.year) dados[colAno.name] = String(vehicle.year);
+            if (colCor && vehicle.color && vehicle.color !== "N/A") dados[colCor.name] = vehicle.color;
+            if (colPreco && vehicle.saleValue) {
+                dados[colPreco.name] = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(vehicle.saleValue);
+            }
+            if (colKm && vehicle.km) dados[colKm.name] = `${vehicle.km.toLocaleString("pt-BR")} km`;
+            if (colPlaca && vehicle.plate && vehicle.plate !== "N/A") dados[colPlaca.name] = vehicle.plate;
+
+            const { error: insErr } = await supabase
+                .from("VeiculoOperador")
+                .insert([{
+                    clienteId: clienteId,
+                    dados: dados,
+                    fotos: pics,
+                    clickupTaskId: cleanTaskId,
+                    importado: false
+                }]);
+
+            if (insErr) throw insErr;
+        }
+
+        // Busca status atualizado no ClickUp
+        let taskStatus = "Vinculado";
+        let taskColor = "#6366f1";
+        try {
+            const { getClickupTaskAction } = await import("@/app/actions/clickup");
+            const ckRes = await getClickupTaskAction(cleanTaskId);
+            if (ckRes.success && ckRes.data?.status) {
+                taskStatus = ckRes.data.status.status || "Vinculado";
+                taskColor = ckRes.data.status.color || "#6366f1";
+            }
+        } catch (e) {}
+
+        return {
+            success: true,
+            data: {
+                taskId: cleanTaskId,
+                status: taskStatus,
+                statusColor: taskColor
+            }
+        };
+    } catch (e: any) {
+        console.error("linkEstoqueVehicleToClickupAction error:", e);
+        return { success: false, error: e.message || "Erro ao vincular tarefa do ClickUp." };
+    }
+}
+
+export async function unlinkEstoqueVehicleAction(params: {
+    clienteId: string;
+    vehicleExternalKey: string;
+}) {
+    try {
+        const { clienteId, vehicleExternalKey } = params;
+        const vKey = String(vehicleExternalKey || "");
+        if (!vKey || !clienteId) return { success: false, error: "Dados incompletos." };
+
+        const { data: existingList } = await supabase
+            .from("VeiculoOperador")
+            .select("id, dados")
+            .eq("clienteId", clienteId);
+
+        const match = existingList?.find((op: any) => {
+            const d = op.dados || {};
+            return d._externalKey && String(d._externalKey) === vKey;
+        });
+
+        if (match) {
+            const { error } = await supabase
+                .from("VeiculoOperador")
+                .delete()
+                .eq("id", match.id);
+
+            if (error) throw error;
+        }
+
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Erro ao desvincular veículo." };
+    }
+}
