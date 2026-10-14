@@ -624,14 +624,39 @@ export default function DashboardPage() {
                                 )}
                                 
                                 {viewMode !== "importacao" || tableData.length > 0 ? (
-                                    <DynamicTable
-                                        client={activeClient}
-                                        data={tableData}
-                                        onChange={setTableData}
-                                        onImageUpload={handleImageUpload}
-                                        onEditImage={handleEditImage}
-                                        onRemoveImage={handleRemoveImage}
-                                    />
+                                    <div className="space-y-3 pt-2">
+                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/90 backdrop-blur-md p-3.5 rounded-xl border border-white/10 shadow-lg sticky top-4 z-20">
+                                            <div className="flex items-center gap-2 text-sm text-slate-300 font-medium">
+                                                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                                                <span>Dados preenchidos na tabela ({tableData.length} linha{tableData.length !== 1 ? 's' : ''})</span>
+                                            </div>
+                                            <Button
+                                                onClick={handleGenerate}
+                                                disabled={!activeClient || isSubmitting || tableData.length === 0}
+                                                className={`w-full sm:w-auto shadow-xl transition-all !text-slate-950 font-bold px-6 h-10 ${submitStatus === 'success' ? '!bg-green-400 hover:!bg-green-500' : '!bg-indigo-400 hover:!bg-indigo-500'}`}
+                                            >
+                                                {isSubmitting ? (
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                ) : submitStatus === 'success' ? (
+                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                ) : submitStatus === 'error' ? (
+                                                    <AlertCircle className="w-4 h-4 mr-2" />
+                                                ) : (
+                                                    <Send className="w-4 h-4 mr-2" />
+                                                )}
+                                                {isSubmitting ? "Enviando..." : submitStatus === 'success' ? "Enviado!" : submitStatus === 'error' ? "Erro (Tentar Novamente)" : "Gerar Imagens"}
+                                            </Button>
+                                        </div>
+
+                                        <DynamicTable
+                                            client={activeClient}
+                                            data={tableData}
+                                            onChange={setTableData}
+                                            onImageUpload={handleImageUpload}
+                                            onEditImage={handleEditImage}
+                                            onRemoveImage={handleRemoveImage}
+                                        />
+                                    </div>
                                 ) : (
                                     <div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
                                         <p>Busque os veículos no estoque para começar.</p>
