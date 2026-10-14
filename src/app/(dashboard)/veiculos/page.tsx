@@ -138,7 +138,8 @@ export default function VeiculosPage() {
                 if (!filterClients.includes(cId)) return false;
             }
             if (filterStatuses.length > 0) {
-                if (!filterStatuses.includes(t.status)) return false;
+                const tStat = String(t.status || '').trim().toLowerCase();
+                if (!filterStatuses.some(s => String(s || '').trim().toLowerCase() === tStat)) return false;
             }
             if (filterAssignees.length > 0) {
                 const taskAssigneeIds = t.assignees?.map((a:any) => a.id.toString()) || [];
