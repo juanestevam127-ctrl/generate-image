@@ -35,7 +35,14 @@ export async function fetchBndvInventoryAction(clientId: string) {
         });
 
         if (!loginRes.ok) {
-            return { success: false, error: "Falha na autenticação BNDV." };
+            let errorMsg = "Credenciais inválidas";
+            try {
+                const errData = await loginRes.json();
+                errorMsg = errData.message || JSON.stringify(errData);
+            } catch (e) {
+                errorMsg = await loginRes.text();
+            }
+            return { success: false, error: `Falha na autenticação BNDV: ${errorMsg}` };
         }
 
         const loginData = await loginRes.json();
