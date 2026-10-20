@@ -92,9 +92,21 @@ export async function fetchImportQueueAction() {
             // Map ClickUp Client ID to Supabase Client ID
             let realClienteId = null;
             if (clickupClientId) {
-                const matchedClient = clientsDb?.find(c => c.clickup_tarefa_id === clickupClientId);
-                if (matchedClient) {
-                    realClienteId = matchedClient.id;
+                // Find all matching clients with this clickup_tarefa_id
+                const matchingClients = clientsDb?.filter(c => c.clickup_tarefa_id === clickupClientId) || [];
+                if (matchingClients.length === 1) {
+                    realClienteId = matchingClients[0].id;
+                } else if (matchingClients.length > 1) {
+                    // Prioritize exact name match with clickupClientName
+                    const normClickup = String(clickupClientName).trim().toLowerCase();
+                    const exact = matchingClients.find(c => c.name.trim().toLowerCase() === normClickup);
+                    if (exact) {
+                        realClienteId = exact.id;
+                    } else {
+                        // Prefer client that is NOT a layout or "(CAPA REELS)" variant
+                        const primary = matchingClients.find(c => !/\(CAPA|\(LAYOUT/i.test(c.name));
+                        realClienteId = primary ? primary.id : matchingClients[0].id;
+                    }
                 }
             }
 

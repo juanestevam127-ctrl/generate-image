@@ -302,10 +302,28 @@ export async function uploadStoryToClickupAction(taskId: string, imageUrl: strin
 export async function findClickupTaskForVehicleAction(clienteId: string, veiculoGerado: string) {
     noStore();
     try {
+        // Obter cliente e verificar se possui clientes irmãos (mesmo clickup_tarefa_id ou base name)
+        const { data: currentClient } = await supabase
+            .from('clientes')
+            .select('id, name, clickup_tarefa_id')
+            .eq('id', clienteId)
+            .single();
+
+        let clientIdsToSearch = [clienteId];
+        if (currentClient?.clickup_tarefa_id) {
+            const { data: sisterClients } = await supabase
+                .from('clientes')
+                .select('id')
+                .eq('clickup_tarefa_id', currentClient.clickup_tarefa_id);
+            if (sisterClients && sisterClients.length > 0) {
+                clientIdsToSearch = Array.from(new Set([clienteId, ...sisterClients.map(c => c.id)]));
+            }
+        }
+
         const { data: veiculos } = await supabase
             .from('VeiculoOperador')
             .select('id, clickupTaskId, dados')
-            .eq('clienteId', clienteId)
+            .in('clienteId', clientIdsToSearch)
             .not('clickupTaskId', 'is', null)
             .order('createdAt', { ascending: false });
 
@@ -313,9 +331,23 @@ export async function findClickupTaskForVehicleAction(clienteId: string, veiculo
 
         const veiculoFormatado = String(veiculoGerado).trim().toUpperCase();
 
+        // 1. Prioridade: Casamento pelo campo específico de nome/modelo do veículo
+        const exactFieldMatch = veiculos.find(v => {
+            const d = v.dados || {};
+            const nomeField = d['Nome do Veiculo'] || d['nome'] || d['veiculo'] || d['modelo'] || d['Título'] || '';
+            const nomeUpper = String(nomeField).trim().toUpperCase();
+            if (nomeUpper.length >= 3 && (veiculoFormatado.includes(nomeUpper) || nomeUpper.includes(veiculoFormatado))) {
+                return true;
+            }
+            return false;
+        });
+
+        if (exactFieldMatch) return { success: true, clickupTaskId: exactFieldMatch.clickupTaskId };
+
+        // 2. Fallback: Qualquer valor com tamanho > 3 que seja relevante (excluindo anos e cores pequenas)
         const match = veiculos.find(v => {
             const values = Object.values(v.dados).map(val => String(val).trim().toUpperCase());
-            return values.some(val => val.length > 3 && (veiculoFormatado.includes(val) || val.includes(veiculoFormatado)));
+            return values.some(val => val.length > 3 && !/^\d{4}$/.test(val) && (veiculoFormatado.includes(val) || val.includes(veiculoFormatado)));
         });
 
         if (match) return { success: true, clickupTaskId: match.clickupTaskId };
