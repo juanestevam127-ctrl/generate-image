@@ -19,18 +19,19 @@ Deno.serve(async (_req) => {
   );
 
   const results: any[] = [];
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Reduz a janela de 7 dias para as últimas 48 horas (evita baixar 1000 posts repetidos a cada execução)
+  const lookbackPeriod = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-  // 1. Posts publicados no Facebook E no Instagram nos últimos 7 dias
+  // 1. Posts publicados no Facebook E no Instagram nos últimos 2 dias
   const { data: completedPosts, error } = await supabase
     .from('publicacoes_design_online')
     .select('nome_empresa, veiculo_gerado')
     .eq('publicado', true)
     .eq('publicado_instagram', true)
-    .gte('created_at', sevenDaysAgo);
+    .gte('created_at', lookbackPeriod);
 
   if (error) return json({ error: error.message }, 500);
-  if (!completedPosts?.length) return json({ message: 'Nenhum post concluído' });
+  if (!completedPosts?.length) return json({ message: 'Nenhum post concluído nas últimas 48h' });
 
   // 2. Remove duplicados (carrossel tem várias linhas por veículo)
   const unique = completedPosts.filter(
@@ -52,23 +53,29 @@ Deno.serve(async (_req) => {
     return id;
   };
 
+  // Cache de VeiculoOperador por cliente para não fazer dezenas de queries repetidas
+  const veiculosCache = new Map<string, any[]>();
+  const getVeiculos = async (cId: string) => {
+    if (veiculosCache.has(cId)) return veiculosCache.get(cId)!;
+    const { data: veiculos, error: vErr } = await supabase
+      .from('VeiculoOperador')
+      .select('id, clickupTaskId, dados')
+      .eq('clienteId', cId)
+      .not('clickupTaskId', 'is', null)
+      .order('createdAt', { ascending: false });
+
+    if (vErr || !veiculos) return [];
+    veiculosCache.set(cId, veiculos);
+    return veiculos;
+  };
+
   for (const post of unique) {
     try {
       const clienteId = await getClienteId(post.nome_empresa);
       if (!clienteId) continue;
 
-      const { data: veiculos, error: vErr } = await supabase
-        .from('VeiculoOperador')
-        .select('id, clickupTaskId, dados')
-        .eq('clienteId', clienteId)
-        .not('clickupTaskId', 'is', null)
-        .order('createdAt', { ascending: false });
-
-      if (vErr) {
-        results.push({ vehicle: post.veiculo_gerado, status: 'erro_veiculo_operador', error: vErr.message });
-        continue;
-      }
-      if (!veiculos?.length) continue;
+      const veiculos = await getVeiculos(clienteId);
+      if (!veiculos.length) continue;
 
       // 3. Encontra o veículo correspondente pelo nome
       const alvo = post.veiculo_gerado.trim().toUpperCase();
@@ -88,10 +95,26 @@ Deno.serve(async (_req) => {
         headers: { Authorization: CLICKUP_TOKEN, 'Content-Type': 'application/json' },
       });
       if (!taskRes.ok) {
-        results.push({ vehicle: post.veiculo_gerado, status: 'erro_get_task', http: taskRes.status });
+        // Se a tarefa não existe mais no ClickUp, marca como processado para não consultar nunca mais
+        await supabase
+          .from('VeiculoOperador')
+          .update({ dados: { ...match.dados, clickup_status_updated: true } })
+          .eq('id', match.id);
+        results.push({ vehicle: post.veiculo_gerado, status: 'tarefa_inexistente_marcada', http: taskRes.status });
         continue;
       }
       const task = await taskRes.json();
+      const currentTaskStatus = String(task.status?.status || '').toLowerCase().trim();
+
+      // Se a tarefa já foi anunciada, desativada ou já está em falta anúncio, marca como concluída e pula
+      if (['anunciado', 'desativado', 'publicado', 'falta anúncio', 'demandas de reunião'].includes(currentTaskStatus)) {
+        await supabase
+          .from('VeiculoOperador')
+          .update({ dados: { ...match.dados, clickup_status_updated: true } })
+          .eq('id', match.id);
+        results.push({ vehicle: post.veiculo_gerado, status: 'ja_avancado_marcado', currentStatus: currentTaskStatus });
+        continue;
+      }
 
       const storiesField = task.custom_fields?.find((f: any) => f.id === STORIES_FIELD_ID);
       const hasStory = Array.isArray(storiesField?.value) && storiesField.value.length > 0;
