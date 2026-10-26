@@ -48,9 +48,41 @@ export function ClientManager() {
     const [revendaMaisUrl, setRevendaMaisUrl] = useState("");
     const [activeTab, setActiveTab] = useState("geral");
 
+    // NocoDB State
+    const [nocoBases, setNocoBases] = useState<{ id: string; title: string }[]>([]);
+    const [isLoadingNocoBases, setIsLoadingNocoBases] = useState(false);
+    const [nocoTables, setNocoTables] = useState<{ id: string; title: string }[]>([]);
+    const [isLoadingNocoTables, setIsLoadingNocoTables] = useState(false);
+
     // Clickup Clients data
     const [clickupClients, setClickupClients] = useState<{id: string, name: string}[]>([]);
     const [isLoadingClickup, setIsLoadingClickup] = useState(false);
+
+    // Fetch NocoDB Bases
+    useEffect(() => {
+        if (integracaoTipo === "NOCODB" && nocoBases.length === 0) {
+            setIsLoadingNocoBases(true);
+            import("@/app/actions/estoque").then(({ getNocoDbBasesAction }) => {
+                getNocoDbBasesAction().then(res => {
+                    if (res.success && res.data) setNocoBases(res.data);
+                }).finally(() => setIsLoadingNocoBases(false));
+            });
+        }
+    }, [integracaoTipo, nocoBases.length]);
+
+    // Fetch NocoDB Tables when Base changes
+    useEffect(() => {
+        if (integracaoTipo === "NOCODB" && boomCustomerKey) {
+            setIsLoadingNocoTables(true);
+            import("@/app/actions/estoque").then(({ getNocoDbTablesAction }) => {
+                getNocoDbTablesAction(boomCustomerKey).then(res => {
+                    if (res.success && res.data) setNocoTables(res.data);
+                }).finally(() => setIsLoadingNocoTables(false));
+            });
+        } else {
+            setNocoTables([]);
+        }
+    }, [integracaoTipo, boomCustomerKey]);
 
     // Fetch ClickUp Clients on mount
     useEffect(() => {
@@ -624,31 +656,121 @@ export function ClientManager() {
                             )}
 
                             {integracaoTipo === "NOCODB" && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
-                                    <div className="md:col-span-2">
+                                <div className="space-y-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
+                                    <div>
                                         <h4 className="font-semibold text-sm text-indigo-300 mb-1">Configuração NocoDB</h4>
-                                        <p className="text-xs text-muted-foreground">Busca automaticamente veículos tanto do estoque ativo quanto inativo.</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Selecione a base do cliente e marque as tabelas que compõem o estoque (ex: estoque ativo e inativo).
+                                        </p>
                                     </div>
+
+                                    {/* Seletor de Base / Projeto */}
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Base / Projeto</label>
-                                        <Input
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-sm font-medium">Base / Projeto no NocoDB</label>
+                                            {isLoadingNocoBases && (
+                                                <span className="text-[11px] text-indigo-400 flex items-center">
+                                                    <Loader2 className="w-3 h-3 animate-spin mr-1" /> Carregando bases...
+                                                </span>
+                                            )}
+                                        </div>
+                                        <select
+                                            className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                             value={boomCustomerKey}
-                                            onChange={(e) => setBoomCustomerKey(e.target.value)}
-                                            placeholder="Ex: CarShop ou CrMotors"
-                                            className="bg-slate-900 border-slate-700 text-white"
-                                        />
-                                        <p className="text-[11px] text-muted-foreground mt-1">Nome do projeto no NocoDB (ex: CarShop)</p>
+                                            onChange={(e) => {
+                                                setBoomCustomerKey(e.target.value);
+                                                setRevendaMaisUrl(""); // Reset selected tables on base change
+                                            }}
+                                        >
+                                            <option value="">Selecione uma base...</option>
+                                            {nocoBases.map((b) => (
+                                                <option key={b.id} value={b.title}>
+                                                    {b.title} ({b.id})
+                                                </option>
+                                            ))}
+                                            {boomCustomerKey && !nocoBases.some(b => b.title === boomCustomerKey || b.id === boomCustomerKey) && (
+                                                <option value={boomCustomerKey}>{boomCustomerKey}</option>
+                                            )}
+                                        </select>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Prefixo das Tabelas</label>
-                                        <Input
-                                            value={revendaMaisUrl}
-                                            onChange={(e) => setRevendaMaisUrl(e.target.value)}
-                                            placeholder="Ex: carshop ou cr_motors"
-                                            className="bg-slate-900 border-slate-700 text-white"
-                                        />
-                                        <p className="text-[11px] text-muted-foreground mt-1">Prefixo das tabelas _estoque e _estoque_inativo</p>
-                                    </div>
+
+                                    {/* Seleção de Tabelas */}
+                                    {boomCustomerKey && (
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="block text-sm font-medium">Tabelas de Estoque Selecionadas</label>
+                                                {isLoadingNocoTables && (
+                                                    <span className="text-[11px] text-indigo-400 flex items-center">
+                                                        <Loader2 className="w-3 h-3 animate-spin mr-1" /> Carregando tabelas...
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {nocoTables.length > 0 ? (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+                                                    {nocoTables.map((tbl) => {
+                                                        const selectedList = revendaMaisUrl
+                                                            ? revendaMaisUrl.split(",").map(s => s.trim().toLowerCase())
+                                                            : [];
+                                                        const isChecked = selectedList.includes(tbl.title.toLowerCase()) || selectedList.includes(tbl.id.toLowerCase());
+
+                                                        return (
+                                                            <label
+                                                                key={tbl.id}
+                                                                className={cn(
+                                                                    "flex items-center space-x-2.5 p-2 rounded-md border cursor-pointer transition-colors text-xs font-medium",
+                                                                    isChecked
+                                                                        ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-200"
+                                                                        : "bg-slate-900/40 border-slate-800 text-slate-300 hover:bg-slate-800/40"
+                                                                )}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    onChange={(e) => {
+                                                                        let current = revendaMaisUrl
+                                                                            ? revendaMaisUrl.split(",").map(s => s.trim()).filter(Boolean)
+                                                                            : [];
+                                                                        if (e.target.checked) {
+                                                                            if (!current.includes(tbl.title)) current.push(tbl.title);
+                                                                        } else {
+                                                                            current = current.filter(t => t.toLowerCase() !== tbl.title.toLowerCase() && t.toLowerCase() !== tbl.id.toLowerCase());
+                                                                        }
+                                                                        setRevendaMaisUrl(current.join(","));
+                                                                    }}
+                                                                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0"
+                                                                />
+                                                                <div className="flex-1 truncate">
+                                                                    <span>{tbl.title}</span>
+                                                                    {tbl.title.includes("inativo") && (
+                                                                        <span className="ml-2 text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">Inativo</span>
+                                                                    )}
+                                                                    {tbl.title.endsWith("_estoque") && (
+                                                                        <span className="ml-2 text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">Ativo</span>
+                                                                    )}
+                                                                </div>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                !isLoadingNocoTables && (
+                                                    <p className="text-xs text-slate-500 bg-slate-900/40 p-3 rounded border border-slate-800">
+                                                        Nenhuma tabela personalizada encontrada nesta base.
+                                                    </p>
+                                                )
+                                            )}
+
+                                            <div className="mt-2">
+                                                <span className="text-[11px] text-slate-400">
+                                                    Tabelas ativas na sincronização:{" "}
+                                                    <strong className="text-indigo-300 font-mono">
+                                                        {revendaMaisUrl || "(Nenhuma selecionada)"}
+                                                    </strong>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

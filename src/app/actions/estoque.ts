@@ -642,6 +642,55 @@ export async function fetchAutoConfInventoryAction(clientId: string) {
     }
 }
 
+export async function getNocoDbBasesAction() {
+    try {
+        const host = "https://evolution-nocodb.4lap5g.easypanel.host";
+        const token = "9Qz7ETxba8JnXq3B0e9ybHaSiDar6hLqYBIIkg7u";
+        const res = await fetch(`${host}/api/v1/db/meta/projects`, {
+            headers: { "xc-token": token }
+        });
+        if (!res.ok) throw new Error(`Falha ao buscar bases (${res.status}): ${res.statusText}`);
+        const data = await res.json();
+        const bases = (data.list || []).map((b: any) => ({ id: b.id, title: b.title }));
+        return { success: true, data: bases };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Erro ao carregar bases do NocoDB." };
+    }
+}
+
+export async function getNocoDbTablesAction(baseIdentifier: string) {
+    try {
+        if (!baseIdentifier) return { success: true, data: [] };
+        const host = "https://evolution-nocodb.4lap5g.easypanel.host";
+        const token = "9Qz7ETxba8JnXq3B0e9ybHaSiDar6hLqYBIIkg7u";
+        const headers = { "xc-token": token };
+
+        let projectId = baseIdentifier;
+        if (!baseIdentifier.startsWith("p")) {
+            const bRes = await fetch(`${host}/api/v1/db/meta/projects`, { headers });
+            if (bRes.ok) {
+                const bData = await bRes.json();
+                const found = (bData.list || []).find((b: any) => 
+                    (b.title && b.title.toLowerCase() === baseIdentifier.toLowerCase()) || 
+                    (b.id && b.id.toLowerCase() === baseIdentifier.toLowerCase())
+                );
+                if (found) projectId = found.id;
+            }
+        }
+
+        const tRes = await fetch(`${host}/api/v1/db/meta/projects/${projectId}/tables`, { headers });
+        if (!tRes.ok) throw new Error(`Falha ao buscar tabelas (${tRes.status}): ${tRes.statusText}`);
+        const tData = await tRes.json();
+        const tables = (tData.list || [])
+            .filter((t: any) => !t.title.startsWith("nc_") && !t.title.startsWith("xc_") && t.title !== "notification")
+            .map((t: any) => ({ id: t.id, title: t.title }));
+
+        return { success: true, data: tables };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Erro ao carregar tabelas do NocoDB." };
+    }
+}
+
 export async function fetchNocoDbInventoryAction(clientId: string) {
     try {
         const { data: client, error } = await supabase
