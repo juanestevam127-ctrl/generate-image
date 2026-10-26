@@ -642,6 +642,203 @@ export async function fetchAutoConfInventoryAction(clientId: string) {
     }
 }
 
+export async function fetchNocoDbInventoryAction(clientId: string) {
+    try {
+        const { data: client, error } = await supabase
+            .from("clientes")
+            .select("integracao_tipo, boom_customer_key, revenda_mais_url, boom_url, boom_token")
+            .eq("id", clientId)
+            .single();
+
+        if (error) throw error;
+
+        if (client.integracao_tipo !== "NOCODB") {
+            return { success: false, error: "Cliente não possui integração NocoDB configurada." };
+        }
+
+        // Host e Token padrões com possibilidade de override
+        const nocoHost = (client.boom_url && client.boom_url.trim()) 
+            ? client.boom_url.trim().replace(/\/+$/, "") 
+            : "https://evolution-nocodb.4lap5g.easypanel.host";
+        const nocoToken = (client.boom_token && client.boom_token.trim()) 
+            ? client.boom_token.trim() 
+            : "9Qz7ETxba8JnXq3B0e9ybHaSiDar6hLqYBIIkg7u";
+
+        const baseIdentifier = (client.boom_customer_key || "").trim();
+        const tablePrefixOrNames = (client.revenda_mais_url || "").trim();
+
+        if (!baseIdentifier) {
+            return { success: false, error: "Nome ou ID da Base do NocoDB não configurado no cliente." };
+        }
+
+        const headers = {
+            "xc-token": nocoToken,
+            "Content-Type": "application/json"
+        };
+
+        // 1. Resolver o ID da Base / Projeto
+        let projectId = baseIdentifier;
+        if (!baseIdentifier.startsWith("p")) {
+            const basesRes = await fetch(`${nocoHost}/api/v1/db/meta/projects`, { headers });
+            if (!basesRes.ok) {
+                return { success: false, error: `Falha ao listar bases NocoDB (${basesRes.status}): ${basesRes.statusText}` };
+            }
+            const basesData = await basesRes.json();
+            const foundBase = (basesData.list || []).find((b: any) => 
+                (b.title && b.title.toLowerCase() === baseIdentifier.toLowerCase()) || 
+                (b.id && b.id.toLowerCase() === baseIdentifier.toLowerCase())
+            );
+            if (!foundBase) {
+                return { success: false, error: `Base '${baseIdentifier}' não encontrada no NocoDB.` };
+            }
+            projectId = foundBase.id;
+        }
+
+        // 2. Buscar tabelas deste projeto
+        const tablesRes = await fetch(`${nocoHost}/api/v1/db/meta/projects/${projectId}/tables`, { headers });
+        if (!tablesRes.ok) {
+            return { success: false, error: `Falha ao listar tabelas do projeto NocoDB: ${tablesRes.statusText}` };
+        }
+        const tablesData = await tablesRes.json();
+        const allTables: any[] = tablesData.list || [];
+
+        // 3. Localizar tabelas ativas e inativas
+        let targetTables: { table: any; status: "ativo" | "inativo" }[] = [];
+
+        if (tablePrefixOrNames.includes(",")) {
+            const parts = tablePrefixOrNames.split(",").map((s: string) => s.trim().toLowerCase());
+            for (const t of allTables) {
+                const tTitle = (t.title || "").toLowerCase();
+                const tId = (t.id || "").toLowerCase();
+                if (parts.includes(tTitle) || parts.includes(tId)) {
+                    const isInativo = tTitle.includes("inativo") || tTitle.includes("desativ");
+                    targetTables.push({ table: t, status: isInativo ? "inativo" : "ativo" });
+                }
+            }
+        } else {
+            const prefix = tablePrefixOrNames.toLowerCase().replace(/_estoque.*$/, "");
+            for (const t of allTables) {
+                const tTitle = (t.title || "").toLowerCase();
+                const matchesPrefix = !prefix || tTitle.startsWith(prefix) || tTitle.includes(prefix);
+                if (matchesPrefix) {
+                    if (tTitle.endsWith("_estoque") || tTitle === `${prefix}_estoque` || tTitle === "estoque") {
+                        targetTables.push({ table: t, status: "ativo" });
+                    } else if (tTitle.endsWith("_estoque_inativo") || tTitle.includes("estoque_inativo") || tTitle === `${prefix}_estoque_inativo`) {
+                        targetTables.push({ table: t, status: "inativo" });
+                    }
+                }
+            }
+        }
+
+        // Fallback: se não achou pelo prefixo, busca qualquer tabela com 'estoque' no nome
+        if (targetTables.length === 0) {
+            for (const t of allTables) {
+                const tTitle = (t.title || "").toLowerCase();
+                if (tTitle.includes("estoque")) {
+                    const isInativo = tTitle.includes("inativo");
+                    targetTables.push({ table: t, status: isInativo ? "inativo" : "ativo" });
+                }
+            }
+        }
+
+        if (targetTables.length === 0) {
+            return { 
+                success: false, 
+                error: `Nenhuma tabela de estoque encontrada para '${tablePrefixOrNames || baseIdentifier}'. Tabelas disponíveis: ${allTables.map((t: any) => t.title).join(", ")}` 
+            };
+        }
+
+        // 4. Buscar registros das tabelas encontradas (ativo e inativo mesclados)
+        let mergedVehicles: any[] = [];
+
+        for (const { table, status } of targetTables) {
+            try {
+                const recRes = await fetch(`${nocoHost}/api/v2/tables/${table.id}/records?limit=250`, { headers });
+                if (!recRes.ok) {
+                    console.error(`Erro ao buscar registros da tabela ${table.title} (${table.id}):`, recRes.statusText);
+                    continue;
+                }
+                const recData = await recRes.json();
+                const rows: any[] = recData.list || [];
+
+                for (const r of rows) {
+                    const externalKey = String(r.chave_externa || r.Id || r.id || crypto.randomUUID());
+                    const markName = (r.marca || "N/A").trim();
+                    const modelName = (r.modelo || "N/A").trim();
+                    const versionName = (r.versao || "").trim();
+                    const year = r.ano ? String(r.ano) : "";
+                    
+                    let km = 0;
+                    if (r.quilometragem !== undefined && r.quilometragem !== null) {
+                        km = parseInt(String(r.quilometragem).replace(/\D/g, "")) || 0;
+                    }
+
+                    let saleValue = 0;
+                    if (r.valor_venda) {
+                        saleValue = parseFloat(String(r.valor_venda).replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "")) || 0;
+                    }
+
+                    const color = (r.cor || "N/A").trim();
+                    const transmissionName = (r.cambio || "N/A").trim();
+                    const fuelName = (r.combustivel || "N/A").trim();
+                    const plate = (r.placa || "").trim();
+                    const subCategoryName = (r.tipo || r.subcategoria || "N/A").trim();
+
+                    // Parse fotos
+                    let pictures: { Link: string; Principal: string }[] = [];
+                    const rawFotos = r.fotos?.fotos || r.fotos;
+                    if (Array.isArray(rawFotos)) {
+                        pictures = rawFotos.map((picUrl: any, idx: number) => ({
+                            Link: typeof picUrl === "string" ? picUrl : (picUrl.url || picUrl.signedUrl || ""),
+                            Principal: idx === 0 ? "true" : "false"
+                        })).filter(p => !!p.Link);
+                    } else if (typeof rawFotos === "string" && rawFotos.startsWith("http")) {
+                        pictures = [{ Link: rawFotos, Principal: "true" }];
+                    }
+
+                    // Parse opcionais
+                    let optionals: string[] = [];
+                    const rawOpc = r.opcionais?.fotos || r.opcionais;
+                    if (Array.isArray(rawOpc)) {
+                        optionals = rawOpc.map((o: any) => typeof o === "string" ? o : (o.nome || ""));
+                    } else if (typeof rawOpc === "string") {
+                        optionals = [rawOpc];
+                    }
+
+                    const description = optionals.join(" • ");
+
+                    mergedVehicles.push({
+                        vehicleExternalKey: externalKey,
+                        markName,
+                        modelName,
+                        versionName,
+                        year,
+                        km,
+                        saleValue,
+                        color,
+                        transmissionName,
+                        fuelName,
+                        plate,
+                        subCategoryName,
+                        description,
+                        itemJs: JSON.stringify(optionals),
+                        pictureJs: JSON.stringify(pictures),
+                        _estoqueStatus: status, // "ativo" ou "inativo"
+                        _tabelaNome: table.title
+                    });
+                }
+            } catch (tblErr) {
+                console.error(`Erro ao carregar tabela ${table.title}:`, tblErr);
+            }
+        }
+
+        return { success: true, data: mergedVehicles };
+    } catch (e: any) {
+        console.error("fetchNocoDbInventoryAction error:", e);
+        return { success: false, error: e.message || "Erro desconhecido ao carregar estoque do NocoDB." };
+    }
+}
+
 
 export async function importEstoqueVehiclesAction(params: {
     clienteId: string;

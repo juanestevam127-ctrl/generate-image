@@ -575,6 +575,7 @@ export function ClientManager() {
                                     <option value="AUTOCERTO">AutoCerto</option>
                                     <option value="REVENDA_MAIS">Revenda Mais</option>
                                     <option value="AUTOCONF">AutoConf</option>
+                                    <option value="NOCODB">NocoDB</option>
                                 </select>
                             </div>
 
@@ -618,6 +619,35 @@ export function ClientManager() {
                                             placeholder="URL que retorna o XML"
                                             className="bg-slate-900 border-slate-700 text-white"
                                         />
+                                    </div>
+                                </div>
+                            )}
+
+                            {integracaoTipo === "NOCODB" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
+                                    <div className="md:col-span-2">
+                                        <h4 className="font-semibold text-sm text-indigo-300 mb-1">Configuração NocoDB</h4>
+                                        <p className="text-xs text-muted-foreground">Busca automaticamente veículos tanto do estoque ativo quanto inativo.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Base / Projeto</label>
+                                        <Input
+                                            value={boomCustomerKey}
+                                            onChange={(e) => setBoomCustomerKey(e.target.value)}
+                                            placeholder="Ex: CarShop ou CrMotors"
+                                            className="bg-slate-900 border-slate-700 text-white"
+                                        />
+                                        <p className="text-[11px] text-muted-foreground mt-1">Nome do projeto no NocoDB (ex: CarShop)</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Prefixo das Tabelas</label>
+                                        <Input
+                                            value={revendaMaisUrl}
+                                            onChange={(e) => setRevendaMaisUrl(e.target.value)}
+                                            placeholder="Ex: carshop ou cr_motors"
+                                            className="bg-slate-900 border-slate-700 text-white"
+                                        />
+                                        <p className="text-[11px] text-muted-foreground mt-1">Prefixo das tabelas _estoque e _estoque_inativo</p>
                                     </div>
                                 </div>
                             )}

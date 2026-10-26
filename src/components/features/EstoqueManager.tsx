@@ -9,6 +9,7 @@ import {
     fetchAutoCertoInventoryAction, 
     fetchRevendaMaisInventoryAction,
     fetchAutoConfInventoryAction,
+    fetchNocoDbInventoryAction,
     importEstoqueVehiclesAction,
     linkEstoqueVehicleToClickupAction,
     unlinkEstoqueVehicleAction
@@ -244,6 +245,13 @@ export function EstoqueManager() {
                     fetchedList = result.data;
                 } else {
                     setError(result.error || "Erro ao sincronizar estoque Revenda Mais.");
+                }
+            } else if (client?.integracaoTipo === "NOCODB") {
+                const result = await fetchNocoDbInventoryAction(selectedClientId);
+                if (result.success && result.data) {
+                    fetchedList = result.data;
+                } else {
+                    setError(result.error || "Erro ao sincronizar estoque do NocoDB.");
                 }
             } else if (client?.integracaoTipo === "AUTOCONF") {
                 const result = await fetchAutoConfInventoryAction(selectedClientId);
@@ -671,9 +679,21 @@ export function EstoqueManager() {
                                                         <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
                                                             {v.markName || "N/A"}
                                                         </span>
-                                                        <span className="text-sm font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">
-                                                            {v.modelName}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-semibold text-slate-100 group-hover:text-indigo-300 transition-colors">
+                                                                {v.modelName}
+                                                            </span>
+                                                            {v._estoqueStatus && (
+                                                                <span className={cn(
+                                                                    "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded",
+                                                                    v._estoqueStatus === "ativo" 
+                                                                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" 
+                                                                        : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                                                )}>
+                                                                    {v._estoqueStatus}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {v.versionName && v.versionName !== v.modelName && (
                                                             <span className="text-xs text-slate-400 line-clamp-1 max-w-xs">
                                                                 {v.versionName}
