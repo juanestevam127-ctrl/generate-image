@@ -933,84 +933,89 @@ export default function ListaCarrosPage() {
                 </Modal>
             )}
 
-            {/* MODAL DE VISUALIZAÇÃO DAS MENSAGENS */}
+            {/* MODAL DE VISUALIZAÇÃO DAS MENSAGENS COM PREVIEW ESTILO WHATSAPP */}
             {viewingItem && (
                 <Modal
                     isOpen={!!viewingItem}
                     onClose={() => setViewingItem(null)}
-                    title={`Mensagens de: ${viewingItem.cliente_enviado || "Cliente"}`}
+                    title={viewingItem.cliente_enviado || "Visualização das Mensagens"}
+                    className="max-w-xl mx-auto border-slate-800 bg-slate-950/95 p-0 overflow-hidden shadow-2xl"
                 >
-                    <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-                        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs">
-                            <span className="text-slate-400">Grupo de Destino:</span>{" "}
-                            <strong className="text-indigo-300 font-mono">
-                                {viewingItem.telefone_grupo || "Não informado"}
-                            </strong>
+                    <div className="p-5 space-y-4">
+                        {/* Destino do Envio */}
+                        <div className="flex items-center justify-between bg-slate-900/90 px-3.5 py-2.5 rounded-xl border border-slate-800 text-xs">
+                            <div className="flex items-center gap-2">
+                                <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span className="text-slate-400">Grupo WhatsApp:</span>
+                                <span className="text-slate-200 font-mono font-medium">{viewingItem.telefone_grupo || "Não informado"}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono">ID #{viewingItem.id}</span>
                         </div>
 
-                        {/* Mensagem 1: Relatório de Veículos */}
+                        {/* Balão 1: Mensagem do Relatório */}
                         <div className="space-y-1.5">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                                    <FileText className="w-3.5 h-3.5" /> 1. Mensagem do Relatório
-                                </label>
+                            <div className="flex items-center justify-between px-1">
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <FileText className="w-3 h-3 text-indigo-400" /> 1. Lista de Veículos
+                                </span>
                                 {viewingItem["mensagem_relatório_enviada"] ? (
-                                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-semibold border border-emerald-500/20">
-                                        Enviado
+                                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium border border-emerald-500/20">
+                                        Enviada
                                     </span>
                                 ) : (
-                                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-semibold border border-amber-500/20">
-                                        Pendente / Falha
+                                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium border border-amber-500/20">
+                                        Pendente
                                     </span>
                                 )}
                             </div>
-                            <div className="bg-slate-950 border border-slate-800 rounded-lg p-3.5 text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed max-h-60 overflow-y-auto">
-                                {viewingItem.mensagem_relatorio || "(Sem conteúdo na mensagem do relatório)"}
+                            <div className="relative bg-[#0b141a] border border-[#222e35] rounded-2xl rounded-tl-sm p-4 text-[13px] leading-relaxed text-[#e9edef] max-h-56 overflow-y-auto whitespace-pre-wrap font-sans selection:bg-emerald-500/30">
+                                {viewingItem.mensagem_relatorio || <span className="text-slate-500 italic">Sem mensagem de relatório</span>}
                             </div>
                         </div>
 
-                        {/* Mensagem 2: Mensagem da Melina */}
+                        {/* Balão 2: Mensagem da Melina */}
                         <div className="space-y-1.5">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
-                                    <UserCheck className="w-3.5 h-3.5" /> 2. Mensagem da Atendente (Melina)
-                                </label>
+                            <div className="flex items-center justify-between px-1">
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <UserCheck className="w-3 h-3 text-pink-400" /> 2. Mensagem da Atendente
+                                </span>
                                 {viewingItem.mensagem_melina_enviada ? (
-                                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-semibold border border-emerald-500/20">
-                                        Enviado
+                                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium border border-emerald-500/20">
+                                        Enviada
                                     </span>
                                 ) : (
-                                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-semibold border border-amber-500/20">
-                                        Pendente / Falha
+                                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium border border-amber-500/20">
+                                        Pendente
                                     </span>
                                 )}
                             </div>
-                            <div className="bg-slate-950 border border-slate-800 rounded-lg p-3.5 text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">
-                                {viewingItem.mensagem_melina || "(Sem conteúdo na mensagem da Melina)"}
+                            <div className="relative bg-[#0b141a] border border-[#222e35] rounded-2xl rounded-tl-sm p-4 text-[13px] leading-relaxed text-[#e9edef] whitespace-pre-wrap font-sans selection:bg-emerald-500/30">
+                                {viewingItem.mensagem_melina || <span className="text-slate-500 italic">Sem mensagem da atendente</span>}
                             </div>
                         </div>
 
-                        {/* Rodapé do Modal */}
-                        <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                        {/* Rodapé com botões compactos e elegantes */}
+                        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800/80">
                             <Button
                                 variant="outline"
+                                size="sm"
                                 onClick={() => setViewingItem(null)}
-                                className="border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                                className="border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 text-xs h-9 px-4 rounded-lg"
                             >
                                 Fechar
                             </Button>
 
-                            {/* Só exibe disparar se não estiver totalmente enviado */}
                             {!(viewingItem["mensagem_relatório_enviada"] && viewingItem.mensagem_melina_enviada) && (
                                 <Button
+                                    size="sm"
                                     onClick={() => {
                                         const id = viewingItem.id;
                                         setViewingItem(null);
                                         handleDispararItem(id);
                                     }}
-                                    className="!bg-emerald-400 hover:!bg-emerald-300 !text-slate-950 font-bold"
+                                    className="!bg-emerald-400 hover:!bg-emerald-300 !text-slate-950 font-bold text-xs h-9 px-4 rounded-lg shadow-md shadow-emerald-500/20"
                                 >
-                                    <Send className="w-4 h-4 mr-1.5 !text-slate-950" />
+                                    <Send className="w-3.5 h-3.5 mr-1.5 !text-slate-950" />
                                     Disparar Agora
                                 </Button>
                             )}
