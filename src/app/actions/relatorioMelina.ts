@@ -31,7 +31,7 @@ export async function getUazapiTokenAction() {
     }
 }
 
-// 2. Salvar o Token UAZAPI
+// 2. Salvar o Token UAZAPI (Apenas Master)
 export async function saveUazapiTokenAction(token: string) {
     try {
         const { data: existing } = await supabase
@@ -58,7 +58,78 @@ export async function saveUazapiTokenAction(token: string) {
     }
 }
 
-// 3. Buscar relatórios por intervalo de datas ou geral
+// 3. Obter lista de e-mails de usuários com acesso permitido à Lista de Carros
+export async function getAllowedUsersListaCarrosAction() {
+    try {
+        const { data, error } = await supabase
+            .from("configuracoes_gerais")
+            .select("pasta_nome")
+            .limit(1)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        let allowed: string[] = [];
+        if (data?.pasta_nome) {
+            try {
+                allowed = JSON.parse(data.pasta_nome);
+            } catch (e) {
+                allowed = [];
+            }
+        }
+        return { success: true, data: Array.isArray(allowed) ? allowed : [] };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Erro ao carregar permissões de usuários." };
+    }
+}
+
+// 4. Salvar lista de usuários permitidos (Apenas Master)
+export async function saveAllowedUsersListaCarrosAction(emails: string[]) {
+    try {
+        const cleanEmails = Array.from(new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean)));
+        const { data: existing } = await supabase
+            .from("configuracoes_gerais")
+            .select("id")
+            .limit(1);
+
+        if (existing && existing.length > 0) {
+            const { error } = await supabase
+                .from("configuracoes_gerais")
+                .update({
+                    pasta_nome: JSON.stringify(cleanEmails),
+                    updated_at: new Date().toISOString()
+                })
+                .eq("id", existing[0].id);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase
+                .from("configuracoes_gerais")
+                .insert([{ pasta_nome: JSON.stringify(cleanEmails) }]);
+            if (error) throw error;
+        }
+
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Erro ao salvar permissões." };
+    }
+}
+
+// 5. Listar todos os usuários do sistema (para o master gerenciar quem tem acesso)
+export async function getAllSystemUsersAction() {
+    try {
+        const { data, error } = await supabase
+            .from("usuarios")
+            .select("email, role, name")
+            .order("name", { ascending: true });
+
+        if (error) throw error;
+        return { success: true, data: data || [] };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Erro ao carregar usuários." };
+    }
+}
+
+// 6. Buscar relatórios por intervalo de datas ou geral
 export async function getRelatoriosMelinaAction(params?: { startDate?: string; endDate?: string }) {
     try {
         let query = supabase
@@ -82,7 +153,7 @@ export async function getRelatoriosMelinaAction(params?: { startDate?: string; e
     }
 }
 
-// 4. Função auxiliar para envio via UAZAPI
+// 7. Envio UAZAPI
 async function sendUazapiText(token: string, number: string, text: string) {
     const cleanNumber = number.trim();
     const endpoint = "https://designonline.uazapi.com/send/text";
@@ -116,10 +187,9 @@ async function sendUazapiText(token: string, number: string, text: string) {
     return responseData;
 }
 
-// 5. Disparar (ou Reenviar) as mensagens de um registro específico
-export async function dispararRelatorioMelinaItemAction(id: number, overrideToken?: string) {
+// 8. Disparar registro
+export async function dispararRelatorioMelinaItemAction(id: number) {
     try {
-        // 1. Obter registro
         const { data: item, error: fetchError } = await supabase
             .from("controle_relatorio_melina")
             .select("*")
@@ -134,73 +204,70 @@ export async function dispararRelatorioMelinaItemAction(id: number, overrideToke
             return { success: false, error: "Registro não possui telefone_grupo preenchido." };
         }
 
-        // 2. Obter token
-        let token = overrideToken?.trim();
-        if (!token) {
-            const tokenRes = await getUazapiTokenAction();
-            token = tokenRes.token || "";
+        // Se já foi enviado com sucesso em ambos, aborta para evitar disparos duplicados
+        if (item["mensagem_relatório_enviada"] === true && item.mensagem_melina_enviada === true) {
+            return { success: false, error: "Este cliente já recebeu todas as mensagens com sucesso." };
         }
 
+        const tokenRes = await getUazapiTokenAction();
+        const token = tokenRes.token || "";
+
         if (!token) {
-            return { success: false, error: "Token da UAZAPI não configurado. Preencha o token no topo da página." };
+            return { success: false, error: "Token da UAZAPI não configurado pelo administrador." };
         }
 
         const nowIso = new Date().toISOString();
-        let relatorioSucesso = false;
-        let melinaSucesso = false;
+        let relatorioSucesso = item["mensagem_relatório_enviada"] === true;
+        let melinaSucesso = item.mensagem_melina_enviada === true;
         let erroRelatorio = "";
         let erroMelina = "";
 
-        // Disparo 1: Mensagem do Relatório
-        if (item.mensagem_relatorio) {
+        // Enviar relatório apenas se ainda não foi enviado
+        if (!relatorioSucesso && item.mensagem_relatorio) {
             try {
                 await sendUazapiText(token, item.telefone_grupo, item.mensagem_relatorio);
                 relatorioSucesso = true;
             } catch (err: any) {
-                erroRelatorio = err.message || "Erro no envio do relatório";
+                erroRelatorio = err.message || "Erro no relatório";
                 console.error("Falha ao disparar mensagem_relatorio:", err);
             }
         }
 
-        // Disparo 2: Mensagem da Melina (logo em seguida)
-        if (item.mensagem_melina) {
+        // Enviar melina apenas se ainda não foi enviada
+        if (!melinaSucesso && item.mensagem_melina) {
             try {
-                // Pequeno delay de 1.5s entre mensagens para ordem garantida no WhatsApp
-                await new Promise((r) => setTimeout(r, 1500));
+                if (item.mensagem_relatorio && !item["mensagem_relatório_enviada"]) {
+                    await new Promise((r) => setTimeout(r, 1500));
+                }
                 await sendUazapiText(token, item.telefone_grupo, item.mensagem_melina);
                 melinaSucesso = true;
             } catch (err: any) {
-                erroMelina = err.message || "Erro no envio da mensagem da atendente";
+                erroMelina = err.message || "Erro na melina";
                 console.error("Falha ao disparar mensagem_melina:", err);
             }
         }
 
-        // Atualizar no banco de dados
         const updates: Partial<ControleRelatorioMelinaItem> = {
             "mensagem_relatório_enviada": relatorioSucesso,
             mensagem_melina_enviada: melinaSucesso,
-            horario_mensagem_relatorio_enviada: nowIso,
-            horario_mensagem_melina_enviada: nowIso
+            horario_mensagem_relatorio_enviada: relatorioSucesso ? nowIso : (item.horario_mensagem_relatorio_enviada || nowIso),
+            horario_mensagem_melina_enviada: melinaSucesso ? nowIso : (item.horario_mensagem_melina_enviada || nowIso)
         };
 
-        const { error: updateError } = await supabase
+        await supabase
             .from("controle_relatorio_melina")
             .update(updates)
             .eq("id", id);
 
-        if (updateError) {
-            console.error("Erro ao atualizar banco após disparo:", updateError);
-        }
-
         if (!relatorioSucesso || !melinaSucesso) {
             const detalhe = [
-                !relatorioSucesso ? `Relatório: ${erroRelatorio || 'Falha'}` : null,
-                !melinaSucesso ? `Melina: ${erroMelina || 'Falha'}` : null
+                !relatorioSucesso ? `Relatório: ${erroRelatorio || 'Falhou'}` : null,
+                !melinaSucesso ? `Melina: ${erroMelina || 'Falhou'}` : null
             ].filter(Boolean).join(" | ");
 
             return {
                 success: false,
-                error: `Disparo com falhas (${detalhe})`,
+                error: `Falha no envio (${detalhe})`,
                 relatorioSucesso,
                 melinaSucesso
             };
@@ -217,22 +284,21 @@ export async function dispararRelatorioMelinaItemAction(id: number, overrideToke
     }
 }
 
-// 6. Disparar múltiplos registros em lote (ex: todos os pendentes do dia)
-export async function dispararLoteRelatoriosMelinaAction(ids: number[], overrideToken?: string) {
+// 9. Disparo em lote dos pendentes/falhas
+export async function dispararLoteRelatoriosMelinaAction(ids: number[]) {
     try {
         let sucessos = 0;
         let falhas = 0;
         const erros: string[] = [];
 
         for (const id of ids) {
-            const res = await dispararRelatorioMelinaItemAction(id, overrideToken);
+            const res = await dispararRelatorioMelinaItemAction(id);
             if (res.success) {
                 sucessos++;
             } else {
                 falhas++;
                 erros.push(`ID ${id}: ${res.error}`);
             }
-            // Delay de segurança entre cada cliente
             await new Promise((r) => setTimeout(r, 1000));
         }
 
@@ -247,7 +313,7 @@ export async function dispararLoteRelatoriosMelinaAction(ids: number[], override
     }
 }
 
-// 7. Deletar registro (caso o usuário precise limpar teste)
+// 10. Deletar registro
 export async function deleteRelatorioMelinaItemAction(id: number) {
     try {
         const { error } = await supabase

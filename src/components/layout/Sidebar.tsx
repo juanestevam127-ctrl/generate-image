@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { useStore } from "@/lib/store-context";
+import { useState, useEffect } from "react";
 import { Database,
     LayoutDashboard,
     LogOut,
@@ -23,6 +24,21 @@ interface SidebarProps {
 
 export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarProps) {
     const { user, logout } = useStore();
+    const [canAccessListaCarros, setCanAccessListaCarros] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (user?.email) {
+            import("@/app/actions/relatorioMelina").then(({ getAllowedUsersListaCarrosAction }) => {
+                getAllowedUsersListaCarrosAction().then(res => {
+                    if (isMounted && res.success && res.data) {
+                        setCanAccessListaCarros(res.data.includes(user.email.toLowerCase()));
+                    }
+                });
+            });
+        }
+        return () => { isMounted = false; };
+    }, [user?.email]);
     const router = useRouter();
     const pathname = usePathname();
 
