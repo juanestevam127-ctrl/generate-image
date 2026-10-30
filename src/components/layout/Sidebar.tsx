@@ -10,6 +10,7 @@ import { Database,
     X,
     Layout,
     Settings,
+    ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,11 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
                 label: "Controle de Postagens",
                 href: "/controle-stories",
                 icon: Layout,
+            });
+            navItems.push({
+                label: "Lista de Carros",
+                href: "/lista-carros",
+                icon: ListChecks,
             });
             navItems.push({
                 label: "Configurações Gerais",
