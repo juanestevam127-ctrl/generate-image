@@ -10,6 +10,7 @@ import {
     fetchRevendaMaisInventoryAction,
     fetchAutoConfInventoryAction,
     fetchNocoDbInventoryAction,
+    fetchWebMotorsInventoryAction,
     importEstoqueVehiclesAction,
     linkEstoqueVehicleToClickupAction,
     unlinkEstoqueVehicleAction
@@ -259,6 +260,13 @@ export function EstoqueManager() {
                     fetchedList = result.data;
                 } else {
                     setError(result.error || "Erro ao sincronizar estoque AutoConf.");
+                }
+            } else if (client?.integracaoTipo === "WEBMOTORS") {
+                const result = await fetchWebMotorsInventoryAction(selectedClientId);
+                if (result.success && result.data) {
+                    fetchedList = result.data;
+                } else {
+                    setError(result.error || "Erro ao sincronizar estoque WebMotors.");
                 }
             } else {
                 setError("Integração não suportada ainda.");

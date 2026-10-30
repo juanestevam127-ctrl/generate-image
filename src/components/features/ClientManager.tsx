@@ -608,6 +608,7 @@ export function ClientManager() {
                                     <option value="REVENDA_MAIS">Revenda Mais</option>
                                     <option value="AUTOCONF">AutoConf</option>
                                     <option value="NOCODB">NocoDB</option>
+                                    <option value="WEBMOTORS">WebMotors (n8n)</option>
                                 </select>
                             </div>
 
@@ -788,6 +789,41 @@ export function ClientManager() {
                                             className="bg-slate-900 border-slate-700 text-white"
                                         />
                                         <p className="text-xs text-muted-foreground mt-1">Cole aqui o link do XML gerado pelo AutoConf.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {integracaoTipo === "WEBMOTORS" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
+                                    <div className="md:col-span-2">
+                                        <h4 className="font-semibold text-sm text-indigo-300 mb-1">Configuração WebMotors (via n8n)</h4>
+                                        <p className="text-xs text-muted-foreground">
+                                            Integração com raspador/API do WebMotors via fluxo n8n com suporte a paginação automática.
+                                        </p>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1">URL do Webhook n8n (Opcional)</label>
+                                        <Input
+                                            value={revendaMaisUrl}
+                                            onChange={(e) => setRevendaMaisUrl(e.target.value)}
+                                            placeholder="https://n8n-webhook.vpsdesignonline.com.br/webhook/estoque-api-webmotors"
+                                            className="bg-slate-900 border-slate-700 text-white font-mono text-xs"
+                                        />
+                                        <p className="text-[11px] text-muted-foreground mt-1">
+                                            Se deixar em branco, usará o webhook padrão configurado: <code className="text-indigo-400">.../webhook/estoque-api-webmotors</code>.
+                                        </p>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1">Link de Busca / Loja na WebMotors (Opcional)</label>
+                                        <Input
+                                            value={boomUrl}
+                                            onChange={(e) => setBoomUrl(e.target.value)}
+                                            placeholder="Ex: https://www.webmotors.com.br/motos/sp?idrevendedor=..."
+                                            className="bg-slate-900 border-slate-700 text-white font-mono text-xs"
+                                        />
+                                        <p className="text-[11px] text-muted-foreground mt-1">
+                                            Link direto da loja na WebMotors passado no corpo da requisição ao n8n.
+                                        </p>
                                     </div>
                                 </div>
                             )}

@@ -889,6 +889,110 @@ export async function fetchNocoDbInventoryAction(clientId: string) {
 }
 
 
+export async function fetchWebMotorsInventoryAction(clientId: string) {
+    try {
+        const { data: client, error } = await supabase
+            .from("clientes")
+            .select("integracao_tipo, revenda_mais_url, boom_url")
+            .eq("id", clientId)
+            .single();
+
+        if (error) throw error;
+
+        if (client.integracao_tipo !== "WEBMOTORS") {
+            return { success: false, error: "Cliente não possui integração WebMotors configurada." };
+        }
+
+        // URL do Webhook do n8n (pode ser personalizada no cliente em revenda_mais_url ou usar o default)
+        const webhookUrl = (client.revenda_mais_url && client.revenda_mais_url.trim().startsWith("http"))
+            ? client.revenda_mais_url.trim()
+            : "https://n8n-webhook.vpsdesignonline.com.br/webhook/estoque-api-webmotors";
+
+        const res = await fetch(webhookUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({
+                clienteId: clientId,
+                webmotorsUrl: client.boom_url || null
+            })
+        });
+
+        if (!res.ok) {
+            throw new Error(`Falha na requisição ao n8n WebMotors (${res.status}): ${res.statusText}`);
+        }
+
+        const rawData = await res.json();
+        const list: any[] = Array.isArray(rawData) ? rawData : (rawData?.data || rawData?.items || []);
+
+        const vehicles = list.map((item: any) => {
+            const externalKey = String(item.id || item.UniqueId || crypto.randomUUID());
+            const markName = (item.marca || item.Make || "N/A").trim();
+            const modelName = (item.modelo || item.Model || item.titulo || "N/A").trim();
+            const versionName = (item.versao || item.titulo || "").trim();
+            const year = item.ano ? String(item.ano) : (item.ano_modelo ? String(item.ano_modelo) : "");
+            
+            const km = typeof item.km === "number" ? item.km : (parseInt(String(item.km || "0").replace(/\D/g, "")) || 0);
+            const saleValue = typeof item.preco === "number" ? item.preco : (parseFloat(String(item.preco || "0").replace(/[^0-9.]/g, "")) || 0);
+            
+            const color = (item.cor || "N/A").trim();
+            const transmissionName = (item.cambio || "N/A").trim();
+            const fuelName = (item.combustivel || "N/A").trim();
+            const plate = (item.placa || "").trim();
+            const subCategoryName = (item.estilo || item.tipo || "Moto").trim();
+
+            // Mapear Fotos
+            let pictures: { Link: string; Principal: string }[] = [];
+            const rawFotos = item.fotos || (item.foto_principal ? [item.foto_principal] : []);
+            if (Array.isArray(rawFotos)) {
+                pictures = rawFotos.map((picUrl: any, idx: number) => ({
+                    Link: typeof picUrl === "string" ? picUrl : (picUrl.url || ""),
+                    Principal: idx === 0 ? "true" : "false"
+                })).filter(p => !!p.Link);
+            }
+
+            // Opcionais / Atributos
+            let optionals: string[] = [];
+            if (Array.isArray(item.atributos)) {
+                optionals = item.atributos.map((a: any) => String(a).trim());
+            }
+            if (item.cilindrada) optionals.unshift(`${item.cilindrada}cc`);
+            if (item.motor) optionals.push(`Motor ${item.motor}`);
+            if (item.freios) optionals.push(`Freios ${item.freios}`);
+            if (item.refrigeracao) optionals.push(`Refrigeração ${item.refrigeracao}`);
+
+            const description = item.descricao || optionals.join(" • ");
+
+            return {
+                vehicleExternalKey: externalKey,
+                markName,
+                modelName,
+                versionName,
+                year,
+                km,
+                saleValue,
+                color,
+                transmissionName,
+                fuelName,
+                plate,
+                subCategoryName,
+                description,
+                itemJs: JSON.stringify(optionals),
+                pictureJs: JSON.stringify(pictures),
+                urlAnuncio: item.url_anuncio || null,
+                _estoqueStatus: "ativo"
+            };
+        });
+
+        return { success: true, data: vehicles };
+    } catch (e: any) {
+        console.error("fetchWebMotorsInventoryAction error:", e);
+        return { success: false, error: e.message || "Erro desconhecido ao carregar estoque da WebMotors." };
+    }
+}
+
 export async function importEstoqueVehiclesAction(params: {
     clienteId: string;
     items: Array<{
