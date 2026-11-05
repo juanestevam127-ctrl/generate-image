@@ -140,31 +140,40 @@ export async function createClickupTaskAction(params: {
 export async function getGosTasksAction() {
     try {
         let allTasks: any[] = [];
-        let page = 0;
-        let hasMore = true;
+        const BATCH_SIZE = 10;
+        const MAX_PAGES = 30; // Até 3.000 tarefas recentes (cobre com folga todos os veículos ativos e anunciados)
+        let stop = false;
 
-        while (hasMore && page < 10) {
-            const res = await fetch(`https://api.clickup.com/api/v2/list/${GOS_LIST_ID}/task?archived=false&include_closed=true&page=${page}&order_by=updated`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': CLICKUP_TOKEN,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!res.ok) throw new Error("Failed to fetch GOS tasks");
+        for (let batch = 0; batch < MAX_PAGES / BATCH_SIZE; batch++) {
+            const pageIndices = Array.from({ length: BATCH_SIZE }, (_, i) => batch * BATCH_SIZE + i);
             
-            const data = await res.json();
-            const tasks = data.tasks || [];
-            allTasks = [...allTasks, ...tasks];
+            const results = await Promise.all(
+                pageIndices.map(async (page) => {
+                    try {
+                        const res = await fetch(`https://api.clickup.com/api/v2/list/${GOS_LIST_ID}/task?archived=false&include_closed=true&page=${page}&order_by=updated`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': CLICKUP_TOKEN,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        if (!res.ok) return { tasks: [], last_page: true };
+                        return await res.json();
+                    } catch (e) {
+                        return { tasks: [], last_page: true };
+                    }
+                })
+            );
 
-            if (data.last_page) {
-                hasMore = false;
-            } else if (tasks.length === 0) {
-                hasMore = false;
-            } else {
-                page++;
+            for (const r of results) {
+                const tasks = r.tasks || [];
+                allTasks.push(...tasks);
+                if (r.last_page || tasks.length === 0) {
+                    stop = true;
+                }
             }
+
+            if (stop) break;
         }
 
         const formattedTasks = allTasks.map(t => {
