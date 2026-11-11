@@ -134,32 +134,56 @@ export default function DashboardPage() {
                 const loadDesignState = async () => {
                     const { supabase } = await import('@/lib/supabase');
                     const { data } = await supabase.from('VeiculoOperador').select('*').eq('id', refazerId).single();
-                    if (data && data.design_state) {
-                        setViewMode('importacao');
-                        setSelectedClientId(data.clienteId);
-                        
-                        // Overwrite the design state price with the current price from 'dados'
-                        const state = { ...data.design_state };
+                    if (data) {
                         const client = clients.find(c => c.id === data.clienteId);
-                        if (client) {
-                            const getFieldVal = (d: any, keywords: string[]) => {
-                                let key = Object.keys(d).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
-                                if (key) return { key, val: d[key] };
-                                return null;
-                            };
-                            
-                            // Find which column is the price
-                            const priceField = client.columns.find((c: any) => c.name.toLowerCase().includes('pre') || c.name.toLowerCase().includes('valor'));
-                            const priceData = getFieldVal(data.dados, ['pre', 'valor']);
-                            
-                            if (priceField && priceData) {
-                                state[priceField.id] = priceData.val;
-                            }
-                        }
                         
-                        setTableData([state]);
-                        // Clean up URL
-                        window.history.replaceState({}, document.title, window.location.pathname);
+                        let state: any = null;
+                        if (data.design_state) {
+                            state = { ...data.design_state };
+                        } else if (client && data.dados) {
+                            // Se não tiver design_state salvo anteriormente, reconstrói a partir de 'dados' e 'fotos'
+                            state = { _id: crypto.randomUUID(), _vehicleId: data.id };
+                            client.columns.forEach(col => {
+                                if (col.type === "image") {
+                                    if (data.fotos && Array.isArray(data.fotos) && data.fotos.length > 0) {
+                                        state[col.id] = data.fotos;
+                                    }
+                                } else if (col.type === "checkbox") {
+                                    state[col.id] = (col.options || ["Stories", "Feed"]).join(", ");
+                                } else {
+                                    if (data.dados[col.name] !== undefined) {
+                                        state[col.id] = data.dados[col.name];
+                                    } else if (data.dados[col.id] !== undefined) {
+                                        state[col.id] = data.dados[col.id];
+                                    }
+                                }
+                            });
+                        }
+
+                        if (state) {
+                            setViewMode('generator');
+                            setSelectedClientId(data.clienteId);
+                            
+                            if (client) {
+                                const getFieldVal = (d: any, keywords: string[]) => {
+                                    let key = Object.keys(d).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
+                                    if (key) return { key, val: d[key] };
+                                    return null;
+                                };
+                                
+                                // Find which column is the price
+                                const priceField = client.columns.find((c: any) => c.name.toLowerCase().includes('pre') || c.name.toLowerCase().includes('valor'));
+                                const priceData = getFieldVal(data.dados || {}, ['pre', 'valor']);
+                                
+                                if (priceField && priceData) {
+                                    state[priceField.id] = priceData.val;
+                                }
+                            }
+                            
+                            setTableData([state]);
+                            // Clean up URL
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                        }
                     }
                 };
                 loadDesignState();
