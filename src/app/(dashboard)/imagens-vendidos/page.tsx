@@ -140,14 +140,17 @@ export default function SoldDashboardPage() {
             };
 
 
-            console.log("2. Sending to proxy API...", activeClient.webhookUrl);
+            const FIXED_WEBHOOK_URL = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/autodesign-geracao-imagens";
+            const targetWebhookUrl = FIXED_WEBHOOK_URL;
+
+            console.log("2. Sending to proxy API...", targetWebhookUrl);
 
             const proxyUrl = "/api/proxy-webhook";
             const res = await fetch(proxyUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    url: activeClient.webhookUrl,
+                    url: targetWebhookUrl,
                     payload: payload
                 })
             }).catch(fetchErr => {
