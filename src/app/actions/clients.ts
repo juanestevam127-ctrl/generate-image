@@ -80,6 +80,8 @@ export async function addClientAction(data: any) {
         autocerto_username: data.autocertoUsername,
         autocerto_password: data.autocertoPassword,
         revenda_mais_url: data.revendaMaisUrl,
+        nome_grupo_whatsapp: data.nomeGrupoWhatsapp || "",
+        numero_grupo_whatsapp: data.numeroGrupoWhatsapp || "",
         layouts: data.layouts || []
     };
 
@@ -128,6 +130,8 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.autocertoUsername !== undefined) dbUpdates.autocerto_username = updates.autocertoUsername;
     if (updates.autocertoPassword !== undefined) dbUpdates.autocerto_password = updates.autocertoPassword;
     if (updates.revendaMaisUrl !== undefined) dbUpdates.revenda_mais_url = updates.revendaMaisUrl;
+    if (updates.nomeGrupoWhatsapp !== undefined) dbUpdates.nome_grupo_whatsapp = updates.nomeGrupoWhatsapp;
+    if (updates.numeroGrupoWhatsapp !== undefined) dbUpdates.numero_grupo_whatsapp = updates.numeroGrupoWhatsapp;
     if (updates.layouts !== undefined) dbUpdates.layouts = updates.layouts;
 
     try {
@@ -204,7 +208,30 @@ export async function deleteClientAction(id: string) {
     return { success: true };
 }
 
-// --- Sold Clients (Deprecated - handled via clients table models) ---
+// --- Uazapi Groups ---
+export async function getUazapiGroupsAction() {
+    try {
+        const token = process.env.UAZAPI_TOKEN || "467f5fc7-a677-4f0b-a597-8eb9f1a67e82";
+        const res = await fetch("https://designonline.uazapi.com/group/list", {
+            headers: {
+                "Accept": "application/json",
+                "token": token
+            },
+            next: { revalidate: 60 }
+        });
+        if (!res.ok) throw new Error("Erro na API Uazapi: " + res.status);
+        const data = await res.json();
+        const groups = (data.groups || []).map((g: any) => ({
+            name: g.Name || g.name || "",
+            jid: g.JID || g.jid || ""
+        })).filter((g: any) => g.name && g.jid).sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+        return { success: true, data: groups };
+    } catch (e: any) {
+        console.error("Get Uazapi Groups Error:", e);
+        return { success: false, error: e.message, data: [] };
+    }
+}
 export async function addSoldClientAction(data: any) {
     return { success: true, data: { id: "deprecated", ...data } };
 }

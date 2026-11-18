@@ -53,6 +53,10 @@ export function ClientManager() {
     const [autocertoUsername, setAutocertoUsername] = useState("");
     const [autocertoPassword, setAutocertoPassword] = useState("");
     const [revendaMaisUrl, setRevendaMaisUrl] = useState("");
+    const [nomeGrupoWhatsapp, setNomeGrupoWhatsapp] = useState("");
+    const [numeroGrupoWhatsapp, setNumeroGrupoWhatsapp] = useState("");
+    const [uazapiGroups, setUazapiGroups] = useState<{ name: string; jid: string }[]>([]);
+    const [isLoadingUazapiGroups, setIsLoadingUazapiGroups] = useState(false);
     const [activeTab, setActiveTab] = useState("geral");
 
     // NocoDB State
@@ -103,7 +107,17 @@ export function ClientManager() {
             }
             if (mounted) setIsLoadingClickup(false);
         };
+        const fetchUazapiGroups = async () => {
+            setIsLoadingUazapiGroups(true);
+            const { getUazapiGroupsAction } = await import("@/app/actions/clients");
+            const res = await getUazapiGroupsAction();
+            if (mounted && res.success && res.data) {
+                setUazapiGroups(res.data);
+            }
+            if (mounted) setIsLoadingUazapiGroups(false);
+        };
         fetchClickup();
+        fetchUazapiGroups();
         return () => { mounted = false; };
     }, []);
 
@@ -134,6 +148,8 @@ export function ClientManager() {
         setAutocertoUsername("");
         setAutocertoPassword("");
         setRevendaMaisUrl("");
+        setNomeGrupoWhatsapp("");
+        setNumeroGrupoWhatsapp("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
         setLayouts([]);
         setIsModalOpen(true);
@@ -172,6 +188,8 @@ export function ClientManager() {
         setAutocertoUsername(client.autocertoUsername || "");
         setAutocertoPassword(client.autocertoPassword || "");
         setRevendaMaisUrl(client.revendaMaisUrl || "");
+        setNomeGrupoWhatsapp(client.nomeGrupoWhatsapp || "");
+        setNumeroGrupoWhatsapp(client.numeroGrupoWhatsapp || "");
         setColumns([...client.columns]);
         setLayouts(client.layouts ? [...client.layouts] : []);
         setIsUploading({ stories: false, feed: false });
@@ -210,6 +228,8 @@ export function ClientManager() {
             autocertoUsername,
             autocertoPassword,
             revendaMaisUrl,
+            nomeGrupoWhatsapp,
+            numeroGrupoWhatsapp,
             columns: columns.filter((c) => c.name.trim() !== ""),
             layouts: layouts.map(l => ({
                 ...l,
@@ -469,6 +489,45 @@ export function ClientManager() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Ex: Nike"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold flex items-center justify-between">
+                                <span>Nome Grupo WhatsApp</span>
+                                {isLoadingUazapiGroups && <span className="text-[10px] text-indigo-400 font-normal animate-pulse">Carregando grupos Uazapi...</span>}
+                            </label>
+                            <div className="space-y-1.5">
+                                <select
+                                    value={uazapiGroups.some(g => g.name === nomeGrupoWhatsapp) ? nomeGrupoWhatsapp : ""}
+                                    onChange={(e) => {
+                                        const selectedName = e.target.value;
+                                        setNomeGrupoWhatsapp(selectedName);
+                                        const found = uazapiGroups.find(g => g.name === selectedName);
+                                        if (found) {
+                                            setNumeroGrupoWhatsapp(found.jid);
+                                        }
+                                    }}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <option value="">-- Selecionar da Uazapi --</option>
+                                    {uazapiGroups.map((g, idx) => (
+                                        <option key={`${g.jid}-${idx}`} value={g.name}>{g.name}</option>
+                                    ))}
+                                </select>
+                                <Input
+                                    value={nomeGrupoWhatsapp}
+                                    onChange={(e) => setNomeGrupoWhatsapp(e.target.value)}
+                                    placeholder="Ou digite o nome do grupo..."
+                                    className="text-xs"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Número Grupo WhatsApp (JID)</label>
+                            <Input
+                                value={numeroGrupoWhatsapp}
+                                onChange={(e) => setNumeroGrupoWhatsapp(e.target.value)}
+                                placeholder="Ex: 120363411569517157@g.us"
                             />
                         </div>
                         <div className="space-y-2">

@@ -102,6 +102,8 @@ export interface Client {
     autocertoUsername?: string;
     autocertoPassword?: string;
     revendaMaisUrl?: string;
+    nomeGrupoWhatsapp?: string;
+    numeroGrupoWhatsapp?: string;
 }
 
 export interface LayoutClient {
@@ -221,6 +223,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     autocertoUsername: c.autocerto_username,
                     autocertoPassword: c.autocerto_password,
                     revendaMaisUrl: c.revenda_mais_url,
+                    nomeGrupoWhatsapp: c.nome_grupo_whatsapp || "",
+                    numeroGrupoWhatsapp: c.numero_grupo_whatsapp || "",
                     layouts: c.layouts || []
                 }));
                 setClients(formattedClients);
