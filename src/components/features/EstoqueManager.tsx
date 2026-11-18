@@ -62,6 +62,7 @@ export function EstoqueManager() {
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [vehiclesToImport, setVehiclesToImport] = useState<any[]>([]);
+    const [selectedLayoutId, setSelectedLayoutId] = useState<string>("");
     const [customTextFields, setCustomTextFields] = useState<Record<string, Record<string, string>>>({});
     const [importContemVideoMap, setImportContemVideoMap] = useState<Record<string, boolean>>({});
     const [importObservacoesMap, setImportObservacoesMap] = useState<Record<string, string>>({});
@@ -308,7 +309,22 @@ export function EstoqueManager() {
             return;
         }
         setVehiclesToImport(vehicleList);
-        
+
+        const defaultLayoutId = activeClient.layouts && activeClient.layouts.length > 0 ? activeClient.layouts[0].id : "";
+        setSelectedLayoutId(defaultLayoutId);
+
+        recomputeInitialFields(vehicleList, defaultLayoutId);
+        setImportModalOpen(true);
+    };
+
+    const recomputeInitialFields = (vehicleList: any[], layoutId: string) => {
+        if (!activeClient) return;
+
+        const targetLayout = activeClient.layouts?.find(l => l.id === layoutId);
+        const currentCols = (targetLayout && targetLayout.columns && targetLayout.columns.length > 0)
+            ? targetLayout.columns
+            : activeClient.columns;
+
         // Inicializa mapeamento com base nas colunas
         const initialCustom: Record<string, Record<string, string>> = {};
         const initialVideo: Record<string, boolean> = {};
@@ -320,7 +336,7 @@ export function EstoqueManager() {
             initialVideo[vKey] = false;
             initialObs[vKey] = "";
 
-            activeClient?.columns.forEach((col: any) => {
+            currentCols.forEach((col: any) => {
                 if (col.type === "text" || col.type === "checkbox") {
                     const cName = col.name.toLowerCase();
                     if (cName.includes("marca") || cName.includes("fabricante")) {
@@ -346,7 +362,7 @@ export function EstoqueManager() {
             });
 
             // Valor extra caso o cliente não tenha coluna de valor
-            const hasValorCol = activeClient?.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco'));
+            const hasValorCol = currentCols.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco'));
             if (!hasValorCol) {
                 initialCustom[vKey]["_extraValor"] = v.saleValue ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.saleValue) : "";
             }
@@ -355,7 +371,6 @@ export function EstoqueManager() {
         setCustomTextFields(initialCustom);
         setImportContemVideoMap(initialVideo);
         setImportObservacoesMap(initialObs);
-        setImportModalOpen(true);
     };
 
     // Execute Import
@@ -799,37 +814,73 @@ export function EstoqueManager() {
                 className="max-w-6xl w-[95vw]"
             >
                 <div className="space-y-5 pt-2">
-                    <div className="p-3.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-xs text-indigo-300 flex items-start gap-2.5">
-                        <Info className="w-4 h-4 shrink-0 mt-0.5 text-indigo-400" />
-                        <div>
-                            <p className="font-semibold mb-0.5">Mapeamento em Linhas por Veículo</p>
-                            <p className="text-indigo-300/80">
-                                Preencha ou revise as informações nas colunas abaixo. Cada linha possui seu próprio campo de <strong>Observações</strong> e a opção individual <strong>Contém Vídeo</strong>.
-                            </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-xs text-indigo-300">
+                        <div className="flex items-start gap-2.5">
+                            <Info className="w-4 h-4 shrink-0 mt-0.5 text-indigo-400" />
+                            <div>
+                                <p className="font-semibold mb-0.5">Mapeamento em Linhas por Veículo</p>
+                                <p className="text-indigo-300/80">
+                                    Preencha ou revise as informações nas colunas abaixo. Cada linha possui seu próprio campo de <strong>Observações</strong> e a opção individual <strong>Contém Vídeo</strong>.
+                                </p>
+                            </div>
                         </div>
+
+                        {/* Seletor de Layout para Importação */}
+                        {activeClient?.layouts && activeClient.layouts.length > 0 && (
+                            <div className="flex items-center gap-2 shrink-0 bg-slate-900/80 border border-indigo-500/30 px-3 py-1.5 rounded-md">
+                                <label className="text-xs font-semibold text-indigo-200 whitespace-nowrap">
+                                    Layout:
+                                </label>
+                                <select
+                                    value={selectedLayoutId}
+                                    onChange={(e) => {
+                                        const newLayoutId = e.target.value;
+                                        setSelectedLayoutId(newLayoutId);
+                                        recomputeInitialFields(vehiclesToImport, newLayoutId);
+                                    }}
+                                    className="bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                                >
+                                    <option value="">Padrão (Colunas do Cliente)</option>
+                                    {activeClient.layouts.map(lay => (
+                                        <option key={lay.id} value={lay.id}>
+                                            {lay.tipo === 'feed' ? '🖼️ Feed' : lay.tipo === 'stories' ? '📱 Stories' : lay.tipo === 'vendido' ? '🏷️ Vendido' : '✨'} - {lay.nome}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     {/* Tabela Horizontal de Linhas */}
                     <div className="overflow-x-auto w-full pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent max-h-[60vh]">
                         <div className="min-w-max flex flex-col gap-2.5">
                             {/* Cabeçalho das Colunas */}
-                            <div className="flex items-center gap-3 px-3 text-xs font-semibold text-slate-400 border-b border-white/10 pb-2">
-                                <div className="w-16 shrink-0">Foto</div>
-                                {activeClient?.columns.map((c: any) => {
-                                    if (c.name.toLowerCase() === 'formato') return null;
-                                    if (c.type !== 'text' && c.type !== 'checkbox') return null;
-                                    return (
-                                        <div key={c.id} className="w-44 shrink-0">
-                                            {c.name}
-                                        </div>
-                                    );
-                                })}
-                                {!activeClient?.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
-                                    <div className="w-32 shrink-0">Valor (ClickUp)</div>
-                                )}
-                                <div className="w-56 shrink-0">Observações - GOS</div>
-                                <div className="w-24 shrink-0 text-center">Contém Vídeo?</div>
-                            </div>
+                            {(() => {
+                                const targetLayout = activeClient?.layouts?.find(l => l.id === selectedLayoutId);
+                                const currentCols = (targetLayout && targetLayout.columns && targetLayout.columns.length > 0)
+                                    ? targetLayout.columns
+                                    : (activeClient?.columns || []);
+
+                                return (
+                                    <div className="flex items-center gap-3 px-3 text-xs font-semibold text-slate-400 border-b border-white/10 pb-2">
+                                        <div className="w-16 shrink-0">Foto</div>
+                                        {currentCols.map((c: any) => {
+                                            if (c.name.toLowerCase() === 'formato') return null;
+                                            if (c.type !== 'text' && c.type !== 'checkbox') return null;
+                                            return (
+                                                <div key={c.id} className="w-44 shrink-0">
+                                                    {c.name}
+                                                </div>
+                                            );
+                                        })}
+                                        {!currentCols.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                            <div className="w-32 shrink-0">Valor (ClickUp)</div>
+                                        )}
+                                        <div className="w-56 shrink-0">Observações - GOS</div>
+                                        <div className="w-24 shrink-0 text-center">Contém Vídeo?</div>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Linhas de Veículos */}
                             {vehiclesToImport.map((v) => {
@@ -837,6 +888,11 @@ export function EstoqueManager() {
                                 const pics = parsePictures(v.pictureJs);
                                 const principalPic = pics.find((p: any) => p.Principal === "true") || pics[0];
                                 const fields = customTextFields[vKey] || {};
+
+                                const targetLayout = activeClient?.layouts?.find(l => l.id === selectedLayoutId);
+                                const currentCols = (targetLayout && targetLayout.columns && targetLayout.columns.length > 0)
+                                    ? targetLayout.columns
+                                    : (activeClient?.columns || []);
 
                                 return (
                                     <div 
@@ -861,8 +917,8 @@ export function EstoqueManager() {
                                             </div>
                                         </div>
 
-                                        {/* Colunas personalizadas do cliente */}
-                                        {activeClient?.columns.map((c: any) => {
+                                        {/* Colunas do layout ou do cliente */}
+                                        {currentCols.map((c: any) => {
                                             if (c.name.toLowerCase() === 'formato') return null;
                                             if (c.type !== 'text' && c.type !== 'checkbox') return null;
 
@@ -924,8 +980,8 @@ export function EstoqueManager() {
                                             );
                                         })}
 
-                                        {/* Valor extra (caso o cliente não tenha coluna de valor) */}
-                                        {!activeClient?.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                        {/* Valor extra (caso o cliente/layout não tenha coluna de valor) */}
+                                        {!currentCols.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
                                             <div className="w-32 shrink-0">
                                                 <Input 
                                                     className="h-9 bg-slate-900 border-slate-700 text-xs text-white" 

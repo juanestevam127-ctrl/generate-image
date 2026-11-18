@@ -207,7 +207,17 @@ export class NocoQueryBuilder<T = any> {
   // INSERT
   insert(values: any | any[]) {
     const parent = this;
-    const records = Array.isArray(values) ? values : [values];
+    const rawRecords = Array.isArray(values) ? values : [values];
+    const records = rawRecords.map((r: any) => {
+      // Se a tabela for VeiculoOperador ou clientes e o id não foi informado, gera UUID
+      if ((parent.tableName === 'VeiculoOperador' || parent.tableName === 'clientes') && !r.id) {
+        return {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `item-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          ...r
+        };
+      }
+      return r;
+    });
 
     const runInsert = async () => {
       try {
