@@ -12,7 +12,7 @@ export const NOCO_TABLES: Record<string, string> = {
   controle_relatorio_melina: 'mzfqwsqjk0deqcd',
   clientes: 'mleia5r89rshard',
   VeiculoOperador: 'moxj2chtu2a8vnn',
-  publicacoes_design_online: 'mtc6a82skexkshd',
+  publicacoes_design_online: 'mxjcuwmj3nto8b4',
   clientes_vendidos: 'mh73teknszw0nfh',
   design_online_layouts_clientes: 'm9rwvi14in3v8i3',
   design_online_layouts_disparos: 'mpx1lfm8jylzo1f',
