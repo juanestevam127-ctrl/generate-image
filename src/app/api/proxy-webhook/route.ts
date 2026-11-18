@@ -8,12 +8,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
 
-        // Fetch configuracoes_gerais from Supabase
-        const { createClient } = require("@supabase/supabase-js");
-        const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+        // Fetch configuracoes_gerais from NocoDB
+        const { nocoClient } = await import("@/lib/nocoClient");
         
         let configData = {};
-        const { data: configRows } = await supabase.from('configuracoes_gerais').select('*').limit(1);
+        const { data: configRows } = await nocoClient.from('configuracoes_gerais').select('*').limit(1);
         if (configRows && configRows.length > 0) {
             configData = {
                 servidor_url: configRows[0].servidor_url,

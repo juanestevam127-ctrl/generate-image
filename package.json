@@ -11,7 +11,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1136.0",
     "@aws-sdk/s3-request-presigner": "^3.1136.0",
-    "@supabase/supabase-js": "^2.91.0",
     "@tanstack/react-query": "^5.90.20",
     "clsx": "^2.1.1",
     "cropperjs": "^1.6.2",
