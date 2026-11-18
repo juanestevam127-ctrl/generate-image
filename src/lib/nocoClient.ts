@@ -13,7 +13,6 @@ export const NOCO_TABLES: Record<string, string> = {
   clientes: 'mleia5r89rshard',
   VeiculoOperador: 'moxj2chtu2a8vnn',
   publicacoes_design_online: 'mxjcuwmj3nto8b4',
-  clientes_vendidos: 'mh73teknszw0nfh',
   design_online_layouts_clientes: 'm9rwvi14in3v8i3',
   design_online_layouts_disparos: 'mpx1lfm8jylzo1f',
   design_online_stories_veiculos: 'mo37qmn7r4z9ot0'

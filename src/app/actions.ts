@@ -44,10 +44,9 @@ export async function loadInitialDataAction() {
         if (clientsRes.error) throw clientsRes.error;
 
         // Fetch remaining tables in parallel — non-critical, errors won't crash
-        const [usersRes, layoutsRes, soldRes, configRes] = await Promise.all([
+        const [usersRes, layoutsRes, configRes] = await Promise.all([
             supabase.from("usuarios").select("email, password, role, name"),
             supabase.from("design_online_layouts_clientes").select("*"),
-            supabase.from("clientes_vendidos").select("id, name, webhook_url, webhook_postagens, prompt, columns, caption_template, id_facebook, id_instagram, token, json_feed, json_stories, guide_stories, guide_feed, cliente_ativo"),
             supabase.from("configuracoes_gerais").select("*").limit(1)
         ]);
 
@@ -57,7 +56,7 @@ export async function loadInitialDataAction() {
                 clients: clientsRes.data || [],
                 registeredUsers: usersRes.data || [],
                 layoutClients: layoutsRes.data || [],
-                soldClients: soldRes.data || [],
+                soldClients: [],
                 configuracoesGerais: (configRes.data && configRes.data.length > 0) ? configRes.data[0] : null
             }
         };

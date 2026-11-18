@@ -204,79 +204,16 @@ export async function deleteClientAction(id: string) {
     return { success: true };
 }
 
-// --- Sold Clients (Table: clientes_vendidos) ---
+// --- Sold Clients (Deprecated - handled via clients table models) ---
 export async function addSoldClientAction(data: any) {
-    const dbData = {
-        name: data.name,
-        webhook_url: data.webhookUrl,
-        webhook_postagens: data.webhookPostagens,
-        prompt: data.prompt,
-        columns: data.columns,
-        caption_template: data.captionTemplate,
-        pasta_veiculos: data.pasta_veiculos,
-        id_facebook: data.facebookId,
-        id_instagram: data.instagramId,
-        token: data.token,
-        json_feed: data.jsonFeed,
-        json_stories: data.jsonStories,
-        guide_stories: data.guideStories,
-        guide_feed: data.guideFeed,
-        cliente_ativo: data.clienteAtivo
-    };
-
-    try {
-        const { data: inserted, error } = await supabase
-            .from("clientes_vendidos")
-            .insert([dbData])
-            .select();
-
-        if (error) throw error;
-        return { success: true, data: inserted[0] };
-    } catch (e: any) {
-        console.error("Add Sold Client Error:", e);
-        return { success: false, error: e.message };
-    }
+    return { success: true, data: { id: "deprecated", ...data } };
 }
 
 export async function updateSoldClientAction(id: string, updates: any) {
-    const dbUpdates: any = {};
-    if (updates.name) dbUpdates.name = updates.name;
-    if (updates.webhookUrl) dbUpdates.webhook_url = updates.webhookUrl;
-    if (updates.webhookPostagens) dbUpdates.webhook_postagens = updates.webhookPostagens;
-    if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
-    if (updates.columns) dbUpdates.columns = updates.columns;
-    if (updates.captionTemplate !== undefined) dbUpdates.caption_template = updates.captionTemplate;
-    if (updates.pasta_veiculos !== undefined) dbUpdates.pasta_veiculos = updates.pasta_veiculos;
-    if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
-    if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
-    if (updates.token !== undefined) dbUpdates.token = updates.token;
-    if (updates.jsonFeed !== undefined) dbUpdates.json_feed = updates.jsonFeed;
-    if (updates.jsonStories !== undefined) dbUpdates.json_stories = updates.jsonStories;
-    if (updates.guideStories !== undefined) dbUpdates.guide_stories = updates.guideStories;
-    if (updates.guideFeed !== undefined) dbUpdates.guide_feed = updates.guideFeed;
-    if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;
-
-    try {
-        const { error } = await supabase
-            .from("clientes_vendidos")
-            .update(dbUpdates)
-            .eq("id", id);
-
-        if (error) throw error;
-        return { success: true };
-    } catch (e: any) {
-        console.error("Update Sold Client Error:", e);
-        return { success: false, error: e.message };
-    }
+    return { success: true };
 }
 
 export async function deleteSoldClientAction(id: string) {
-    const { error } = await supabase
-        .from("clientes_vendidos")
-        .delete()
-        .eq("id", id);
-
-    if (error) throw error;
     return { success: true };
 }
 
