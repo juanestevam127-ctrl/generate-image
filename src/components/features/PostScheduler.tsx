@@ -605,12 +605,21 @@ export function PostScheduler({ client }: { client: Client }) {
         }
 
         const id = `manual-${Date.now()}`;
+        // Prioriza o template do layout correspondente ou o do cliente
+        const matchingLayout = client.layouts?.find((l: any) => {
+            if (newPostFormat === "REELS") return l.tipo === "feed" || l.categoria === "padrao";
+            if (newPostFormat === "STORY") return l.tipo === "stories";
+            return l.tipo === "feed" || l.categoria === "padrao";
+        }) || client.layouts?.[0];
+
+        const defaultCaption = matchingLayout?.captionTemplate || client.captionTemplate || "";
+
         const newPost: GroupedPost = {
             id,
             veiculo_gerado: newPostVehicle.trim(),
             formato: newPostFormat,
             images: [],
-            caption: client.captionTemplate || "",
+            caption: defaultCaption,
             postType: newPostType,
             created_at: new Date().toISOString()
         };
