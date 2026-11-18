@@ -181,8 +181,18 @@ export class NocoQueryBuilder<T = any> {
       }
 
       const json = await res.json();
-      const list: any[] = json.list || [];
+      let list: any[] = json.list || [];
       const total = json.pageInfo?.totalRows ?? list.length;
+
+      // Normaliza created_at caso esteja nulo ou venha em CreatedAt do NocoDB
+      list = list.map((item: any) => {
+        if (!item.created_at && item.CreatedAt) {
+          item.created_at = item.CreatedAt;
+        } else if (!item.created_at && !item.CreatedAt) {
+          item.created_at = new Date().toISOString();
+        }
+        return item;
+      });
 
       if (this.isSingle) {
         return { data: list[0] || null, error: null, count: total };
@@ -209,14 +219,19 @@ export class NocoQueryBuilder<T = any> {
     const runInsert = async () => {
       try {
         let records = rawRecords.map((r: any) => {
+          const nowIso = new Date().toISOString();
+          const baseRecord = {
+            created_at: r.created_at || nowIso,
+            ...r
+          };
           // Se a tabela for VeiculoOperador ou clientes e o id não foi informado, gera UUID
-          if ((parent.tableName === 'VeiculoOperador' || parent.tableName === 'clientes') && !r.id) {
+          if ((parent.tableName === 'VeiculoOperador' || parent.tableName === 'clientes') && !baseRecord.id) {
             return {
               id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `item-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-              ...r
+              ...baseRecord
             };
           }
-          return r;
+          return baseRecord;
         });
 
         // Para publicacoes_design_online, se algum registro não tiver ID, calcula o próximo ID numérico

@@ -100,11 +100,15 @@ export async function updateGroupFormatAction(clientName: string, vehicle: strin
 }
 
 export async function fetchAllScheduledPostsAction() {
+    // Filtramos posts com agendamento a partir de 24h atrás para incluir agendamentos de hoje/futuros
+    // e cobrir qualquer post recente sem estourar o limite de 1000 registros de posts antigos/históricos.
+    const horizonDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
     const { data: posts, error } = await supabase
         .from("publicacoes_design_online")
-        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao, identificador_veiculo")
+        .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, descricao, identificador_veiculo, publicado")
         .not("data_agendamento", "is", null)
-        .eq("publicado", false)
+        .gte("data_agendamento", horizonDate)
         .order("data_agendamento", { ascending: true });
 
     if (error) {
