@@ -205,19 +205,37 @@ export class NocoQueryBuilder<T = any> {
   insert(values: any | any[]) {
     const parent = this;
     const rawRecords = Array.isArray(values) ? values : [values];
-    const records = rawRecords.map((r: any) => {
-      // Se a tabela for VeiculoOperador ou clientes e o id não foi informado, gera UUID
-      if ((parent.tableName === 'VeiculoOperador' || parent.tableName === 'clientes') && !r.id) {
-        return {
-          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `item-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          ...r
-        };
-      }
-      return r;
-    });
 
     const runInsert = async () => {
       try {
+        let records = rawRecords.map((r: any) => {
+          // Se a tabela for VeiculoOperador ou clientes e o id não foi informado, gera UUID
+          if ((parent.tableName === 'VeiculoOperador' || parent.tableName === 'clientes') && !r.id) {
+            return {
+              id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `item-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              ...r
+            };
+          }
+          return r;
+        });
+
+        // Para publicacoes_design_online, se algum registro não tiver ID, calcula o próximo ID numérico
+        if (parent.tableName === 'publicacoes_design_online' && records.some((r: any) => !r.id)) {
+          const maxRes = await fetch(`${NOCO_URL}/api/v2/tables/${parent.tableId}/records?sort=-id&limit=1&fields=id`, {
+            headers: { 'xc-token': NOCO_TOKEN }
+          });
+          const maxData = await maxRes.json().catch(() => ({ list: [] }));
+          let nextId = (maxData.list?.[0]?.id || 47590) + 1;
+          records = records.map((r: any) => {
+            if (!r.id) {
+              const assigned = { id: nextId, ...r };
+              nextId++;
+              return assigned;
+            }
+            return r;
+          });
+        }
+
         const url = `${NOCO_URL}/api/v2/tables/${parent.tableId}/records`;
         const res = await fetch(url, {
           method: 'POST',
