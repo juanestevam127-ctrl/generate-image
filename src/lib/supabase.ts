@@ -1,15 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
-import { getPresignedUrlAction } from '@/app/actions/upload';
+import { nocoClient } from './nocoClient';
+import { getPresignedUrlAction, uploadImageServerAction } from '@/app/actions/upload';
 
-let supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
-const supabaseKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
-
-// Ensure protocol exists (fixes DNS issues if protocol is missing in environment variables)
-if (supabaseUrl && !supabaseUrl.startsWith('http')) {
-    supabaseUrl = `https://${supabaseUrl}`;
-}
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// The application now directs all database queries and writes directly to NocoDB!
+export const supabase = nocoClient;
 
 export async function uploadImage(
     image: string, 
@@ -41,24 +34,32 @@ export async function uploadImage(
 
         if (onProgress) onProgress(30);
 
-        // 4. Upload to R2
-        const uploadRes = await fetch(presignedResult.signedUrl, {
-            method: 'PUT',
-            body: blob,
-            headers: {
-                'Content-Type': contentType
-            }
-        });
+        // 4. Upload to R2 (se falhar via navegador/CORS no localhost, faz fallback automático via Servidor)
+        try {
+            const uploadRes = await fetch(presignedResult.signedUrl, {
+                method: 'PUT',
+                body: blob,
+                headers: {
+                    'Content-Type': contentType
+                }
+            });
 
-        if (!uploadRes.ok) {
-            console.error('Failed to upload to R2:', await uploadRes.text());
-            return null;
+            if (uploadRes.ok) {
+                if (onProgress) onProgress(100);
+                return presignedResult.publicUrl;
+            }
+        } catch (corsErr) {
+            console.warn('Upload direto via browser bloqueado por CORS (comum em localhost). Usando fallback via Servidor...');
         }
 
-        if (onProgress) onProgress(100);
+        // Fallback robusto via Server Action (Node.js backend não sofre bloqueio de CORS)
+        const serverUpload = await uploadImageServerAction(image);
+        if (serverUpload.success && serverUpload.publicUrl) {
+            if (onProgress) onProgress(100);
+            return serverUpload.publicUrl;
+        }
 
-        // 5. Return Public URL
-        return presignedResult.publicUrl;
+        return null;
     } catch (e) {
         console.error('Upload Logic Error:', e);
         return null;

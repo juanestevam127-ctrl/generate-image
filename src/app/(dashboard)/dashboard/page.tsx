@@ -18,6 +18,8 @@ import { ScheduledPanel } from "@/components/features/ScheduledPanel";
 import GlobalScheduleWidget from '@/components/dashboard/GlobalScheduleWidget';
 import { fetchImportacaoVeiculosAction } from "@/app/actions/importacao";
 import { TaskQueueUI } from "@/components/features/TaskQueueUI";
+import { resolveFieldTemplate } from "@/lib/templateResolver";
+import { processCloudinaryMockupAction } from "@/app/actions/cloudinary";
 
 export default function DashboardPage() {
     const { user, clients } = useStore();
@@ -26,6 +28,9 @@ export default function DashboardPage() {
 
     // Generator & Import State
     const [selectedClientId, setSelectedClientId] = useState<string>("");
+    const [selectedLayoutId, setSelectedLayoutId] = useState<string>("");
+    const [useTestWebhook, setUseTestWebhook] = useState<boolean>(true);
+    const [customTestWebhook, setCustomTestWebhook] = useState<string>("https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/autodesign-geracao-imagens");
     const [tableData, setTableData] = useState<Record<string, any>[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
@@ -42,6 +47,8 @@ export default function DashboardPage() {
     if (!user) return null;
 
     const activeClient = clients.find((c) => c.id === selectedClientId);
+    const activeLayout = activeClient?.layouts?.find(l => l.id === selectedLayoutId) || activeClient?.layouts?.[0];
+    const activeColumns = activeLayout ? activeLayout.columns : (activeClient?.columns || []);
 
     const handleImageUpload = async (row: number, col: string, files: File[]) => {
         if (files.length > 0) {
@@ -240,14 +247,14 @@ export default function DashboardPage() {
         // Validar opções de imagens não selecionadas
         for (let i = 0; i < tableData.length; i++) {
             const row = tableData[i];
-            for (const col of activeClient.columns) {
+            for (const col of activeColumns) {
                 if (col.type === "image" && Array.isArray(row[col.id])) {
                     return alert(`Erro na linha ${i + 1}: Você precisa selecionar apenas uma imagem para o campo "${col.name}".`);
                 }
             }
         }
 
-        const checkboxCols = activeClient.columns.filter(col => col.type === "checkbox");
+        const checkboxCols = activeColumns.filter(col => col.type === "checkbox");
         for (let i = 0; i < tableData.length; i++) {
             const row = tableData[i];
             for (const col of checkboxCols) {
@@ -268,7 +275,7 @@ export default function DashboardPage() {
                     const { data: existing } = await supabase.from('VeiculoOperador').select('dados').eq('id', row._vehicleId).single();
                     if (existing) {
                         const updatedDados = { ...existing.dados };
-                        activeClient.columns.forEach((c: any) => {
+                        activeColumns.forEach((c: any) => {
                             if (row[c.id] !== undefined) {
                                 updatedDados[c.name] = row[c.id];
                             }
@@ -278,7 +285,7 @@ export default function DashboardPage() {
                 } else if (row._clickupTaskId) {
                     // Create new record for imported task so we can track it later
                     const newDados: any = {};
-                    activeClient.columns.forEach((c: any) => {
+                    activeColumns.forEach((c: any) => {
                         if (row[c.id] !== undefined) {
                             newDados[c.name] = row[c.id];
                         }
@@ -293,18 +300,206 @@ export default function DashboardPage() {
                 }
             }
 
+            // 1. Identificar se o layout atual é um tema agrupado ou se tem layouts irmãos correspondentes (ex: Feed Padrão e Stories Padrão)
+            const allLayouts = activeClient.layouts || [];
+            
+            // Função auxiliar para achar o layout de feed ou stories correspondente
+            const getMatchingLayout = (formatType: "feed" | "stories") => {
+                if (!activeLayout) return null;
+                if (activeLayout.tipo === formatType) return activeLayout;
+                
+                // Procura irmão com o mesmo sufixo (ex: se selecionou "Feed Padrão", procura "Stories Padrão")
+                const baseName = activeLayout.nome.replace(/feed|stories/gi, "").trim().toLowerCase();
+                const sibling = allLayouts.find(l => 
+                    l.tipo === formatType && 
+                    (l.nome.toLowerCase().includes(baseName) || baseName.includes(l.nome.replace(/feed|stories/gi, "").trim().toLowerCase()))
+                );
+                return sibling || activeLayout;
+            };
+
+            const processedRows: any[] = [];
+
+            for (const row of tableData) {
+                // Checa quais formatos foram marcados na coluna Formato (procura por nome "Formato" ou pelo id da coluna do tipo checkbox)
+                const formatoCol = activeColumns.find(c => c.type === "checkbox" || c.name.toLowerCase().includes("formato"));
+                const formatVal = (formatoCol && row[formatoCol.id] !== undefined)
+                    ? row[formatoCol.id]
+                    : (row["Formato"] || row["formato"] || "");
+
+                let formatsToGenerate: ("feed" | "stories")[] = [];
+
+                if (Array.isArray(formatVal)) {
+                    if (formatVal.some(f => String(f).toLowerCase().includes("feed"))) formatsToGenerate.push("feed");
+                    if (formatVal.some(f => String(f).toLowerCase().includes("storie"))) formatsToGenerate.push("stories");
+                } else if (typeof formatVal === "string" && formatVal.trim()) {
+                    if (formatVal.toLowerCase().includes("feed")) formatsToGenerate.push("feed");
+                    if (formatVal.toLowerCase().includes("storie")) formatsToGenerate.push("stories");
+                }
+
+                // Se o usuário não marcou ou não tem coluna Formato, gera pelo tipo do layout ativo
+                if (formatsToGenerate.length === 0) {
+                    formatsToGenerate.push(activeLayout?.tipo === "stories" ? "stories" : "feed");
+                }
+
+                const hasFeedSelected = formatsToGenerate.includes("feed");
+                const hasStoriesSelected = formatsToGenerate.includes("stories");
+
+                // Função auxiliar para resolver o payload do RenderForm para um formato específico
+                const buildRenderformPayloadForFormat = async (fmt: "feed" | "stories") => {
+                    const isStories = fmt === "stories";
+                    let rfTemplateId = isStories 
+                        ? (activeLayout?.renderformTemplateIdStories || activeLayout?.renderformTemplateId)
+                        : (activeLayout?.renderformTemplateId);
+                        
+                    let rfMapping = isStories
+                        ? (activeLayout?.renderformMappingStories || activeLayout?.renderformMapping || {})
+                        : (activeLayout?.renderformMapping || {});
+                        
+                    let cloudinaryTransforms = isStories
+                        ? (activeLayout?.cloudinaryTransformationsStories || activeLayout?.cloudinaryTransformations || {})
+                        : (activeLayout?.cloudinaryTransformations || {});
+
+                    if (!rfTemplateId) {
+                        const targetLayout = getMatchingLayout(fmt);
+                        rfTemplateId = targetLayout?.renderformTemplateId;
+                        rfMapping = targetLayout?.renderformMapping || {};
+                        cloudinaryTransforms = targetLayout?.cloudinaryTransformations || {};
+                    }
+
+                    if (!rfTemplateId || Object.keys(rfMapping).length === 0) return null;
+
+                    let rfData: Record<string, any> = {};
+                    for (const [rfPropKey, mappingExpr] of Object.entries(rfMapping)) {
+                        const resolved = resolveFieldTemplate(String(mappingExpr), row, activeColumns);
+                        if (resolved !== undefined && resolved !== "") {
+                            let finalVal = resolved;
+                            const transformExpr = cloudinaryTransforms[rfPropKey];
+                            if (transformExpr && typeof resolved === "string" && (resolved.startsWith("http://") || resolved.startsWith("https://"))) {
+                                try {
+                                    const mockRes = await processCloudinaryMockupAction(resolved, transformExpr);
+                                    if (mockRes.success && mockRes.transformedUrl) {
+                                        finalVal = mockRes.transformedUrl;
+                                    }
+                                } catch (cErr) {
+                                    console.error("Erro no mockup cloudinary:", cErr);
+                                }
+                            }
+                            rfData[rfPropKey] = finalVal;
+                        }
+                    }
+
+                    return {
+                        template: rfTemplateId,
+                        data: rfData
+                    };
+                };
+
+                // Gerar os payloads correspondentes
+                const feedPayload = hasFeedSelected ? await buildRenderformPayloadForFormat("feed") : null;
+                const storiesPayload = hasStoriesSelected ? await buildRenderformPayloadForFormat("stories") : null;
+
+                // Resolver a legenda personalizada para esta linha
+                // Usa ESTRITAMENTE a legenda configurada no modelo ativo (sem fallback para legenda antiga de outro modelo)
+                const layoutCaptionTemplate = activeLayout?.captionTemplate?.trim() || "";
+                let resolvedCaption = "";
+                if (layoutCaptionTemplate) {
+                    resolvedCaption = resolveFieldTemplate(layoutCaptionTemplate, row, activeColumns);
+                }
+
+                // Determinar a pasta de destino no Google Drive para o n8n
+                const isVendidoModel = activeLayout?.tipo === "vendido" || 
+                    activeLayout?.categoria === "vendido" || 
+                    activeLayout?.nome?.toLowerCase().includes("vendido");
+                const pastaDrive = isVendidoModel 
+                    ? "🏆 Artes | Vendidos" 
+                    : (activeClient.pasta_veiculos || "🚗 Artes | Veículos");
+
+                // Extrair campos de Veículo, Ano e Cor para montar o nome completo em MAIÚSCULO
+                let veiculoVal = "";
+                let anoVal = "";
+                let corVal = "";
+
+                activeColumns.forEach(col => {
+                    const val = row[col.id] !== undefined ? row[col.id] : row[col.name];
+                    if (typeof val === "string" && val.trim().length > 0) {
+                        const colNameNorm = col.name.toLowerCase().trim();
+                        if (colNameNorm.includes("cor do veiculo") || colNameNorm.includes("cor do veículo") || colNameNorm === "cor") {
+                            corVal = val.trim();
+                        } else if (colNameNorm.includes("veiculo") || colNameNorm.includes("veículo") || colNameNorm.includes("modelo") || colNameNorm === "carro" || colNameNorm === "moto" || colNameNorm === "nome") {
+                            veiculoVal = val.trim();
+                        } else if (colNameNorm === "ano" || colNameNorm.includes("ano_modelo") || colNameNorm.includes("ano fabricação") || colNameNorm.includes("ano fab")) {
+                            anoVal = val.trim();
+                        }
+                    }
+                });
+
+                // Montar "PALIO TURBO 2020 CINZA" (com espaços simples e tudo em maiúsculo)
+                const nomeCompletoParts = [veiculoVal, anoVal, corVal].filter(Boolean);
+                const nomeCompletoMaiusculo = nomeCompletoParts.join(" ").toUpperCase();
+
+                // Montar texto amigável do formato
+                const formatoString = Array.isArray(formatVal) 
+                    ? formatVal.join(", ") 
+                    : (typeof formatVal === "string" ? formatVal : formatsToGenerate.join(", "));
+
+                // Montar formato específico para Feed e Stories conforme o modelo
+                const formatoFeedStr = isVendidoModel ? "VENDIDO FEED" : "FEED";
+                const formatoStoriesStr = isVendidoModel ? "VENDIDO STORIES" : "STORIES";
+
+                // 1 item por linha preenchida na tabela
+                processedRows.push({
+                    ...row,
+                    client: activeClient.name,
+                    nome_empresa: activeClient.name,
+                    nome_completo_maiusculo: nomeCompletoMaiusculo,
+                    nome_veiculo_maiusculo: veiculoVal ? veiculoVal.toUpperCase() : undefined,
+                    ano_maiusculo: anoVal ? anoVal.toUpperCase() : undefined,
+                    cor_maiusculo: corVal ? corVal.toUpperCase() : undefined,
+                    formato: formatoString,
+                    formato_feed: hasFeedSelected ? formatoFeedStr : undefined,
+                    formato_stories: hasStoriesSelected ? formatoStoriesStr : undefined,
+                    formatos_selecionados: formatsToGenerate,
+                    tem_feed: hasFeedSelected,
+                    tem_stories: hasStoriesSelected,
+                    pasta_drive: pastaDrive,
+                    _layout: activeLayout ? {
+                        id: activeLayout.id,
+                        nome: activeLayout.nome,
+                        tipo: activeLayout.tipo
+                    } : null,
+                    legenda: resolvedCaption || undefined,
+                    caption: resolvedCaption || undefined,
+                    renderform_feed: feedPayload,
+                    renderform_stories: storiesPayload,
+                    // Retrocompatibilidade se algum nó do n8n espera renderform_payload direto:
+                    renderform_payload: feedPayload || storiesPayload
+                });
+            }
+
             const payload = {
                 client: activeClient.name,
-                data: tableData,
+                pasta_drive: activeLayout?.tipo === "vendido" || activeLayout?.categoria === "vendido" || activeLayout?.nome?.toLowerCase().includes("vendido")
+                    ? "🏆 Artes | Vendidos"
+                    : (activeClient.pasta_veiculos || "🚗 Artes | Veículos"),
+                layout: activeLayout ? {
+                    id: activeLayout.id,
+                    nome: activeLayout.nome,
+                    tipo: activeLayout.tipo
+                } : null,
+                data: processedRows,
                 timestamp: new Date().toISOString()
             };
 
+            const FIXED_WEBHOOK_URL = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/autodesign-geracao-imagens";
+            const targetWebhookUrl = (useTestWebhook && customTestWebhook.trim())
+                ? customTestWebhook.trim()
+                : FIXED_WEBHOOK_URL;
 
             const res = await fetch("/api/proxy-webhook", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    url: activeClient.webhookUrl,
+                    url: targetWebhookUrl,
                     payload: payload
                 })
             });
@@ -558,36 +753,60 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                 </div>
-
+                                {/* SELETOR DE LAYOUT DO CLIENTE */}
                                 {activeClient && (
+                                    <div className="w-full md:w-1/3">
+                                        <label className="text-sm font-medium text-indigo-300 mb-2 block flex items-center justify-between">
+                                            <span>Modelo de Imagem / Layout</span>
+                                            <span className="text-[10px] text-indigo-400 font-normal">
+                                                ({(activeClient.layouts && activeClient.layouts.length > 0) ? activeClient.layouts.length : 1} disp.)
+                                            </span>
+                                        </label>
+                                        <select
+                                            className="w-full bg-slate-900 border border-indigo-500/40 rounded-md h-10 px-3 text-sm text-indigo-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            value={selectedLayoutId || activeClient.layouts?.[0]?.id || ""}
+                                            onChange={(e) => {
+                                                setSelectedLayoutId(e.target.value);
+                                                setTableData([]);
+                                            }}
+                                        >
+                                            {activeClient.layouts && activeClient.layouts.length > 0 ? (
+                                                activeClient.layouts.map(lay => (
+                                                    <option key={lay.id} value={lay.id}>
+                                                        {lay.tipo === 'feed' ? '🖼️ Feed' : lay.tipo === 'stories' ? '📱 Stories' : lay.tipo === 'vendido' ? '🏷️ Vendido' : '✨'} - {lay.nome}
+                                                    </option>
+                                                ))
+                                            ) : (
+                                                <option value="">Padrão (Colunas do Cliente)</option>
+                                            )}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {activeClient && (activeClient.guideStories || activeClient.guideFeed) && (
                                     <div className="flex-1 pb-1 flex flex-col gap-1">
-                                        <p className="text-xs text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded inline-block self-start">
-                                            Webhook Ativo: ...{activeClient.webhookUrl.slice(-15)}
-                                        </p>
-                                        {(activeClient.guideStories || activeClient.guideFeed) && (
-                                            <div className="flex gap-2 mt-1">
-                                                {activeClient.guideStories && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 text-[10px] bg-indigo-500/10 border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
-                                                        onClick={() => setPreviewImage({ url: activeClient.guideStories!, title: `Guia Stories - ${activeClient.name}` })}
-                                                    >
-                                                        <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
-                                                    </Button>
-                                                )}
-                                                {activeClient.guideFeed && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 text-[10px] bg-indigo-500/10 border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
-                                                        onClick={() => setPreviewImage({ url: activeClient.guideFeed!, title: `Guia Feed - ${activeClient.name}` })}
-                                                    >
-                                                        <ImageIcon className="w-3 h-3 mr-1" /> Guia Feed
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
+                                        <div className="flex gap-2 mt-1">
+                                            {activeClient.guideStories && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-indigo-500/10 border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideStories!, title: `Guia Stories - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
+                                                </Button>
+                                            )}
+                                            {activeClient.guideFeed && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-indigo-500/10 border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideFeed!, title: `Guia Feed - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Guia Feed
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
 
@@ -674,6 +893,7 @@ export default function DashboardPage() {
 
                                         <DynamicTable
                                             client={activeClient}
+                                            columnsOverride={activeColumns}
                                             data={tableData}
                                             onChange={setTableData}
                                             onImageUpload={handleImageUpload}

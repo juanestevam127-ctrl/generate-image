@@ -39,7 +39,7 @@ export async function loadInitialDataAction() {
 
         // Fetch clientes first (most critical) — avoid parallel to prevent combined timeout
         const clientsRes = await supabase.from("clientes").select(
-            "id, name, webhook_url, webhook_postagens, columns, prompt, caption_template, id_facebook, id_instagram, token, divisao_developrs, horario_developers, guide_stories, guide_feed, cliente_ativo, id_clickup, clickup_tarefa_id, webhook_stories_seg_quar_sex, integracao_tipo, bndv_external_key, bndv_password, bndv_customer_key, boom_token, boom_customer_key, boom_url, loja_conectada_token, autocerto_username, autocerto_password, revenda_mais_url"
+            "id, name, webhook_url, webhook_postagens, columns, layouts, prompt, caption_template, pasta_veiculos, id_facebook, id_instagram, token, divisao_developrs, horario_developers, guide_stories, guide_feed, cliente_ativo, id_clickup, clickup_tarefa_id, webhook_stories_seg_quar_sex, integracao_tipo, bndv_external_key, bndv_password, bndv_customer_key, boom_token, boom_customer_key, boom_url, loja_conectada_token, autocerto_username, autocerto_password, revenda_mais_url"
         );
         if (clientsRes.error) throw clientsRes.error;
 
@@ -67,35 +67,15 @@ export async function loadInitialDataAction() {
     }
 }
 
+import { uploadImageServerAction } from "./actions/upload";
+
 export async function serverUploadImage(base64: string, bucket: string = 'images', folder: string = '') {
     try {
-        // 1. Parse base64
-        const matches = base64.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
-        let buffer: Buffer;
-        let contentType: string;
-
-        if (matches && matches.length === 3) {
-            contentType = matches[1];
-            buffer = Buffer.from(matches[2], 'base64');
-        } else {
-            // Assume it might be just the base64 string or already formatted poorly
-            // Fallback to fetch-like logic if it's a URL or just try to convert
-            buffer = Buffer.from(base64.split(',')[1] || base64, 'base64');
-            contentType = 'image/png';
+        const res = await uploadImageServerAction(base64);
+        if (res.success && res.publicUrl) {
+            return { success: true, url: res.publicUrl };
         }
-
-        const extension = contentType.split('/')[1] || 'png';
-        const timestamp = Date.now();
-        const filename = `${folder ? folder + '/' : ''}${timestamp}-${Math.random().toString(36).substring(7)}.${extension}`;
-
-        const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(filename, buffer, { contentType, upsert: false });
-
-        if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filename);
-        return { success: true, url: publicUrl };
+        throw new Error(res.error || "Falha no upload");
     } catch (error: any) {
         console.error("Server Upload Error:", error);
         return { success: false, error: error.message || "Falha no upload via servidor." };
@@ -109,21 +89,13 @@ export async function serverUploadFile(formData: FormData, bucket: string = 'ima
 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
+        const base64 = `data:${file.type || 'image/png'};base64,${buffer.toString('base64')}`;
         
-        const timestamp = Date.now();
-        const filename = `${folder ? folder + '/' : ''}${timestamp}-${file.name}`;
-
-        const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(filename, buffer, { 
-                contentType: file.type || 'application/octet-stream',
-                upsert: false 
-            });
-
-        if (error) throw error;
-
-        const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filename);
-        return { success: true, url: publicUrl };
+        const res = await uploadImageServerAction(base64);
+        if (res.success && res.publicUrl) {
+            return { success: true, url: res.publicUrl };
+        }
+        throw new Error(res.error || "Falha no upload");
     } catch (error: any) {
         console.error("Server File Upload Error:", error);
         return { success: false, error: error.message || "Falha no upload do arquivo via servidor." };

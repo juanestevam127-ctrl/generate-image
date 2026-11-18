@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
 
         console.log(`[Proxy Webhook] Target: ${url}`);
         console.log(`[Proxy Webhook] Payload Size: ${JSON.stringify(mergedPayload).length} chars`);
+        console.log(`[Proxy Webhook] Data Sample:`, JSON.stringify(mergedPayload.data?.[0], null, 2));
 
         // Add a timeout to avoid hanging
         const controller = new AbortController();

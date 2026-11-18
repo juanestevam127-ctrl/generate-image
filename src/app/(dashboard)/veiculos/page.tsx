@@ -36,6 +36,7 @@ export default function VeiculosPage() {
     };
 
     const [selectedClientId, setSelectedClientId] = useState("");
+    const [selectedLayoutId, setSelectedLayoutId] = useState<string>("");
     const [activeClient, setActiveClient] = useState<any>(null);
     const [vehicles, setVehicles] = useState<VehicleRowData[]>([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -165,6 +166,11 @@ export default function VeiculosPage() {
         if (selectedClientId) {
             const client = clients.find(c => c.id === selectedClientId);
             setActiveClient(client);
+            if (client?.layouts && client.layouts.length > 0) {
+                setSelectedLayoutId(client.layouts[0].id);
+            } else {
+                setSelectedLayoutId("");
+            }
             setVehicles([{
                 id: Math.random().toString(),
                 textFields: {},
@@ -175,8 +181,18 @@ export default function VeiculosPage() {
             }]);
         } else {
             setActiveClient(null);
+            setSelectedLayoutId("");
         }
     }, [selectedClientId, clients]);
+
+    const activeColumns = useMemo(() => {
+        if (!activeClient) return [];
+        if (activeClient.layouts && activeClient.layouts.length > 0) {
+            const l = activeClient.layouts.find((lay: any) => lay.id === selectedLayoutId) || activeClient.layouts[0];
+            return l.columns || [];
+        }
+        return activeClient.columns || [];
+    }, [activeClient, selectedLayoutId]);
 
     const handleVehicleChange = (vId: string, field: string, value: any) => {
         setVehicles(prev => prev.map(v => v.id === vId ? { ...v, [field]: value } : v));
@@ -238,13 +254,22 @@ export default function VeiculosPage() {
                 }
 
                 const dados: any = {};
-                activeClient.columns.forEach((col: any) => {
+                activeColumns.forEach((col: any) => {
                     if (col.type === "text" || col.type === "checkbox") {
                         if (col.name.toLowerCase() !== "formato") {
                             dados[col.name] = v.textFields[col.id] || "";
                         }
                     }
                 });
+
+                if (selectedLayoutId) {
+                    const l = activeClient.layouts?.find((lay: any) => lay.id === selectedLayoutId);
+                    if (l) {
+                        dados._layoutId = l.id;
+                        dados._layoutNome = l.nome;
+                        dados._layoutTipo = l.tipo;
+                    }
+                }
 
                 const getFieldVal = (d: any, keywords: string[]) => {
                     let key = Object.keys(d).find(k => keywords.some(kw => k.toLowerCase() === kw.toLowerCase() || k.toLowerCase().startsWith(kw.toLowerCase())));
@@ -462,17 +487,33 @@ export default function VeiculosPage() {
 
                     {activeClient && (
                         <Card className="bg-zinc-900 border-white/10 shadow-xl overflow-hidden mt-6">
-                            <CardHeader className="bg-black/20 border-b border-white/5">
+                            <CardHeader className="bg-black/20 border-b border-white/5 flex flex-row items-center justify-between">
                                 <CardTitle className="text-white">Preencha as Informações</CardTitle>
+                                {activeClient.layouts && activeClient.layouts.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground uppercase font-bold">Layout:</span>
+                                        <select
+                                            value={selectedLayoutId}
+                                            onChange={(e) => setSelectedLayoutId(e.target.value)}
+                                            className="bg-black/60 border border-indigo-500/30 text-indigo-200 text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-indigo-400 font-semibold"
+                                        >
+                                            {activeClient.layouts.map((lay: any) => (
+                                                <option key={lay.id} value={lay.id}>
+                                                    {lay.nome} ({lay.tipo})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </CardHeader>
                             <CardContent className="p-6">
                                 <div className="overflow-x-auto w-full pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                                     <div className="min-w-max flex flex-col gap-3">
                                         <div className="flex items-center gap-3 px-3 text-sm font-medium text-gray-400 border-b border-white/5 pb-2">
-                                            {activeClient.columns.map((c: any) => c.name.toLowerCase() !== 'formato' && (c.type === 'text' || c.type === 'checkbox') && (
+                                            {activeColumns.map((c: any) => c.name.toLowerCase() !== 'formato' && (c.type === 'text' || c.type === 'checkbox') && (
                                                 <div key={c.id} className="w-44 shrink-0">{c.name}</div>
                                             ))}
-                                            {!activeClient.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                            {!activeColumns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
                                                 <div className="w-32 shrink-0">Valor (ClickUp)</div>
                                             )}
                                             <div className="w-56 shrink-0">Observações - GOS</div>
@@ -483,7 +524,7 @@ export default function VeiculosPage() {
 
                                         {vehicles.map((v, i) => (
                                             <div key={v.id} className="flex items-start gap-3 bg-black/20 p-3 rounded-lg border border-white/5 relative group hover:bg-black/30 transition-colors">
-                                                {activeClient.columns.map((c: any) => {
+                                                {activeColumns.map((c: any) => {
                                                     if (c.name.toLowerCase() === 'formato') return null;
                                                     if (c.type !== 'text' && c.type !== 'checkbox') return null;
                                                     return (
@@ -524,7 +565,7 @@ export default function VeiculosPage() {
                                                     )
                                                 })}
                                                 
-                                                {!activeClient.columns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
+                                                {!activeColumns.some((col: any) => col.name.toLowerCase().includes('valor') || col.name.toLowerCase().includes('preço') || col.name.toLowerCase().includes('preco')) && (
                                                     <div className="w-32 shrink-0">
                                                         <Input className="h-9 bg-black/50 text-xs border-white/10" value={v.extraValor} onChange={(e) => handleVehicleChange(v.id, 'extraValor', e.target.value)} placeholder="R$ 0,00" />
                                                     </div>

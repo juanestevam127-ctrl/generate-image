@@ -325,7 +325,7 @@ export async function findClickupTaskForVehicleAction(clienteId: string, veiculo
                 .select('id')
                 .eq('clickup_tarefa_id', currentClient.clickup_tarefa_id);
             if (sisterClients && sisterClients.length > 0) {
-                clientIdsToSearch = Array.from(new Set([clienteId, ...sisterClients.map(c => c.id)]));
+                clientIdsToSearch = Array.from(new Set([clienteId, ...sisterClients.map((c: any) => c.id)]));
             }
         }
 
@@ -341,7 +341,7 @@ export async function findClickupTaskForVehicleAction(clienteId: string, veiculo
         const veiculoFormatado = String(veiculoGerado).trim().toUpperCase();
 
         // 1. Prioridade: Casamento pelo campo específico de nome/modelo do veículo
-        const exactFieldMatch = veiculos.find(v => {
+        const exactFieldMatch = (veiculos as any[]).find((v: any) => {
             const d = v.dados || {};
             const nomeField = d['Nome do Veiculo'] || d['nome'] || d['veiculo'] || d['modelo'] || d['Título'] || '';
             const nomeUpper = String(nomeField).trim().toUpperCase();
@@ -354,8 +354,8 @@ export async function findClickupTaskForVehicleAction(clienteId: string, veiculo
         if (exactFieldMatch) return { success: true, clickupTaskId: exactFieldMatch.clickupTaskId };
 
         // 2. Fallback: Qualquer valor com tamanho > 3 que seja relevante (excluindo anos e cores pequenas)
-        const match = veiculos.find(v => {
-            const values = Object.values(v.dados).map(val => String(val).trim().toUpperCase());
+        const match = (veiculos as any[]).find((v: any) => {
+            const values = Object.values(v.dados || {}).map(val => String(val).trim().toUpperCase());
             return values.some(val => val.length > 3 && !/^\d{4}$/.test(val) && (veiculoFormatado.includes(val) || val.includes(veiculoFormatado)));
         });
 

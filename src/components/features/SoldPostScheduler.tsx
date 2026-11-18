@@ -703,7 +703,7 @@ export function SoldPostScheduler({ client }: { client: Client }) {
     const handleSchedule = async (isInstant: boolean = false) => {
         if (!currentPost) return;
 
-        const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos";
+        const webhookAgendar = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/publicacoes-postagens-vendidos-novo";
 
         const regularClient = clients.find(c => c.name.toLowerCase() === client.name.toLowerCase());
 

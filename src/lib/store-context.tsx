@@ -41,6 +41,33 @@ export interface ColumnDefinition {
     options?: string[]; // For checkbox/select types
 }
 
+export interface ClientLayout {
+    id: string; // uuid único do layout / tema
+    nome: string; // ex: "Padrão", "Promoção DE/POR", "Vendido"
+    tipo: "feed" | "stories" | "vendido" | "outro" | "tema";
+    formato?: string; // ex: "Feed", "Stories", "Ambos"
+    categoria?: "padrao" | "depor" | "vendido" | "outro";
+    columns: ColumnDefinition[];
+    
+    // Configurações Feed
+    renderformTemplateId?: string;
+    renderformTemplateName?: string;
+    renderformMapping?: Record<string, string>; // { "titulo_veiculo.text": "col_id" }
+    cloudinaryTransformations?: Record<string, string>; // { "imagem_1.src": "..." }
+
+    // Configurações Stories (quando o mesmo tema gera Stories)
+    renderformTemplateIdStories?: string;
+    renderformTemplateNameStories?: string;
+    renderformMappingStories?: Record<string, string>;
+    cloudinaryTransformationsStories?: Record<string, string>;
+
+    // Modelo de Legenda específico deste Layout/Modelo
+    captionTemplate?: string;
+
+    previewUrl?: string;
+    webhookUrl?: string; // opcional para webhook específico deste layout
+}
+
 export interface Client {
     id: string;
     name: string;
@@ -48,7 +75,9 @@ export interface Client {
     webhookPostagens?: string;
     prompt?: string;
     columns: ColumnDefinition[];
+    layouts?: ClientLayout[]; // Múltiplos layouts por cliente
     captionTemplate?: string;
+    pasta_veiculos?: string;
     facebookId?: string;
     instagramId?: string;
     token?: string;
@@ -169,6 +198,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     prompt: c.prompt,
                     columns: c.columns,
                     captionTemplate: c.caption_template,
+                    pasta_veiculos: c.pasta_veiculos,
                     facebookId: c.id_facebook,
                     instagramId: c.id_instagram,
                     token: c.token,
@@ -190,7 +220,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     lojaConectadaToken: c.loja_conectada_token,
                     autocertoUsername: c.autocerto_username,
                     autocertoPassword: c.autocerto_password,
-                    revendaMaisUrl: c.revenda_mais_url
+                    revendaMaisUrl: c.revenda_mais_url,
+                    layouts: c.layouts || []
                 }));
                 setClients(formattedClients);
 
@@ -224,6 +255,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     prompt: c.prompt,
                     columns: c.columns,
                     captionTemplate: c.caption_template,
+                    pasta_veiculos: c.pasta_veiculos,
                     facebookId: c.id_facebook,
                     instagramId: c.id_instagram,
                     token: c.token,

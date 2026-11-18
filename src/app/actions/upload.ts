@@ -15,7 +15,6 @@ const s3 = new S3Client({
 export async function getPresignedUrlAction(filename: string, contentType: string) {
     try {
         const bucket = "autodesign-bucket";
-        // Force the folder temp-files
         let key = filename;
         if (!key.startsWith("temp-files/")) {
             key = `temp-files/${filename}`;
@@ -34,5 +33,43 @@ export async function getPresignedUrlAction(filename: string, contentType: strin
     } catch (e: any) {
         console.error("Presigned URL Error:", e);
         return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Server Action para upload direto do backend para o R2.
+ * Evita bloqueios de CORS do navegador em ambiente localhost!
+ */
+export async function uploadImageServerAction(base64Data: string): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
+    try {
+        const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        let buffer: Buffer;
+        let contentType = "image/png";
+
+        if (matches && matches.length === 3) {
+            contentType = matches[1];
+            buffer = Buffer.from(matches[2], "base64");
+        } else {
+            buffer = Buffer.from(base64Data, "base64");
+        }
+
+        const extension = contentType.split("/")[1] || "png";
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(7);
+        const key = `temp-files/${timestamp}-${randomStr}.${extension}`;
+
+        const bucket = "autodesign-bucket";
+        await s3.send(new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType
+        }));
+
+        const publicUrl = `https://cdn.artesdesignonline.com.br/${key}`;
+        return { success: true, publicUrl };
+    } catch (e: any) {
+        console.error("Erro no upload do servidor R2:", e);
+        return { success: false, error: e.message || "Erro no upload" };
     }
 }

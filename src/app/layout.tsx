@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store-context";
 import QueryProvider from "@/components/providers/QueryProvider";
 
-const outfit = Outfit({ subsets: ["latin"] });
+const poppins = Poppins({ 
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins"
+});
 
 export const metadata: Metadata = {
   title: "Artes Design Online",
@@ -17,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={outfit.className}>
+    <html lang="pt-BR" className={poppins.variable}>
+      <body className={poppins.className}>
         <StoreProvider>
           <QueryProvider>
             {children}

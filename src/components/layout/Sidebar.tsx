@@ -54,7 +54,6 @@ export function Sidebar({ isMobile, isSidebarOpen, setIsSidebarOpen }: SidebarPr
     } else {
         navItems = [
             { label: "Gerenciar Imagens", href: "/dashboard", icon: LayoutDashboard },
-            { label: "Gerenciar Imagens Vendidos", href: "/imagens-vendidos", icon: LayoutDashboard },
             { label: "Veículos", href: "/veiculos", icon: LayoutDashboard },
             { label: "Estoque API", href: "/estoque", icon: Database },
             { label: "Redimensionar com IA", href: "/dashboard/resize", icon: Maximize },

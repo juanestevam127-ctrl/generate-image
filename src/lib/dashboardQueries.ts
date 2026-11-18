@@ -26,7 +26,7 @@ export async function fetchClients() {
     if (error) throw error;
 
     // Extract unique names
-    const uniqueClients = Array.from(new Set(data?.map(item => item.nome_empresa).filter(Boolean)));
+    const uniqueClients = Array.from(new Set((data as any[])?.map((item: any) => item.nome_empresa).filter(Boolean)));
     return uniqueClients as string[];
 }
 
@@ -55,8 +55,8 @@ export async function fetchMetrics(filters: DashboardFilters) {
     if (error) throw error;
 
     const total = count || 0;
-    const feedCount = data?.filter(i => i.formato === 'FEED' || i.formato === 'VENDIDO FEED').length || 0;
-    const storiesCount = data?.filter(i => i.formato === 'STORIES' || i.formato === 'VENDIDO STORIES').length || 0;
+    const feedCount = (data as any[])?.filter((i: any) => i.formato === 'FEED' || i.formato === 'VENDIDO FEED').length || 0;
+    const storiesCount = (data as any[])?.filter((i: any) => i.formato === 'STORIES' || i.formato === 'VENDIDO STORIES').length || 0;
 
     return {
         total,
@@ -94,7 +94,7 @@ export async function fetchEvolutionData(filters: DashboardFilters) {
     // Using simple string date key YYYY-MM-DD
     const grouped: Record<string, { date: string; feed: number; stories: number }> = {};
 
-    data?.forEach(item => {
+    (data as any[])?.forEach((item: any) => {
         const date = new Date(item.created_at).toISOString().split('T')[0]; // YYYY-MM-DD
         if (!grouped[date]) {
             grouped[date] = { date, feed: 0, stories: 0 };
@@ -125,7 +125,7 @@ export async function fetchRankingData(filters: DashboardFilters) {
 
     const grouped: Record<string, { name: string; total: number }> = {};
 
-    data?.forEach(item => {
+    (data as any[])?.forEach((item: any) => {
         const name = item.nome_empresa;
         if (!name) return;
         if (!grouped[name]) grouped[name] = { name, total: 0 };
@@ -158,7 +158,7 @@ export async function fetchHourlyData(filters: DashboardFilters) {
 
     const hours = new Array(24).fill(0).map((_, i) => ({ hour: i, count: 0 }));
 
-    data?.forEach(item => {
+    (data as any[])?.forEach((item: any) => {
         const d = new Date(item.created_at);
         const h = d.getHours();
         hours[h].count++;
@@ -189,7 +189,7 @@ export async function fetchWeeklyData(filters: DashboardFilters) {
     const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weekStats = days.map(day => ({ day, count: 0 }));
 
-    data?.forEach(item => {
+    (data as any[])?.forEach((item: any) => {
         const d = new Date(item.created_at);
         const dayIndex = d.getDay();
         weekStats[dayIndex].count++;
@@ -285,7 +285,9 @@ export async function fetchVehicleData(filters: DashboardFilters) {
     const vehicleClientCounts: Record<string, Record<string, number>> = {};
     const clientTotalCounts: Record<string, number> = {};
 
-    data.forEach(item => {
+    const items = (data as any[]) || [];
+
+    items.forEach((item: any) => {
         const v = item.veiculo_gerado;
         const c = item.nome_empresa || 'Sem Cliente';
 
@@ -302,7 +304,7 @@ export async function fetchVehicleData(filters: DashboardFilters) {
     const cEntries = Object.entries(clientTotalCounts);
     const sortedClients = [...cEntries].sort((a, b) => b[1] - a[1]);
 
-    const totalImagens = data.length;
+    const totalImagens = items.length;
 
     const stats: VehicleStats[] = sortedByCount.map(([name, count]) => {
         // Find top client for this vehicle
@@ -329,8 +331,8 @@ export async function fetchVehicleData(filters: DashboardFilters) {
     const clientStats: VehicleClientStats[] = sortedClients.map(([name, count]) => {
         // Count unique vehicles for this client
         const uniqueVehicles = new Set(
-            data.filter(item => (item.nome_empresa || 'Sem Cliente') === name)
-                .map(item => item.veiculo_gerado)
+            items.filter((item: any) => (item.nome_empresa || 'Sem Cliente') === name)
+                .map((item: any) => item.veiculo_gerado)
         ).size;
 
         return {

@@ -402,35 +402,30 @@ export default function SoldDashboardPage() {
                                     </div>
                                 </div>
 
-                                {activeClient && (
+                                {activeClient && (activeClient.guideStories || activeClient.guideFeed) && (
                                     <div className="flex-1 pb-1 flex flex-col gap-1">
-                                        <p className="text-xs text-green-300 bg-green-500/10 px-2 py-1 rounded inline-block self-start">
-                                            Webhook Ativo: ...{activeClient.webhookUrl.slice(-15)}
-                                        </p>
-                                        {(activeClient.guideStories || activeClient.guideFeed) && (
-                                            <div className="flex gap-2 mt-1">
-                                                {activeClient.guideStories && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 text-[10px] bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/20"
-                                                        onClick={() => setPreviewImage({ url: activeClient.guideStories!, title: `Guia Stories - ${activeClient.name}` })}
-                                                    >
-                                                        <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
-                                                    </Button>
-                                                )}
-                                                {activeClient.guideFeed && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 text-[10px] bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/20"
-                                                        onClick={() => setPreviewImage({ url: activeClient.guideFeed!, title: `Guia Feed - ${activeClient.name}` })}
-                                                    >
-                                                        <ImageIcon className="w-3 h-3 mr-1" /> Guia Feed
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
+                                        <div className="flex gap-2 mt-1">
+                                            {activeClient.guideStories && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideStories!, title: `Guia Stories - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
+                                                </Button>
+                                            )}
+                                            {activeClient.guideFeed && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideFeed!, title: `Guia Feed - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Guia Feed
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
 

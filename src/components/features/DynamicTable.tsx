@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Client } from "@/lib/store-context";
+import { Client, ColumnDefinition } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash, Plus, Upload, Image as ImageIcon, Edit, X, Copy, CheckSquare } from "lucide-react";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 interface DynamicTableProps {
     client: Client;
+    columnsOverride?: ColumnDefinition[];
     data: Record<string, any>[];
     onChange: (newData: Record<string, any>[]) => void;
     onImageUpload: (rowIndex: number, colId: string, files: File[]) => void;
@@ -16,7 +17,8 @@ interface DynamicTableProps {
     onRemoveImage: (rowIndex: number, colId: string, imageIndex: number) => void;
 }
 
-export function DynamicTable({ client, data, onChange, onImageUpload, onEditImage, onRemoveImage }: DynamicTableProps) {
+export function DynamicTable({ client, columnsOverride, data, onChange, onImageUpload, onEditImage, onRemoveImage }: DynamicTableProps) {
+    const activeColumns = columnsOverride || client.columns;
 
     const handleCellChange = (rowIndex: number, colId: string, value: any) => {
         const newData = [...data];
@@ -26,7 +28,7 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
 
     const addRow = () => {
         const newRow: Record<string, any> = { _id: crypto.randomUUID() };
-        client.columns.forEach(col => newRow[col.id] = "");
+        activeColumns.forEach(col => newRow[col.id] = "");
         onChange([...data, newRow]);
     };
 
@@ -36,7 +38,7 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
         } else {
             // Clear instead of remove if only 1
             const newRow: Record<string, any> = { _id: crypto.randomUUID() };
-            client.columns.forEach(col => newRow[col.id] = "");
+            activeColumns.forEach(col => newRow[col.id] = "");
             onChange([newRow]);
         }
     };
@@ -60,7 +62,7 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                     <thead className="text-xs text-gray-400 uppercase bg-white/5">
                         <tr>
                             <th className="px-4 py-3 w-12 text-center">#</th>
-                            {client.columns.map((col) => (
+                            {activeColumns.map((col) => (
                                 <th key={col.id} className="px-4 py-3 min-w-[150px]">
                                     <div className="flex items-center gap-2">
                                         {col.type === "image" ? <ImageIcon size={14} className="text-purple-400" /> : <TypeIcon />}
@@ -76,7 +78,7 @@ export function DynamicTable({ client, data, onChange, onImageUpload, onEditImag
                         {data.map((row, rowIndex) => (
                             <tr key={row._id || rowIndex} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
                                 <td className="px-4 py-3 text-center text-muted-foreground">{rowIndex + 1}</td>
-                                {client.columns.map((col) => (
+                                {activeColumns.map((col) => (
                                     <td key={col.id} className="px-4 py-3">
                                         {col.type === "text" ? (
                                             <Input

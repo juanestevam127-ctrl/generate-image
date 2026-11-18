@@ -93,25 +93,25 @@ export async function fetchImportQueueAction() {
             let realClienteId = null;
             if (clickupClientId) {
                 // Find all matching clients with this clickup_tarefa_id
-                const matchingClients = clientsDb?.filter(c => c.clickup_tarefa_id === clickupClientId) || [];
+                const matchingClients = (clientsDb as any[])?.filter((c: any) => c.clickup_tarefa_id === clickupClientId) || [];
                 if (matchingClients.length === 1) {
                     realClienteId = matchingClients[0].id;
                 } else if (matchingClients.length > 1) {
                     // Prioritize exact name match with clickupClientName
                     const normClickup = String(clickupClientName).trim().toLowerCase();
-                    const exact = matchingClients.find(c => c.name.trim().toLowerCase() === normClickup);
+                    const exact = matchingClients.find((c: any) => c.name.trim().toLowerCase() === normClickup);
                     if (exact) {
                         realClienteId = exact.id;
                     } else {
                         // Prefer client that is NOT a layout or "(CAPA REELS)" variant
-                        const primary = matchingClients.find(c => !/\(CAPA|\(LAYOUT/i.test(c.name));
+                        const primary = matchingClients.find((c: any) => !/\(CAPA|\(LAYOUT/i.test(c.name));
                         realClienteId = primary ? primary.id : matchingClients[0].id;
                     }
                 }
             }
 
             // Find matching VeiculoOperador
-            const veiculoDb = veiculos?.find(v => v.clickupTaskId === t.id);
+            const veiculoDb = (veiculos as any[])?.find((v: any) => v.clickupTaskId === t.id);
             
             // Normalize client name for grouping
             const clientName = clickupClientName;

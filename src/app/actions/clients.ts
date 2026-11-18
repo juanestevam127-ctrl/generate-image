@@ -12,15 +12,15 @@ async function getNextGroupAndSchedule() {
     
     if (error) throw error;
 
-    const activeClients = clients || [];
+    const activeClients: any[] = clients || [];
     const hours = ["13h", "14h", "15h", "16h", "17h"];
     
     let group = 1;
     while (true) {
-        const groupClients = activeClients.filter(c => c.divisao_developrs === group);
+        const groupClients = activeClients.filter((c: any) => c.divisao_developrs === group);
         
         if (groupClients.length < 5) {
-            const usedHours = groupClients.map(c => c.horario_developers);
+            const usedHours = groupClients.map((c: any) => c.horario_developers);
             const freeHour = hours.find(h => !usedHours.includes(h)) || "13h";
             return { divisao_developrs: group, horario_developers: freeHour };
         }
@@ -55,6 +55,7 @@ export async function addClientAction(data: any) {
         prompt: data.prompt,
         columns: data.columns,
         caption_template: data.captionTemplate,
+        pasta_veiculos: data.pasta_veiculos,
         id_facebook: data.facebookId,
         id_instagram: data.instagramId,
         token: data.token,
@@ -78,7 +79,8 @@ export async function addClientAction(data: any) {
         loja_conectada_token: data.lojaConectadaToken,
         autocerto_username: data.autocertoUsername,
         autocerto_password: data.autocertoPassword,
-        revenda_mais_url: data.revendaMaisUrl
+        revenda_mais_url: data.revendaMaisUrl,
+        layouts: data.layouts || []
     };
 
     try {
@@ -103,6 +105,7 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
     if (updates.columns) dbUpdates.columns = updates.columns;
     if (updates.captionTemplate !== undefined) dbUpdates.caption_template = updates.captionTemplate;
+    if (updates.pasta_veiculos !== undefined) dbUpdates.pasta_veiculos = updates.pasta_veiculos;
     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
     if (updates.token !== undefined) dbUpdates.token = updates.token;
@@ -125,6 +128,7 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.autocertoUsername !== undefined) dbUpdates.autocerto_username = updates.autocertoUsername;
     if (updates.autocertoPassword !== undefined) dbUpdates.autocerto_password = updates.autocertoPassword;
     if (updates.revendaMaisUrl !== undefined) dbUpdates.revenda_mais_url = updates.revendaMaisUrl;
+    if (updates.layouts !== undefined) dbUpdates.layouts = updates.layouts;
 
     try {
         // If activation status is specified, we check if we need to assign or clear group/schedule
@@ -156,7 +160,7 @@ export async function updateClientAction(id: string, updates: any) {
         if (error) throw error;
 
         if (updates.clienteAtivo !== undefined && updated && updated[0]) {
-            const clientName = updated[0].name;
+            const clientName = updated[0].name || "";
             const baseNameMatch = clientName.match(/^(.*?)\s*\(LAYOUT/i);
             const baseName = baseNameMatch ? baseNameMatch[1].trim() : clientName.trim();
 
@@ -209,6 +213,7 @@ export async function addSoldClientAction(data: any) {
         prompt: data.prompt,
         columns: data.columns,
         caption_template: data.captionTemplate,
+        pasta_veiculos: data.pasta_veiculos,
         id_facebook: data.facebookId,
         id_instagram: data.instagramId,
         token: data.token,
@@ -241,6 +246,7 @@ export async function updateSoldClientAction(id: string, updates: any) {
     if (updates.prompt !== undefined) dbUpdates.prompt = updates.prompt;
     if (updates.columns) dbUpdates.columns = updates.columns;
     if (updates.captionTemplate !== undefined) dbUpdates.caption_template = updates.captionTemplate;
+    if (updates.pasta_veiculos !== undefined) dbUpdates.pasta_veiculos = updates.pasta_veiculos;
     if (updates.facebookId !== undefined) dbUpdates.id_facebook = updates.facebookId;
     if (updates.instagramId !== undefined) dbUpdates.id_instagram = updates.instagramId;
     if (updates.token !== undefined) dbUpdates.token = updates.token;

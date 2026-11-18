@@ -51,6 +51,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
     const [groupedPosts, setGroupedPosts] = useState<GroupedScheduledPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [categoryFilter, setCategoryFilter] = useState<string>("TODOS");
 
     // Edit Schedule State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -69,16 +70,16 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
     const fetchPosts = async () => {
         setLoading(true);
         try {
-            const result = await fetchScheduledPanelPostsAction(client.name, isSold);
+            // Se isSold não foi passado explicitamente como true, busca todos para permitir filtros
+            const result = await fetchScheduledPanelPostsAction(client.name, isSold ? true : undefined);
             if (!result.success) throw new Error(result.error);
 
             const rawImages = (result.data || []) as PostImage[];
 
-            // Enforce strict client-side filtering to prevent statistics leakage
-            const filteredImages = rawImages.filter(img => {
-                const isSoldFormat = img.formato && img.formato.toUpperCase().startsWith("VENDIDO ");
-                return isSold ? isSoldFormat : !isSoldFormat;
-            });
+            // Enforce strict client-side filtering if isSold prop is true
+            const filteredImages = isSold 
+                ? rawImages.filter(img => img.formato && img.formato.toUpperCase().startsWith("VENDIDO "))
+                : rawImages;
 
             // Group by data_agendamento, veiculo_gerado, formato
             const groups: Record<string, GroupedScheduledPost> = {};
@@ -235,8 +236,8 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
 
         // Webhook: sold posts use a different endpoint
         const webhookAgendar = isPostSold
-            ? "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/postagens-vendidos"
-            : "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/agendar_postagem";
+            ? "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/publicacoes-postagens-vendidos-novo"
+            : "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/publicacoes-postagens-novo";
 
         // For sold posts, credentials (facebookId/instagramId/token) must be looked up
         // from the regular clients list (Gerenciar Imagens), NOT from the sold client.
@@ -323,6 +324,53 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
         );
     }
 
+    // Modelos configurados para o cliente (ou fallback padrão)
+    const clientModels = (client?.layouts && client.layouts.length > 0)
+        ? client.layouts.map(l => ({
+            id: l.id,
+            nome: l.nome,
+            categoria: l.categoria || (l.nome.toLowerCase().includes("vendido") ? "vendido" : l.nome.toLowerCase().includes("de/por") ? "depor" : "padrao"),
+            icone: l.categoria === "vendido" || l.nome.toLowerCase().includes("vendido")
+                ? "🏷️"
+                : l.categoria === "depor" || l.nome.toLowerCase().includes("de/por")
+                    ? "💥"
+                    : "🚗"
+        }))
+        : [
+            { id: "PADRAO", nome: "Padrão", categoria: "padrao", icone: "🚗" },
+            { id: "DEPOR", nome: "DE/POR", categoria: "depor", icone: "💥" },
+            { id: "VENDIDOS", nome: "Vendidos", categoria: "vendido", icone: "🏷️" }
+        ];
+
+    const getPostModelMatch = (post: GroupedScheduledPost) => {
+        const fmtUpper = (post.formato || "").toUpperCase();
+        const isSoldPost = fmtUpper.startsWith("VENDIDO ") || post.veiculo_gerado?.toLowerCase().includes("vendido");
+        const isDePor = fmtUpper.includes("DE/POR") || fmtUpper.includes("DE_POR") || post.veiculo_gerado?.toLowerCase().includes("de/por") || post.caption?.toLowerCase().includes("de/por");
+
+        if (isSoldPost) return "vendido";
+        if (isDePor) return "depor";
+        return "padrao";
+    };
+
+    const filteredDisplayPosts = groupedPosts.filter(p => {
+        const postModelType = getPostModelMatch(p);
+
+        if (categoryFilter !== "TODOS") {
+            const selectedModel = clientModels.find(m => m.id === categoryFilter || m.nome === categoryFilter);
+            if (selectedModel) {
+                if (selectedModel.categoria === "vendido" && postModelType !== "vendido") return false;
+                if (selectedModel.categoria === "depor" && postModelType !== "depor") return false;
+                if (selectedModel.categoria === "padrao" && postModelType !== "padrao") return false;
+            } else {
+                if (categoryFilter === "PADRAO" && postModelType !== "padrao") return false;
+                if (categoryFilter === "DEPOR" && postModelType !== "depor") return false;
+                if (categoryFilter === "VENDIDOS" && postModelType !== "vendido") return false;
+            }
+        }
+
+        return true;
+    });
+
     if (groupedPosts.length === 0) {
         return (
             <div className="text-center py-10 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
@@ -333,34 +381,91 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
 
     return (
         <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white uppercase tracking-wider mb-4">Estatísticas das Postagens</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {groupedPosts.map(post => {
-                    const scheduledDate = new Date(post.data_agendamento);
-                    const isPast = scheduledDate < new Date();
-                    const firstImage = post.images[0];
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <h2 className="text-xl font-bold text-white uppercase tracking-wider">Estatísticas das Postagens</h2>
 
-                    return (
-                        <Card key={post.id} className="bg-zinc-900 border-white/10 overflow-hidden shadow-xl flex flex-col">
-                            {/* Image Header */}
-                            <div className="relative h-40 bg-black flex items-center justify-center">
-                                {firstImage && (
-                                    checkIsVideo(firstImage.imagem) ? (
-                                        <video src={getProxiedUrl(firstImage.imagem)} className="w-full h-full object-cover opacity-60" />
-                                    ) : (
-                                        <img src={getProxiedUrl(firstImage.imagem)} className="w-full h-full object-cover opacity-60" alt="Preview" />
-                                    )
-                                )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-3">
-                                    <p className="text-white font-bold truncate text-sm">{post.veiculo_gerado}</p>
-                                    <p className="text-gray-300 text-xs">{post.formato} • {post.postType}</p>
+                {/* Filtro Dinâmico de Modelos do Cliente */}
+                <div className="flex flex-wrap bg-black/40 p-1 rounded-lg border border-indigo-500/20 self-start sm:self-auto gap-1">
+                    <button
+                        onClick={() => setCategoryFilter("TODOS")}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${categoryFilter === "TODOS" ? "bg-indigo-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                    >
+                        TODOS
+                    </button>
+                    {clientModels.map(model => {
+                        const isSelected = categoryFilter === model.id;
+                        const activeColor = model.categoria === "vendido" 
+                            ? "bg-emerald-600 text-white shadow-lg" 
+                            : model.categoria === "depor" 
+                                ? "bg-amber-600 text-white shadow-lg" 
+                                : "bg-blue-600 text-white shadow-lg";
+
+                        return (
+                            <button
+                                key={model.id}
+                                onClick={() => setCategoryFilter(model.id)}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-1.5 ${isSelected ? activeColor : "text-gray-400 hover:text-white"}`}
+                            >
+                                <span>{model.icone}</span>
+                                <span>{model.nome}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+            
+            {filteredDisplayPosts.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
+                    <p>Nenhuma postagem encontrada para o filtro selecionado.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredDisplayPosts.map(post => {
+                        const scheduledDate = new Date(post.data_agendamento);
+                        const isPast = scheduledDate < new Date();
+                        const firstImage = post.images[0];
+                        const fmtUpper = (post.formato || "").toUpperCase();
+                        const isSoldPost = fmtUpper.startsWith("VENDIDO ") || post.veiculo_gerado?.toLowerCase().includes("vendido");
+                        const isDePor = fmtUpper.includes("DE/POR") || fmtUpper.includes("DE_POR") || post.veiculo_gerado?.toLowerCase().includes("de/por") || post.caption?.toLowerCase().includes("de/por");
+
+                        return (
+                            <Card key={post.id} className="bg-zinc-900 border-white/10 overflow-hidden shadow-xl flex flex-col">
+                                {/* Image Header */}
+                                <div className="relative h-40 bg-black flex items-center justify-center">
+                                    {firstImage && (
+                                        checkIsVideo(firstImage.imagem) ? (
+                                            <video src={getProxiedUrl(firstImage.imagem)} className="w-full h-full object-cover opacity-60" />
+                                        ) : (
+                                            <img src={getProxiedUrl(firstImage.imagem)} className="w-full h-full object-cover opacity-60" alt="Preview" />
+                                        )
+                                    )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-3">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            {(() => {
+                                                const matchType = getPostModelMatch(post);
+                                                const matchingModel = clientModels.find(m => m.categoria === matchType);
+                                                const badgeLabel = matchingModel?.nome || (matchType === "vendido" ? "Vendido" : matchType === "depor" ? "DE/POR" : "Padrão");
+                                                const badgeColor = matchType === "vendido"
+                                                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                                    : matchType === "depor"
+                                                        ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                                                        : "bg-blue-500/20 text-blue-400 border-blue-500/30";
+
+                                                return (
+                                                    <span className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-black tracking-wider border ${badgeColor}`}>
+                                                        {badgeLabel}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </div>
+                                        <p className="text-white font-bold truncate text-sm">{post.veiculo_gerado}</p>
+                                        <p className="text-gray-300 text-xs">{post.formato} • {post.postType}</p>
+                                    </div>
+                                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-xs font-bold text-white flex items-center">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        {format(scheduledDate, "dd/MM HH:mm", { locale: ptBR })}
+                                    </div>
                                 </div>
-                                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-xs font-bold text-white flex items-center">
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    {format(scheduledDate, "dd/MM HH:mm", { locale: ptBR })}
-                                </div>
-                            </div>
 
                             {/* Status Section */}
                             <div className="p-4 flex-1 flex flex-col space-y-3">
@@ -416,6 +521,7 @@ export function ScheduledPanel({ client, isSold = false }: { client: Client; isS
                     );
                 })}
             </div>
+            )}
 
             {/* Edit Schedule Modal */}
             <Modal

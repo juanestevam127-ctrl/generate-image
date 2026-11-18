@@ -248,15 +248,6 @@ export function SoldClientManager() {
                                 placeholder="Escreva o prompt padrão para redimensionamento..."
                             />
                         </div>
-                        <div className="space-y-2 col-span-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Modelo de Legenda</label>
-                            <textarea
-                                value={captionTemplate}
-                                onChange={(e) => setCaptionTemplate(e.target.value)}
-                                className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                placeholder="Configure a legenda padrão aqui..."
-                            />
-                        </div>
                         <div className="space-y-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Facebook ID</label>
                             <Input

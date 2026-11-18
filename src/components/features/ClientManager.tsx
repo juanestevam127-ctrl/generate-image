@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, Trash, Edit, Save, X, Type, Image as ImageIcon, ArrowUp, ArrowDown, CheckSquare } from "lucide-react";
-import { useStore, Client, ColumnDefinition, ColumnType } from "@/lib/store-context";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Trash, Edit, Save, X, Type, Image as ImageIcon, ArrowUp, ArrowDown, CheckSquare, Search, Filter } from "lucide-react";
+import { useStore, Client, ColumnDefinition, ColumnType, ClientLayout } from "@/lib/store-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -11,11 +11,16 @@ import { uploadFile } from "@/lib/supabase";
 import { Loader2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getNextDivisaoAction } from "@/app/actions/clients";
+import { ClientLayoutsEditor } from "./ClientLayoutsEditor";
 
 export function ClientManager() {
     const { clients, addClient, updateClient, deleteClient } = useStore();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+    // Filtros da Lista de Clientes
+    const [searchFilter, setSearchFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState<"todos" | "ativos" | "inativos">("todos");
 
     // Form State
     const [name, setName] = useState("");
@@ -23,10 +28,12 @@ export function ClientManager() {
     const [webhookPostagens, setWebhookPostagens] = useState("");
     const [prompt, setPrompt] = useState("");
     const [captionTemplate, setCaptionTemplate] = useState("");
+    const [pastaVeiculos, setPastaVeiculos] = useState("🚗 Artes | Veículos");
     const [facebookId, setFacebookId] = useState("");
     const [instagramId, setInstagramId] = useState("");
     const [token, setToken] = useState("");
     const [columns, setColumns] = useState<ColumnDefinition[]>([]);
+    const [layouts, setLayouts] = useState<ClientLayout[]>([]);
     const [nextGroupAndSchedule, setNextGroupAndSchedule] = useState<{ divisao_developrs: number; horario_developers: string } | null>(null);
     const [guideStories, setGuideStories] = useState("");
     const [guideFeed, setGuideFeed] = useState("");
@@ -107,6 +114,7 @@ export function ClientManager() {
         setWebhookPostagens("");
         setPrompt("");
         setCaptionTemplate("");
+        setPastaVeiculos("🚗 Artes | Veículos");
         setFacebookId("");
         setInstagramId("");
         setToken("");
@@ -127,6 +135,7 @@ export function ClientManager() {
         setAutocertoPassword("");
         setRevendaMaisUrl("");
         setColumns([{ id: crypto.randomUUID(), name: "Título", type: "text" }]); // Default column
+        setLayouts([]);
         setIsModalOpen(true);
         
         // Fetch next division for display
@@ -142,6 +151,7 @@ export function ClientManager() {
         setWebhookPostagens(client.webhookPostagens || "");
         setPrompt(client.prompt || "");
         setCaptionTemplate(client.captionTemplate || "");
+        setPastaVeiculos(client.pasta_veiculos || "🚗 Artes | Veículos");
         setFacebookId(client.facebookId || "");
         setInstagramId(client.instagramId || "");
         setToken(client.token || "");
@@ -163,19 +173,23 @@ export function ClientManager() {
         setAutocertoPassword(client.autocertoPassword || "");
         setRevendaMaisUrl(client.revendaMaisUrl || "");
         setColumns([...client.columns]);
+        setLayouts(client.layouts ? [...client.layouts] : []);
         setIsUploading({ stories: false, feed: false });
         setIsModalOpen(true);
     };
 
     const handleSave = async () => {
-        if (!name || !webhookUrl) return alert("Preencha nome e webhook");
+        if (!name) return alert("Preencha o nome do cliente");
+
+        const FIXED_WEBHOOK = "https://criadordigital-n8n-webhook.5rqumh.easypanel.host/webhook/autodesign-geracao-imagens";
 
         const clientData = {
             name,
-            webhookUrl,
+            webhookUrl: FIXED_WEBHOOK,
             webhookPostagens,
             prompt,
             captionTemplate,
+            pasta_veiculos: pastaVeiculos,
             facebookId,
             instagramId,
             token,
@@ -184,7 +198,7 @@ export function ClientManager() {
             clienteAtivo,
             idClickup,
             clickupTarefaId,
-            webhookStoriesSegQuarSex,
+            webhookStoriesSegQuarSex: "",
             integracaoTipo,
             bndvExternalKey,
             bndvPassword,
@@ -197,6 +211,10 @@ export function ClientManager() {
             autocertoPassword,
             revendaMaisUrl,
             columns: columns.filter((c) => c.name.trim() !== ""),
+            layouts: layouts.map(l => ({
+                ...l,
+                columns: l.columns.filter((c) => c.name.trim() !== "")
+            })),
         };
 
         try {
@@ -258,19 +276,103 @@ export function ClientManager() {
         }
     };
 
+    // Estatísticas de clientes
+    const totalAtivos = useMemo(() => clients.filter(c => c.clienteAtivo !== false).length, [clients]);
+    const totalInativos = useMemo(() => clients.filter(c => c.clienteAtivo === false).length, [clients]);
+    const totalGeral = clients.length;
+
+    // Clientes filtrados
+    const filteredClients = useMemo(() => {
+        return [...clients]
+            .filter(c => {
+                // Filtro de status
+                if (statusFilter === "ativos" && c.clienteAtivo === false) return false;
+                if (statusFilter === "inativos" && c.clienteAtivo !== false) return false;
+
+                // Filtro de pesquisa por nome
+                if (searchFilter.trim()) {
+                    const term = searchFilter.toLowerCase();
+                    return c.name.toLowerCase().includes(term);
+                }
+                return true;
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [clients, statusFilter, searchFilter]);
+
     return (
         <>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
-                    Gerenciamento de Clientes
-                </h2>
-                <Button onClick={openNewClientModal} className="bg-indigo-600 hover:bg-indigo-700">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                    <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
+                        Gerenciamento de Clientes
+                    </h2>
+                    {/* Contadores de Clientes */}
+                    <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                        <span>Total: <strong className="text-white font-mono">{totalGeral}</strong></span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            Ativos: <strong className="text-emerald-400 font-mono">{totalAtivos}</strong>
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                            Inativos: <strong className="text-red-400 font-mono">{totalInativos}</strong>
+                        </span>
+                    </div>
+                </div>
+
+                <Button onClick={openNewClientModal} className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-900/20">
                     <Plus className="w-4 h-4 mr-2" /> Novo Cliente
                 </Button>
             </div>
 
+            {/* Barra de Filtros e Busca */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6 bg-black/30 p-2.5 rounded-xl border border-white/5">
+                {/* Campo de Busca */}
+                <div className="relative w-full sm:w-80">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
+                    <Input
+                        value={searchFilter}
+                        onChange={(e) => setSearchFilter(e.target.value)}
+                        placeholder="Buscar por nome do cliente..."
+                        className="pl-9 h-9 bg-black/40 border-white/10 text-xs focus:border-indigo-500"
+                    />
+                    {searchFilter && (
+                        <button
+                            onClick={() => setSearchFilter("")}
+                            className="absolute right-2.5 top-2.5 text-gray-500 hover:text-white"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Filtro por Status */}
+                <div className="flex bg-black/50 p-1 rounded-lg border border-white/10 self-stretch sm:self-auto justify-center">
+                    <button
+                        onClick={() => setStatusFilter("todos")}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${statusFilter === "todos" ? "bg-indigo-600 text-white shadow-md" : "text-gray-400 hover:text-white"}`}
+                    >
+                        Todos ({totalGeral})
+                    </button>
+                    <button
+                        onClick={() => setStatusFilter("ativos")}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${statusFilter === "ativos" ? "bg-emerald-600 text-white shadow-md" : "text-gray-400 hover:text-white"}`}
+                    >
+                        Ativos ({totalAtivos})
+                    </button>
+                    <button
+                        onClick={() => setStatusFilter("inativos")}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${statusFilter === "inativos" ? "bg-red-600 text-white shadow-md" : "text-gray-400 hover:text-white"}`}
+                    >
+                        Inativos ({totalInativos})
+                    </button>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...clients].sort((a, b) => a.name.localeCompare(b.name)).map((client) => (
+                {filteredClients.map((client) => (
                     <Card key={client.id} className="relative group overflow-hidden border-white/5 hover:border-indigo-500/50 transition-colors">
                         <CardContent className="p-5">
                             <div className="flex justify-between items-start mb-2">
@@ -295,14 +397,23 @@ export function ClientManager() {
                                 Webhook: {client.webhookUrl}
                             </p>
                              <div className="flex flex-wrap gap-2 mb-4">
-                                 {client.columns.map((col) => (
-                                     <span key={col.id} className="inline-flex items-center px-2 py-1 rounded-md bg-white/5 text-xs text-gray-300 border border-white/10">
-                                         {col.type === "image" ? <ImageIcon size={10} className="mr-1 text-purple-400" /> :
-                                             col.type === "checkbox" ? <CheckSquare size={10} className="mr-1 text-green-400" /> :
-                                                 <Type size={10} className="mr-1 text-blue-400" />}
-                                         {col.name}
-                                     </span>
-                                 ))}
+                                 {client.layouts && client.layouts.length > 0 ? (
+                                     client.layouts.map((lay) => (
+                                         <span key={lay.id} className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-500/10 text-xs text-indigo-300 border border-indigo-500/20">
+                                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mr-1.5" />
+                                             {lay.nome} ({lay.tipo})
+                                         </span>
+                                     ))
+                                 ) : (
+                                     client.columns.map((col) => (
+                                         <span key={col.id} className="inline-flex items-center px-2 py-1 rounded-md bg-white/5 text-xs text-gray-300 border border-white/10">
+                                             {col.type === "image" ? <ImageIcon size={10} className="mr-1 text-purple-400" /> :
+                                                 col.type === "checkbox" ? <CheckSquare size={10} className="mr-1 text-green-400" /> :
+                                                     <Type size={10} className="mr-1 text-blue-400" />}
+                                             {col.name}
+                                         </span>
+                                     ))
+                                 )}
                              </div>
                              
                              {client.divisao_developrs && (
@@ -335,7 +446,7 @@ export function ClientManager() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={editingClient ? "Editar Cliente" : "Novo Cliente"}
-                className="max-w-2xl h-[90vh]"
+                className="max-w-6xl w-[95vw] h-[95vh]"
             >
                 <div className="space-y-6 h-full overflow-y-auto pr-2 custom-scrollbar">
                     {!editingClient && nextGroupAndSchedule && (
@@ -352,7 +463,7 @@ export function ClientManager() {
                         </div>
                     )}
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
+                        <div className="space-y-2 col-span-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Nome do Cliente</label>
                             <Input
                                 value={name}
@@ -361,26 +472,14 @@ export function ClientManager() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Webhook URL</label>
-                            <Input
-                                value={webhookUrl}
-                                onChange={(e) => setWebhookUrl(e.target.value)}
-                                placeholder="https://hook.make.com/..."
-                            />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Webhook Postagens (Opcional)</label>
-                            <Input
-                                value={webhookPostagens}
-                                onChange={(e) => setWebhookPostagens(e.target.value)}
-                                placeholder="https://hook.make.com/..."
-                            />
-                        </div>
-                        <div className="space-y-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Vincular com ClickUp (Serviços)</label>
                             <select
                                 value={clickupTarefaId}
-                                onChange={(e) => setClickupTarefaId(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setClickupTarefaId(val);
+                                    setIdClickup(val);
+                                }}
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 disabled={isLoadingClickup}
                             >
@@ -391,20 +490,31 @@ export function ClientManager() {
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">ClickUp ID (Opcional)</label>
+                            <label className="text-xs uppercase text-muted-foreground font-bold">ClickUp ID (ID da Tarefa)</label>
                             <Input
                                 value={idClickup}
-                                onChange={(e) => setIdClickup(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setIdClickup(val);
+                                    setClickupTarefaId(val);
+                                }}
                                 placeholder="Ex: 86ady0z1m"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Webhook Stories Seg/Qua/Sex (Opcional)</label>
-                            <Input
-                                value={webhookStoriesSegQuarSex}
-                                onChange={(e) => setWebhookStoriesSegQuarSex(e.target.value)}
-                                placeholder="https://hook.make.com/..."
-                            />
+                        <div className="space-y-2 col-span-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Pasta de Veículos no Google Drive</label>
+                            <select
+                                value={pastaVeiculos}
+                                onChange={(e) => setPastaVeiculos(e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <option value="🚗 Artes | Veículos">🚗 Artes | Veículos</option>
+                                <option value="🏍️ Artes | Motos">🏍️ Artes | Motos</option>
+                                <option value="🚗 Artes | Carros">🚗 Artes | Carros</option>
+                            </select>
+                            <p className="text-[11px] text-muted-foreground">
+                                Define a subpasta padrão onde serão salvas as artes deste cliente no Google Drive (para modelos de Vendidos, o sistema direcionará automaticamente para "🏆 Artes | Vendidos").
+                            </p>
                         </div>
                         <div className="space-y-2 col-span-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Prompt para IA (Opcional)</label>
@@ -413,15 +523,6 @@ export function ClientManager() {
                                 onChange={(e) => setPrompt(e.target.value)}
                                 className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 placeholder="Escreva o prompt padrão para redimensionamento..."
-                            />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Modelo de Legenda</label>
-                            <textarea
-                                value={captionTemplate}
-                                onChange={(e) => setCaptionTemplate(e.target.value)}
-                                className="w-full h-24 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                placeholder="Configure a legenda padrão aqui..."
                             />
                         </div>
                         <div className="space-y-2">
@@ -511,77 +612,13 @@ export function ClientManager() {
                         </div>
                     </div>
 
+                    {/* SEÇÃO LAYOUTS & TEMPLATES RENDERFORM */}
                     <div className="border-t border-border pt-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <label className="text-sm font-semibold text-white">Estrutura da Tabela</label>
-                            <div className="flex space-x-2">
-                                <Button size="sm" variant="outline" onClick={() => addColumn("text")}>
-                                    <Type className="w-4 h-4 mr-2" /> + Texto
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => addColumn("image")}>
-                                    <ImageIcon className="w-4 h-4 mr-2" /> + Imagem
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => addColumn("checkbox")}>
-                                    <CheckSquare className="w-4 h-4 mr-2" /> + Checkbox
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3 bg-black/20 p-4 rounded-lg min-h-[150px]">
-                            {columns.map((col, index) => (
-                                <div key={col.id} className="flex items-center space-x-3 text-sm animate-in slide-in-from-left-5 duration-200">
-                                    <span className="text-muted-foreground w-6 text-center">{index + 1}</span>
-                                    <div className="flex items-center px-3 py-2 rounded bg-white/5 border border-white/10 text-xs font-mono uppercase w-24 justify-center">
-                                        {col.type === "image" ? <ImageIcon className="w-3 h-3 mr-2" /> :
-                                            col.type === "checkbox" ? <CheckSquare className="w-3 h-3 mr-2" /> :
-                                                <Type className="w-3 h-3 mr-2" />}
-                                        {col.type}
-                                    </div>
-                                    <div className="flex-1 space-y-2">
-                                        <Input
-                                            value={col.name}
-                                            onChange={(e) => updateColumn(col.id, { name: e.target.value })}
-                                            className="h-9"
-                                            placeholder="Nome da coluna"
-                                        />
-                                        {col.type === "checkbox" && (
-                                            <Input
-                                                value={col.options?.join(", ") || ""}
-                                                onChange={(e) => updateColumn(col.id, { options: e.target.value.split(",").map(s => s.trim()).filter(s => s !== "") })}
-                                                className="h-7 text-[10px] bg-indigo-500/5 placeholder:text-indigo-400/50"
-                                                placeholder="Opções separadas por vírgula (ex: Stories, Feed)"
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="flex space-x-1 shrink-0">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-muted-foreground hover:text-indigo-400 disabled:opacity-30"
-                                            onClick={() => moveColumn(index, "up")}
-                                            disabled={index === 0}
-                                        >
-                                            <ArrowUp size={14} />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-muted-foreground hover:text-indigo-400 disabled:opacity-30"
-                                            onClick={() => moveColumn(index, "down")}
-                                            disabled={index === columns.length - 1}
-                                        >
-                                            <ArrowDown size={14} />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-400" onClick={() => removeColumn(col.id)}>
-                                            <X size={16} />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                            {columns.length === 0 && (
-                                <p className="text-center text-muted-foreground text-sm py-4">Nenhuma coluna definida.</p>
-                            )}
-                        </div>
+                        <ClientLayoutsEditor
+                            layouts={layouts}
+                            onChange={setLayouts}
+                            clientColumnsFallback={columns}
+                        />
                     </div>
 
                                         {/* SEÇÃO INTEGRAÇÕES */}

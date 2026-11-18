@@ -20,7 +20,7 @@ export async function fetchLayoutClientsAction() {
 
     if (error) throw error;
 
-    const uniqueClients = Array.from(new Set(data?.map(item => item.nome_cliente).filter(Boolean)));
+    const uniqueClients = Array.from(new Set((data as any[])?.map((item: any) => item.nome_cliente).filter(Boolean)));
     return uniqueClients as string[];
 }
 
@@ -41,8 +41,8 @@ export async function fetchLayoutMetricsAction(filters: LayoutDashboardFilters) 
     if (error) throw error;
 
     const total = count || 0;
-    const feedCount = data?.filter(i => i.payload?.modelo_feed_id).length || 0;
-    const storiesCount = data?.filter(i => i.payload?.modelo_stories_id).length || 0;
+    const feedCount = (data as any[])?.filter((i: any) => i.payload?.modelo_feed_id).length || 0;
+    const storiesCount = (data as any[])?.filter((i: any) => i.payload?.modelo_stories_id).length || 0;
 
     return {
         total,
@@ -72,7 +72,7 @@ export async function fetchLayoutEvolutionDataAction(filters: LayoutDashboardFil
 
     const grouped: Record<string, { date: string; feed: number; stories: number }> = {};
 
-    data?.forEach(item => {
+    (data as any[])?.forEach((item: any) => {
         const date = new Date(item.created_at).toISOString().split('T')[0];
         if (!grouped[date]) {
             grouped[date] = { date, feed: 0, stories: 0 };
@@ -98,7 +98,7 @@ export async function fetchLayoutRankingDataAction(filters: LayoutDashboardFilte
 
     const grouped: Record<string, { name: string; total: number }> = {};
 
-    data?.forEach(item => {
+    (data as any[])?.forEach((item: any) => {
         const name = item.nome_cliente;
         if (!name) return;
         if (!grouped[name]) grouped[name] = { name, total: 0 };
@@ -127,7 +127,7 @@ export async function fetchLayoutHourlyDataAction(filters: LayoutDashboardFilter
 
     const hours = new Array(24).fill(0).map((_, i) => ({ hour: i, count: 0 }));
 
-    data?.forEach(item => {
+    (data as any[])?.forEach((item: any) => {
         const d = new Date(item.created_at);
         const h = d.getHours();
         hours[h].count++;
@@ -154,7 +154,7 @@ export async function fetchLayoutWeeklyDataAction(filters: LayoutDashboardFilter
     const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weekStats = days.map(day => ({ day, count: 0 }));
 
-    data?.forEach(item => {
+    (data as any[])?.forEach((item: any) => {
         const d = new Date(item.created_at);
         const dayIndex = d.getDay();
         weekStats[dayIndex].count++;

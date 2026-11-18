@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase";
 
-export async function fetchSchedulerImagesAction(clientName: string, isSold: boolean = false) {
+export async function fetchSchedulerImagesAction(clientName: string, isSold?: boolean) {
     try {
         let query = supabase
             .from("publicacoes_design_online")
@@ -11,11 +11,12 @@ export async function fetchSchedulerImagesAction(clientName: string, isSold: boo
             .eq("publicado", false)
             .is("data_agendamento", null);
 
-        if (isSold) {
+        if (isSold === true) {
             query = query.ilike("formato", "VENDIDO %");
-        } else {
+        } else if (isSold === false) {
             query = query.not("formato", "ilike", "VENDIDO %");
         }
+        // If isSold is undefined, fetch ALL images (both normal and sold)
 
         const { data, error } = await query
             .order("ordem", { ascending: true })
@@ -121,13 +122,13 @@ export async function fetchAllScheduledPostsAction() {
     }
 
     const clientGroupMap = new Map<string, number | null>();
-    clients.forEach(c => {
+    (clients as any[]).forEach((c: any) => {
         if (c.name) {
             clientGroupMap.set(c.name.toLowerCase(), c.divisao_developrs);
         }
     });
 
-    const mappedPosts = (posts || []).map(post => {
+    const mappedPosts = ((posts || []) as any[]).map((post: any) => {
         const clientNameLower = post.nome_empresa ? post.nome_empresa.toLowerCase() : "";
         return {
             ...post,
@@ -174,7 +175,7 @@ export async function fetchGlobalScheduledPostsAction(selectedDate?: string) {
     }
 }
 
-export async function fetchScheduledPanelPostsAction(clientName: string, isSold: boolean = false) {
+export async function fetchScheduledPanelPostsAction(clientName: string, isSold?: boolean) {
     try {
         let query = supabase
             .from("publicacoes_design_online")
@@ -182,11 +183,12 @@ export async function fetchScheduledPanelPostsAction(clientName: string, isSold:
             .eq("nome_empresa", clientName)
             .not("data_agendamento", "is", null);
 
-        if (isSold) {
+        if (isSold === true) {
             query = query.ilike("formato", "VENDIDO %");
-        } else {
+        } else if (isSold === false) {
             query = query.not("formato", "ilike", "VENDIDO %");
         }
+        // If isSold is undefined, fetch all scheduled posts for that client (both normal, de/por and sold)
 
         const { data, error } = await query
             .order("data_agendamento", { ascending: false })
