@@ -19,7 +19,8 @@ import {
     ChevronUp,
     Scissors,
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    RefreshCw
 } from "lucide-react";
 import { 
     getRenderFormTemplatesAction, 
@@ -91,23 +92,22 @@ export function ClientLayoutsEditor({ layouts, onChange, clientColumnsFallback =
     const activeLayout = layouts.find(l => l.id === selectedLayoutId) || layouts[0] || null;
 
     // Carregar lista de templates do RenderForm
-    useEffect(() => {
-        let mounted = true;
-        const loadTemplates = async () => {
-            setIsLoadingTemplates(true);
-            try {
-                const res = await getRenderFormTemplatesAction();
-                if (mounted && res.success && res.templates) {
-                    setRenderformTemplates(res.templates);
-                }
-            } catch (err) {
-                console.error("Erro ao carregar templates do RenderForm:", err);
-            } finally {
-                if (mounted) setIsLoadingTemplates(false);
+    const handleReloadTemplates = async (force = true) => {
+        setIsLoadingTemplates(true);
+        try {
+            const res = await getRenderFormTemplatesAction(force);
+            if (res.success && res.templates) {
+                setRenderformTemplates(res.templates);
             }
-        };
-        loadTemplates();
-        return () => { mounted = false; };
+        } catch (err) {
+            console.error("Erro ao carregar templates do RenderForm:", err);
+        } finally {
+            setIsLoadingTemplates(false);
+        }
+    };
+
+    useEffect(() => {
+        handleReloadTemplates(false);
     }, []);
 
     // Carregar componentes do template Feed
@@ -500,11 +500,23 @@ export function ClientLayoutsEditor({ layouts, onChange, clientColumnsFallback =
                                         <Sparkles className="w-4 h-4 text-yellow-400" />
                                         <h5 className="text-xs font-bold text-indigo-200">Designs RenderForm deste Modelo</h5>
                                     </div>
-                                    {isLoadingTemplates && (
-                                        <span className="text-[10px] text-indigo-300 flex items-center">
-                                            <Loader2 className="w-3 h-3 animate-spin mr-1" /> Carregando RenderForm...
-                                        </span>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {isLoadingTemplates && (
+                                            <span className="text-[10px] text-indigo-300 flex items-center">
+                                                <Loader2 className="w-3 h-3 animate-spin mr-1" /> Carregando RenderForm...
+                                            </span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleReloadTemplates(true)}
+                                            disabled={isLoadingTemplates}
+                                            className="px-2.5 py-1 text-[11px] font-semibold bg-indigo-600/80 hover:bg-indigo-600 text-white rounded border border-indigo-400/30 flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-sm"
+                                            title="Recarregar lista de templates diretamente do RenderForm"
+                                        >
+                                            <RefreshCw className={`w-3 h-3 ${isLoadingTemplates ? "animate-spin" : ""}`} />
+                                            <span>Recarregar Templates</span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Seletor de Aba de Design: FEED vs STORIES (dinâmico com as Opções do Checkbox) */}

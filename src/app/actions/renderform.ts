@@ -32,7 +32,7 @@ export interface RenderFormTemplateDetails {
 /**
  * Busca a lista de templates do usuário no RenderForm (com paginação completa)
  */
-export async function getRenderFormTemplatesAction(): Promise<{
+export async function getRenderFormTemplatesAction(forceRefresh = false): Promise<{
     success: boolean;
     templates?: RenderFormTemplateSummary[];
     error?: string;
@@ -44,14 +44,20 @@ export async function getRenderFormTemplatesAction(): Promise<{
 
         // Itera sobre as páginas do RenderForm até coletar todos os templates
         while (true) {
-            const res = await fetch(`${RENDERFORM_BASE_URL}/my-templates?page=${page}&size=${pageSize}`, {
+            const fetchOptions: RequestInit = {
                 method: "GET",
                 headers: {
                     "X-API-KEY": RENDERFORM_API_KEY,
                     "Content-Type": "application/json"
-                },
-                next: { revalidate: 30 } // cache 30s
-            });
+                }
+            };
+            if (forceRefresh) {
+                fetchOptions.cache = "no-store";
+            } else {
+                (fetchOptions as any).next = { revalidate: 30 }; // cache 30s
+            }
+
+            const res = await fetch(`${RENDERFORM_BASE_URL}/my-templates?page=${page}&size=${pageSize}`, fetchOptions);
 
             if (!res.ok) {
                 throw new Error(`Erro na API do RenderForm (${res.status}): ${res.statusText}`);
