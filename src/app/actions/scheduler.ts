@@ -141,30 +141,24 @@ export async function fetchAllScheduledPostsAction() {
 
 export async function fetchGlobalScheduledPostsAction(selectedDate?: string) {
     try {
-        // Obter a data de referência (Brasil -03:00)
-        let startISO: string;
-        let endISO: string;
+        let datePattern: string;
 
         if (selectedDate) {
-            // selectedDate: "YYYY-MM-DD" no fuso do Brasil
-            startISO = new Date(`${selectedDate}T00:00:00-03:00`).toISOString();
-            endISO   = new Date(`${selectedDate}T23:59:59-03:00`).toISOString();
+            datePattern = selectedDate;
         } else {
             const now = new Date();
             const brazilTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
             const yyyy = brazilTime.getFullYear();
             const mm = String(brazilTime.getMonth() + 1).padStart(2, '0');
             const dd = String(brazilTime.getDate()).padStart(2, '0');
-            startISO = new Date(`${yyyy}-${mm}-${dd}T00:00:00-03:00`).toISOString();
-            endISO   = new Date(`${yyyy}-${mm}-${dd}T23:59:59-03:00`).toISOString();
+            datePattern = `${yyyy}-${mm}-${dd}`;
         }
 
         const { data, error } = await supabase
             .from("publicacoes_design_online")
             .select("id, data_agendamento, formato, veiculo_gerado, nome_empresa, publicado, publicado_instagram, identificador_veiculo")
             .not("data_agendamento", "is", null)
-            .gte("data_agendamento", startISO)
-            .lte("data_agendamento", endISO)
+            .ilike("data_agendamento", `%${datePattern}%`)
             .order("data_agendamento", { ascending: true });
 
         if (error) throw error;

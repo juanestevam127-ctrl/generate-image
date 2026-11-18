@@ -50,9 +50,9 @@ export default function GlobalScheduleWidget({ isSold = false }: { isSold?: bool
                 result.data.forEach((img: any) => {
                     const isSoldFormat = img.formato && img.formato.toUpperCase().startsWith("VENDIDO ");
                     
-                    // Filter based on the dashboard context
-                    if (isSold ? !isSoldFormat : isSoldFormat) {
-                        return;
+                    // Filter based on the dashboard context (only if isSold is explicitly passed or keep both)
+                    if (isSold !== undefined && (isSold ? !isSoldFormat : isSoldFormat)) {
+                        // Keep all posts in global schedule so the operator sees the full daily agenda
                     }
 
                     const vehicle = img.veiculo_gerado || "Sem Veículo";

@@ -85,14 +85,12 @@ export class NocoQueryBuilder<T = any> {
   }
 
   like(column: string, pattern: string) {
-    const val = pattern.replace(/%/g, '*');
-    this.filters.push(`(${column},like,${val})`);
+    this.filters.push(`(${column},like,${pattern})`);
     return this;
   }
 
   ilike(column: string, pattern: string) {
-    const val = pattern.replace(/%/g, '*');
-    this.filters.push(`(${column},like,${val})`);
+    this.filters.push(`(${column},like,${pattern})`);
     return this;
   }
 
