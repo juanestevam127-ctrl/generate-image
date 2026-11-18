@@ -95,13 +95,13 @@ export class NocoQueryBuilder<T = any> {
   }
 
   is(column: string, value: null) {
-    this.filters.push(`(${column},is,null)`);
+    this.filters.push(`(${column},null)`);
     return this;
   }
 
   not(column: string, operator: string, value: any) {
     if (operator === 'is' && (value === null || value === undefined)) {
-      this.filters.push(`(${column},isnot,null)`);
+      this.filters.push(`(${column},notnull)`);
     } else if (operator === 'ilike' || operator === 'like') {
       const val = String(value).replace(/%/g, '*');
       this.filters.push(`(${column},nlike,${val})`);
