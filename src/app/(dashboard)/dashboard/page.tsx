@@ -147,6 +147,18 @@ export default function DashboardPage() {
                         let state: any = null;
                         if (data.design_state) {
                             state = { ...data.design_state };
+                            // Se 'dados' foi atualizado (ex: no GOS/Veículos), sincroniza os campos de texto/valor atualizados no design_state
+                            if (client && data.dados) {
+                                client.columns.forEach((col: any) => {
+                                    if (col.type !== "image" && col.type !== "checkbox") {
+                                        if (data.dados[col.name] !== undefined) {
+                                            state[col.id] = data.dados[col.name];
+                                        } else if (data.dados[col.id] !== undefined) {
+                                            state[col.id] = data.dados[col.id];
+                                        }
+                                    }
+                                });
+                            }
                         } else if (client && data.dados) {
                             // Se não tiver design_state salvo anteriormente, reconstrói a partir de 'dados' e 'fotos'
                             state = { _id: crypto.randomUUID(), _vehicleId: data.id };
