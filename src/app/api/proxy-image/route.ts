@@ -8,9 +8,16 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Missing URL", { status: 400 });
   }
 
-  // Security check: only allow proxying images from our Supabase instance or common CDNs if needed
-  // For now, let's just allow it since the backend fetches it. 
-  // In a real app, you'd check if imageUrl starts with your Supabase URL.
+  // Proteção rigorosa contra estouro de banda na Vercel:
+  // Imagens do nosso Cloudflare R2 ou CDN própria NUNCA devem passar pelo proxy da Vercel!
+  if (
+    imageUrl.includes("cdn.artesdesignonline.com.br") || 
+    imageUrl.includes(".r2.dev") || 
+    imageUrl.includes("r2.cloudflarestorage.com")
+  ) {
+    // Redireciona o navegador diretamente para o Cloudflare R2 sem transferir os bytes pela Vercel
+    return NextResponse.redirect(imageUrl, { status: 307 });
+  }
 
   try {
     const response = await fetch(imageUrl, {
