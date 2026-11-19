@@ -134,8 +134,10 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 
                 // If the image has no vehicle, we use its own ID to ensure it stays separate from others.
                 // This satisfies the requirement that each row in the generator (which has no vehicle by default) 
-                // becomes its own individual post.
-                const groupingVehicle = img.veiculo_gerado || `ID:${img.id}`;
+                // becomes its own individual post named "Vendido {id}".
+                const hasVehicle = img.veiculo_gerado && img.veiculo_gerado.trim() !== "" && img.veiculo_gerado.trim().toLowerCase() !== "sem veículo";
+                const vehicleName = hasVehicle ? img.veiculo_gerado!.trim() : `Vendido ${img.id}`;
+                const groupingVehicle = hasVehicle ? vehicleName : `ID:${img.id}`;
                 const key = `${groupingVehicle}-${originalFormat}`;
 
                 let cleanCaption = img.descricao || "";
@@ -143,14 +145,14 @@ export function SoldPostScheduler({ client }: { client: Client }) {
                 if (!groups[key]) {
                     groups[key] = {
                         id: key,
-                        veiculo_gerado: img.veiculo_gerado || "Sem Veículo",
+                        veiculo_gerado: vehicleName,
                         formato: originalFormat, // Keep original for webhook
                         images: [],
                         caption: cleanCaption,
                         postType: originalFormat === "VENDIDO REELS" || originalFormat === "REELS"
                             ? "REELS"
                             : (uiFormat === "FEED"
-                                ? (filteredImages.filter(i => (i.veiculo_gerado || `ID:${i.id}`) === groupingVehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
+                                ? (hasVehicle && filteredImages.filter(i => (i.veiculo_gerado || `ID:${i.id}`) === groupingVehicle && i.formato === originalFormat).length > 1 ? "CARROSSEL" : "ESTATICA")
                                 : "IMAGEM"),
                         created_at: img.created_at
                     };

@@ -122,13 +122,23 @@ export function PostScheduler({ client }: { client: Client }) {
             // Keep all images (both normal vehicle images and sold layouts)
             const filteredImages = rawImages;
 
-            // Group by veiculo_gerado and formato
+            // Group by veiculo_gerado and formato.
+            // Para posts sem veículo (como os gerados em Vendidos), cada imagem deve ser um card individual
+            // separado com nome "Vendido {id}", em vez de juntar tudo num carrossel único de "Sem Veículo".
             const groups: Record<string, GroupedPost> = {};
 
             filteredImages.forEach(img => {
-                const vehicle = img.veiculo_gerado || "Sem Veículo";
                 const format = img.formato || "FEED";
-                const key = `${vehicle}-${format}`;
+                const isSoldFormat = format.toUpperCase().includes("VENDIDO");
+                const hasVehicle = img.veiculo_gerado && img.veiculo_gerado.trim() !== "" && img.veiculo_gerado.trim().toLowerCase() !== "sem veículo";
+
+                // Se não tem veículo informado:
+                // Se for formato Vendido (ou sem veículo), isolamos por ID da imagem com o nome "Vendido {id}"
+                const vehicle = hasVehicle
+                    ? img.veiculo_gerado!.trim()
+                    : (isSoldFormat ? `Vendido ${img.id}` : (img.id ? `Vendido ${img.id}` : "Sem Veículo"));
+
+                const key = hasVehicle ? `${vehicle}-${format}` : `ID-${img.id}-${format}`;
 
                 const cleanCaption = img.descricao || "";
 
@@ -142,7 +152,7 @@ export function PostScheduler({ client }: { client: Client }) {
                         postType: format === "REELS" || format === "VENDIDO REELS" 
                             ? "REELS"
                             : (format === "FEED" || format === "VENDIDO FEED"
-                                ? (filteredImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
+                                ? (hasVehicle && filteredImages.filter(i => i.veiculo_gerado === vehicle && i.formato === format).length > 1 ? "CARROSSEL" : "ESTATICA")
                                 : "IMAGEM"),
                         created_at: img.created_at,
                         identificador_veiculo: img.identificador_veiculo || null
