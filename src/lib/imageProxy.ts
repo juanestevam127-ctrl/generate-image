@@ -24,12 +24,13 @@ export function getProxiedUrl(url: string): string {
       url = url.replace(/https:\/\/[^\/]+\.r2\.dev\//, 'https://cdn.artesdesignonline.com.br/');
   }
 
-  // Se a imagem for do nosso próprio CDN ou Supabase configurado com CORS, pode carregar direto
-  if (url.includes('cdn.artesdesignonline.com.br') || url.includes('supabase.co')) {
+  // Se a imagem for do Supabase configurado com CORS, pode carregar direto
+  if (url.includes('supabase.co')) {
       return url;
   }
 
-  // Qualquer outra imagem externa (ex: Boom Sistemas, AutoCerto, BNDV, Revenda Mais, S3 externos)
-  // precisa passar pelo proxy com headers Access-Control-Allow-Origin: * para o Cropper/Canvas não ficar preto
+  // Qualquer outra imagem (incluindo cdn.artesdesignonline.com.br do R2 em navegadores com bloqueio CORS/mixed-content,
+  // ou Boom Sistemas, AutoCerto, BNDV, Revenda Mais, S3 externos)
+  // passa pelo proxy interno /api/proxy-image com headers Access-Control-Allow-Origin: * e cache
   return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
