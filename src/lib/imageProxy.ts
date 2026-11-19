@@ -24,13 +24,12 @@ export function getProxiedUrl(url: string): string {
       url = url.replace(/https:\/\/[^\/]+\.r2\.dev\//, 'https://cdn.artesdesignonline.com.br/');
   }
 
-  // Se a imagem for do Supabase configurado com CORS, pode carregar direto
-  if (url.includes('supabase.co')) {
+  // Se a imagem for do Cloudflare R2 (cdn.artesdesignonline.com.br ou r2.cloudflarestorage) ou Supabase,
+  // carrega DIRETAMENTE do R2 sem passar pela Vercel para economizar 100% de banda
+  if (url.includes('cdn.artesdesignonline.com.br') || url.includes('.r2.dev') || url.includes('supabase.co')) {
       return url;
   }
 
-  // Qualquer outra imagem (incluindo cdn.artesdesignonline.com.br do R2 em navegadores com bloqueio CORS/mixed-content,
-  // ou Boom Sistemas, AutoCerto, BNDV, Revenda Mais, S3 externos)
-  // passa pelo proxy interno /api/proxy-image com headers Access-Control-Allow-Origin: * e cache
+  // Apenas imagens externas de terceiros (Boom Sistemas, AutoCerto, BNDV) que não possuem CORS
   return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
