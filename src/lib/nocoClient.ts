@@ -267,7 +267,15 @@ export class NocoQueryBuilder<T = any> {
         }
 
         const data = await res.json();
-        return { data: data, error: null };
+        // NocoDB retorna apenas [{ id: 123 }] no POST.
+        // Mesclamos os campos originais de records com os IDs retornados para que o frontend receba o objeto completo!
+        let returnedList = Array.isArray(data) ? data : [data];
+        const enrichedData = records.map((rec: any, idx: number) => ({
+          ...rec,
+          id: returnedList[idx]?.id || rec.id
+        }));
+
+        return { data: enrichedData, error: null };
       } catch (e: any) {
         return { data: null, error: { message: e.message } };
       }
