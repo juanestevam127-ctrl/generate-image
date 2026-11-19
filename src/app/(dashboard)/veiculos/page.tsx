@@ -21,6 +21,7 @@ export default function VeiculosPage() {
     const [isLoadingTasks, setIsLoadingTasks] = useState(false);
     
     // Filters
+    const [searchQuery, setSearchQuery] = useState("");
     const [filterClients, setFilterClients] = useState<string[]>([]);
     const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
     const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
@@ -134,6 +135,12 @@ export default function VeiculosPage() {
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(t => {
+            if (searchQuery.trim()) {
+                const q = searchQuery.trim().toLowerCase();
+                const matchesName = String(t.name || '').toLowerCase().includes(q);
+                const matchesId = String(t.id || '').toLowerCase().includes(q);
+                if (!matchesName && !matchesId) return false;
+            }
             if (filterClients.length > 0) {
                 const cId = t.clientId ? t.clientId.toString() : "";
                 if (!filterClients.includes(cId)) return false;
@@ -148,7 +155,7 @@ export default function VeiculosPage() {
             }
             return true;
         });
-    }, [tasks, filterClients, filterStatuses, filterAssignees]);
+    }, [tasks, searchQuery, filterClients, filterStatuses, filterAssignees]);
 
     const handleStatusChange = async (taskId: string, newStatus: string) => {
         // Optimistic update
@@ -357,7 +364,27 @@ export default function VeiculosPage() {
                         <CardHeader className="pb-4">
                             <CardTitle className="text-white text-lg">Filtros</CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="space-y-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Input 
+                                    type="text"
+                                    placeholder="Pesquisar por nome do veículo ou ID do ClickUp..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-9 pr-9 bg-zinc-800/80 border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-indigo-500"
+                                />
+                                {searchQuery && (
+                                    <button 
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                                        title="Limpar pesquisa"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
                                     <Label className="text-gray-400">Cliente</Label>
