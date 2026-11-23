@@ -91,6 +91,7 @@ export interface Client {
     idClickup?: string;
     clickupTarefaId?: string; // NOVO: Para vincular na criação de veículos
     webhookStoriesSegQuarSex?: string;
+    storiesQuartaSextaDomingo?: boolean;
     integracaoTipo?: string;
     bndvExternalKey?: string;
     bndvPassword?: string;
@@ -212,6 +213,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     idClickup: c.id_clickup,
                     clickupTarefaId: c.clickup_tarefa_id,
                     webhookStoriesSegQuarSex: c.webhook_stories_seg_quar_sex,
+                    storiesQuartaSextaDomingo: c.stories_quarta_sexta_domingo ?? false,
                     integracaoTipo: c.integracao_tipo,
                     bndvExternalKey: c.bndv_external_key,
                     bndvPassword: c.bndv_password,
@@ -382,6 +384,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             idClickup: result.data.id_clickup,
             clickupTarefaId: result.data.clickup_tarefa_id,
             webhookStoriesSegQuarSex: result.data.webhook_stories_seg_quar_sex,
+            storiesQuartaSextaDomingo: result.data.stories_quarta_sexta_domingo ?? false,
             integracaoTipo: result.data.integracao_tipo,
             bndvExternalKey: result.data.bndv_external_key,
             bndvPassword: result.data.bndv_password,

@@ -38,6 +38,7 @@ export function ClientManager() {
     const [guideStories, setGuideStories] = useState("");
     const [guideFeed, setGuideFeed] = useState("");
     const [clienteAtivo, setClienteAtivo] = useState(true);
+    const [storiesQuartaSextaDomingo, setStoriesQuartaSextaDomingo] = useState(true);
     const [isUploading, setIsUploading] = useState<{ stories: boolean; feed: boolean }>({ stories: false, feed: false });
     const [idClickup, setIdClickup] = useState("");
     const [clickupTarefaId, setClickupTarefaId] = useState("");
@@ -135,6 +136,7 @@ export function ClientManager() {
         setGuideStories("");
         setGuideFeed("");
         setClienteAtivo(true);
+        setStoriesQuartaSextaDomingo(true);
         setIdClickup("");
         setWebhookStoriesSegQuarSex("");
         setIntegracaoTipo("none");
@@ -174,6 +176,7 @@ export function ClientManager() {
         setGuideStories(client.guideStories || "");
         setGuideFeed(client.guideFeed || "");
         setClienteAtivo(client.clienteAtivo ?? true);
+        setStoriesQuartaSextaDomingo(client.storiesQuartaSextaDomingo ?? (client.clienteAtivo !== false));
         setIdClickup(client.idClickup || "");
         setClickupTarefaId(client.clickupTarefaId || "");
         setWebhookStoriesSegQuarSex(client.webhookStoriesSegQuarSex || "");
@@ -214,6 +217,7 @@ export function ClientManager() {
             guideStories,
             guideFeed,
             clienteAtivo,
+            storiesQuartaSextaDomingo,
             idClickup,
             clickupTarefaId,
             webhookStoriesSegQuarSex: "",
@@ -398,8 +402,14 @@ export function ClientManager() {
                             <div className="flex justify-between items-start mb-2">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-semibold text-lg text-white">{client.name}</h3>
-                                    {client.clienteAtivo === false && (
+                                    {client.clienteAtivo === false ? (
                                         <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30 uppercase font-bold">Inativo</span>
+                                    ) : (
+                                        client.storiesQuartaSextaDomingo !== false && (
+                                            <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30 uppercase font-bold" title="Stories Qua/Sex/Dom Ativo">
+                                                Qua/Sex/Dom
+                                            </span>
+                                        )
                                     )}
                                 </div>
                                 <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -659,15 +669,35 @@ export function ClientManager() {
                                 )}
                             </div>
                         </div>
-                        <div className="space-y-2 col-span-2 flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="clienteAtivo"
-                                checked={clienteAtivo}
-                                onChange={(e) => setClienteAtivo(e.target.checked)}
-                                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 bg-background"
-                            />
-                            <label htmlFor="clienteAtivo" className="text-xs uppercase text-muted-foreground font-bold cursor-pointer">Cliente Ativo</label>
+                        <div className="space-y-3 col-span-2 bg-white/[0.02] border border-white/5 p-3 rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="clienteAtivo"
+                                    checked={clienteAtivo}
+                                    onChange={(e) => setClienteAtivo(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 bg-background"
+                                />
+                                <label htmlFor="clienteAtivo" className="text-xs uppercase text-muted-foreground font-bold cursor-pointer">
+                                    Cliente Ativo
+                                </label>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                                <input
+                                    type="checkbox"
+                                    id="storiesQuartaSextaDomingo"
+                                    checked={storiesQuartaSextaDomingo}
+                                    onChange={(e) => setStoriesQuartaSextaDomingo(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 bg-background"
+                                />
+                                <label htmlFor="storiesQuartaSextaDomingo" className="text-xs uppercase text-indigo-300 font-bold cursor-pointer flex items-center gap-1.5">
+                                    <span>Stories (Quarta, Sexta e Domingo)</span>
+                                    <span className="text-[10px] lowercase font-normal text-gray-400">
+                                        ({storiesQuartaSextaDomingo ? "ativo para disparo" : "desativado"})
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
