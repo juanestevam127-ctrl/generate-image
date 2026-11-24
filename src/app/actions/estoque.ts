@@ -1210,7 +1210,7 @@ export async function linkEstoqueVehicleToClickupAction(params: {
         } else {
             const { data: client } = await supabase
                 .from("clientes")
-                .select("id, columns")
+                .select("id, columns, layouts")
                 .eq("id", clienteId)
                 .single();
 
@@ -1218,28 +1218,52 @@ export async function linkEstoqueVehicleToClickupAction(params: {
                 _externalKey: vKey
             };
 
-            const clientColumns: any[] = client?.columns || [];
+            // Coleta colunas de layouts (ou colunas globais) para encontrar os campos certos
+            const allAvailableColumns: any[] = [];
+            if (client?.layouts && Array.isArray(client.layouts)) {
+                client.layouts.forEach((l: any) => {
+                    if (l.columns && Array.isArray(l.columns)) {
+                        l.columns.forEach((c: any) => {
+                            if (!allAvailableColumns.some(existing => existing.name.toLowerCase() === c.name.toLowerCase())) {
+                                allAvailableColumns.push(c);
+                            }
+                        });
+                    }
+                });
+            }
+            if (client?.columns && Array.isArray(client.columns)) {
+                client.columns.forEach((c: any) => {
+                    if (!allAvailableColumns.some(existing => existing.name.toLowerCase() === c.name.toLowerCase())) {
+                        allAvailableColumns.push(c);
+                    }
+                });
+            }
+
             const findCol = (keywords: string[]) => {
-                return clientColumns.find((c: any) =>
+                return allAvailableColumns.find((c: any) =>
                     keywords.some(kw => c.name.toLowerCase() === kw.toLowerCase() || c.name.toLowerCase().startsWith(kw.toLowerCase()))
                 );
             };
 
-            const colNome = findCol(["nome", "veiculo", "veículo", "carro", "titulo", "modelo"]);
+            const colNome = findCol(["nome do veiculo", "nome do veículo", "nome", "veiculo", "veículo", "carro", "titulo", "modelo"]);
             const colMarca = findCol(["marca", "fabricante"]);
             const colAno = findCol(["ano"]);
-            const colPreco = findCol(["pre", "valor"]);
-            const colKm = findCol(["km", "quilo"]);
+            const colPreco = findCol(["valor", "pre", "preco", "preço"]);
+            const colKm = findCol(["quilometragem", "km", "quilo"]);
             const colCor = findCol(["cor"]);
             const colPlaca = findCol(["placa"]);
 
-            if (colMarca && vehicle.markName && vehicle.markName !== "N/A") dados[colMarca.name] = vehicle.markName;
             const rawNome = (vehicle.markName && vehicle.markName !== "N/A" ? `${vehicle.markName} ` : "") + (vehicle.modelName || vehicle.versionName || "Veículo");
+            dados["Nome do Veiculo"] = rawNome.trim();
+            dados["Título"] = rawNome.trim();
+
+            if (colMarca && vehicle.markName && vehicle.markName !== "N/A") dados[colMarca.name] = vehicle.markName;
             if (colNome) dados[colNome.name] = rawNome.trim();
             if (colAno && vehicle.year) dados[colAno.name] = String(vehicle.year);
             if (colCor && vehicle.color && vehicle.color !== "N/A") dados[colCor.name] = vehicle.color;
             if (colPreco && vehicle.saleValue) {
                 dados[colPreco.name] = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(vehicle.saleValue);
+                dados["Valor"] = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(vehicle.saleValue);
             }
             if (colKm && vehicle.km) dados[colKm.name] = `${vehicle.km.toLocaleString("pt-BR")} km`;
             if (colPlaca && vehicle.plate && vehicle.plate !== "N/A") dados[colPlaca.name] = vehicle.plate;
