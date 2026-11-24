@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useStore } from "@/lib/store-context";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, BarChart2, Eye, Play, Facebook, Instagram, ShieldAlert, CheckCircle2, XCircle, Search } from "lucide-react";
+import { Loader2, RefreshCw, BarChart2, Eye, Play, Facebook, Instagram, ShieldAlert, CheckCircle2, XCircle, Search, Calendar as CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface StoryPost {
     id: number;
@@ -32,6 +33,7 @@ export default function ControleStoriesPage() {
     const [posts, setPosts] = useState<StoryPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<string>(""); // YYYY-MM-DD ou "todos"
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedClientFilter, setSelectedClientFilter] = useState("");
 
@@ -47,7 +49,21 @@ export default function ControleStoriesPage() {
                 .range(0, 5000);
 
             if (error) throw error;
-            setPosts((data || []) as StoryPost[]);
+            const fetchedPosts = (data || []) as StoryPost[];
+            setPosts(fetchedPosts);
+
+            // Se ainda não tiver data selecionada, seleciona a data mais recente disponível
+            if (fetchedPosts.length > 0) {
+                const datesWithData = Array.from(new Set(
+                    fetchedPosts
+                        .map(p => p.created_at ? p.created_at.split("T")[0] : "")
+                        .filter(Boolean)
+                )).sort((a, b) => b.localeCompare(a));
+
+                if (datesWithData.length > 0) {
+                    setSelectedDate(prev => prev || datesWithData[0]);
+                }
+            }
         } catch (err: any) {
             console.error("Erro ao carregar dados do design_online_stories_veiculos:", err);
             alert("Erro ao buscar dados do banco de dados: " + err.message);
@@ -74,13 +90,47 @@ export default function ControleStoriesPage() {
         );
     }
 
+    // Mapeamento de datas disponíveis com resumo
+    const datesMap = useMemo(() => {
+        const map: Record<string, { total: number; postados: number; pendentes: number }> = {};
+
+        posts.forEach((post) => {
+            if (!post.created_at) return;
+            const dateKey = post.created_at.split("T")[0];
+            if (!map[dateKey]) {
+                map[dateKey] = { total: 0, postados: 0, pendentes: 0 };
+            }
+
+            map[dateKey].total++;
+            if (post.postado) {
+                map[dateKey].postados++;
+            } else {
+                map[dateKey].pendentes++;
+            }
+        });
+
+        return map;
+    }, [posts]);
+
+    const availableDates = useMemo(() => {
+        const keys = Object.keys(datesMap);
+        keys.sort((a, b) => b.localeCompare(a));
+        return keys;
+    }, [datesMap]);
+
+    // Filtrar os posts pela data selecionada
+    const currentPosts = useMemo(() => {
+        if (!selectedDate || selectedDate === "todos") return posts;
+        return posts.filter(p => p.created_at && p.created_at.startsWith(selectedDate));
+    }, [posts, selectedDate]);
+
     // 1. Processar dados para a visualização agrupada por cliente (Métricas)
     const clientSummaries: Record<string, ClientSummary> = {};
 
     // Agrupar itens por veículo para contar veículos únicos
     const vehicleKeysByClient: Record<string, Set<string>> = {};
 
-    posts.forEach((post) => {
+    currentPosts.forEach((post) => {
         const cName = post.nome_cliente || "Sem Cliente";
         const vName = post.nome_veiculo || "Sem Veículo";
 
@@ -121,7 +171,7 @@ export default function ControleStoriesPage() {
 
     // Obter todos os clientes únicos para popular o filtro do histórico
     const uniqueClients = Array.from(
-        new Set(posts.map((p) => p.nome_cliente || "Sem Cliente"))
+        new Set(currentPosts.map((p) => p.nome_cliente || "Sem Cliente"))
     ).sort();
 
     // 2. Agrupar postagens detalhadas por veículo + id_tarefa para exibição na tabela/cards
@@ -137,7 +187,7 @@ export default function ControleStoriesPage() {
         instagramId: number | null;
     }> = {};
 
-    posts.forEach((post) => {
+    currentPosts.forEach((post) => {
         const vKey = `${post.nome_cliente}||${post.nome_veiculo}||${post.id_tarefa}`;
 
         if (!groupedVehicles[vKey]) {
@@ -213,13 +263,130 @@ export default function ControleStoriesPage() {
                 </div>
             ) : (
                 <>
+                    {/* SELETOR DE DIAS / TIMELINE POR DATA */}
+                    <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-sm space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <CalendarIcon className="w-4 h-4 text-indigo-400" />
+                                <span className="text-sm font-semibold text-slate-200">Filtrar Histórico por Data</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-400">Ir para data:</span>
+                                <input
+                                    type="date"
+                                    value={selectedDate === "todos" ? "" : selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="bg-slate-950 border border-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700">
+                            {/* Botão para Ver Todos */}
+                            <button
+                                onClick={() => setSelectedDate("todos")}
+                                className={cn(
+                                    "flex flex-col items-start px-4 py-2.5 rounded-xl border text-left transition-all shrink-0 min-w-[120px]",
+                                    selectedDate === "todos"
+                                        ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/30 scale-[1.02]"
+                                        : "bg-slate-950/80 border-slate-800 hover:border-slate-700 text-slate-300 hover:bg-slate-800/40"
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        "text-[10px] uppercase font-bold tracking-wider",
+                                        selectedDate === "todos" ? "text-indigo-200" : "text-slate-400"
+                                    )}
+                                >
+                                    Período
+                                </span>
+                                <span className="text-base font-extrabold mt-0.5">
+                                    Todos os Dias
+                                </span>
+                                <span className="text-[10px] text-gray-400 mt-2 font-medium">
+                                    {posts.length} stories total
+                                </span>
+                            </button>
+
+                            {/* Dias Disponíveis agrupados */}
+                            {availableDates.length > 0 ? (
+                                availableDates.map((dStr) => {
+                                    const isSelected = selectedDate === dStr;
+                                    const stats = datesMap[dStr];
+
+                                    const [ano, mes, dia] = dStr.split("-");
+                                    const dObj = new Date(Number(ano), Number(mes) - 1, Number(dia));
+                                    const weekday = dObj.toLocaleDateString("pt-BR", { weekday: "short" });
+
+                                    return (
+                                        <button
+                                            key={dStr}
+                                            onClick={() => setSelectedDate(dStr)}
+                                            className={cn(
+                                                "flex flex-col items-start px-4 py-2.5 rounded-xl border text-left transition-all shrink-0 min-w-[130px]",
+                                                isSelected
+                                                    ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/30 scale-[1.02]"
+                                                    : "bg-slate-950/80 border-slate-800 hover:border-slate-700 text-slate-300 hover:bg-slate-800/40"
+                                            )}
+                                        >
+                                            <div className="flex items-center justify-between w-full">
+                                                <span
+                                                    className={cn(
+                                                        "text-[10px] uppercase font-bold tracking-wider",
+                                                        isSelected ? "text-indigo-200" : "text-slate-400"
+                                                    )}
+                                                >
+                                                    {weekday}
+                                                </span>
+                                                <span
+                                                    className={cn(
+                                                        "text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold",
+                                                        isSelected ? "bg-white/20 text-white" : "bg-slate-800 text-slate-300"
+                                                    )}
+                                                >
+                                                    {stats.total}
+                                                </span>
+                                            </div>
+                                            <span className="text-base font-extrabold mt-0.5">
+                                                {dia}/{mes}
+                                            </span>
+
+                                            <div className="flex items-center gap-2 mt-2 text-[10px] font-medium">
+                                                {stats.postados > 0 && (
+                                                    <span className={isSelected ? "text-emerald-200" : "text-emerald-400"}>
+                                                        ● {stats.postados} ok
+                                                    </span>
+                                                )}
+                                                {stats.pendentes > 0 && (
+                                                    <span className={isSelected ? "text-red-200" : "text-red-400"}>
+                                                        ● {stats.pendentes} pendente
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                })
+                            ) : (
+                                <span className="text-xs text-gray-500 py-2">Nenhuma data registrada ainda.</span>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Resumo por Clientes */}
                     <div className="grid grid-cols-1 gap-6">
-                        <h2 className="text-xl font-bold text-white uppercase tracking-wider mb-2">Painel de Métricas de Clientes</h2>
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-xl font-bold text-white uppercase tracking-wider">
+                                Painel de Métricas de Clientes {selectedDate && selectedDate !== "todos" ? `(${selectedDate.split("-").reverse().join("/")})` : "(Geral)"}
+                            </h2>
+                            <span className="text-xs text-indigo-400 font-semibold bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20">
+                                {summariesList.length} clientes com stories
+                            </span>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {summariesList.length === 0 ? (
                                 <div className="col-span-full py-8 text-center text-muted-foreground bg-white/5 border border-dashed border-white/10 rounded-xl">
-                                    Nenhum dado de cliente disponível hoje.
+                                    Nenhum dado de cliente disponível nesta data.
                                 </div>
                             ) : (
                                 summariesList.map((summary) => (
