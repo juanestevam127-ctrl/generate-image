@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useStore } from "@/lib/store-context";
 import { ClientManager } from "@/components/features/ClientManager";
 import { VehicleCard } from "@/components/features/VehicleCard";
@@ -47,7 +47,18 @@ export default function DashboardPage() {
     if (!user) return null;
 
     const activeClient = clients.find((c) => c.id === selectedClientId);
-    const activeLayout = activeClient?.layouts?.find(l => l.id === selectedLayoutId) || activeClient?.layouts?.[0];
+    
+    // Obter o layout padrão preferencial (não-vendido primeiro, ex: Modelo Padrão)
+    const defaultLayout = useMemo(() => {
+        if (!activeClient?.layouts || activeClient.layouts.length === 0) return undefined;
+        return activeClient.layouts.find(l => 
+            l.categoria !== 'vendido' && 
+            !l.nome?.toLowerCase().includes('vendido') && 
+            l.tipo !== 'vendido'
+        ) || activeClient.layouts[0];
+    }, [activeClient]);
+
+    const activeLayout = activeClient?.layouts?.find(l => l.id === selectedLayoutId) || defaultLayout;
     const activeColumns = activeLayout ? activeLayout.columns : (activeClient?.columns || []);
 
     const handleImageUpload = async (row: number, col: string, files: File[]) => {
@@ -219,14 +230,16 @@ export default function DashboardPage() {
         }
     }, [viewMode, selectedClientId]);
 
-    const addVehicleToTable = async (vehicle: any) => {
+    const addVehicleToTable = async (vehicle: any, customTargetLayout?: any) => {
         // vehicle tem: id, dados (jsonb), fotos (array)
         
         let rowData: any = { _id: crypto.randomUUID(), _vehicleId: vehicle.id };
+        const layoutToUse = customTargetLayout || activeLayout;
+        const targetCols = layoutToUse ? layoutToUse.columns : (activeClient?.columns || []);
         
-        // Mapear os dados de texto (agora mapeando de volta de name para col.id)
-        if (vehicle.dados && activeClient) {
-            activeClient.columns.forEach(col => {
+        // Mapear os dados de texto para as colunas ativas (pelo name da coluna)
+        if (vehicle.dados) {
+            targetCols.forEach((col: any) => {
                 // Se a key for encontrada no banco pelo nome
                 if (vehicle.dados[col.name] !== undefined) {
                     rowData[col.id] = vehicle.dados[col.name];
@@ -240,8 +253,8 @@ export default function DashboardPage() {
         
         // Mapear as fotos para TODAS as colunas de imagem como um array (para o design escolher 1)
         if (vehicle.fotos && Array.isArray(vehicle.fotos) && vehicle.fotos.length > 0) {
-            const imageCols = activeClient?.columns.filter(c => c.type === "image") || [];
-            imageCols.forEach(c => {
+            const imageCols = targetCols.filter((c: any) => c.type === "image");
+            imageCols.forEach((c: any) => {
                 rowData[c.id] = vehicle.fotos;
             });
         }
@@ -722,17 +735,38 @@ export default function DashboardPage() {
                                 <div className="w-full mb-6">
                                     <TaskQueueUI 
                                         onImportTask={(task, clientId) => {
+                                            const targetClient = clients.find(c => c.id === clientId);
+                                            const targetLayout = targetClient?.layouts?.find(l => 
+                                                l.categoria !== 'vendido' && 
+                                                !l.nome?.toLowerCase().includes('vendido') && 
+                                                l.tipo !== 'vendido'
+                                            ) || targetClient?.layouts?.[0];
+
                                             setSelectedClientId(clientId);
+                                            if (targetLayout) {
+                                                setSelectedLayoutId(targetLayout.id);
+                                            }
+
                                             if (task.veiculoDb) {
-                                                addVehicleToTable(task.veiculoDb);
+                                                addVehicleToTable(task.veiculoDb, targetLayout);
                                             } else {
-                                                // Adiciona linha preenchida com dados basicos
-                                                setTableData(prev => [...prev, {
+                                                // Adiciona linha preenchida com dados basicos usando as colunas do layout
+                                                const targetCols = targetLayout?.columns || targetClient?.columns || [];
+                                                const row: Record<string, any> = {
                                                     _id: crypto.randomUUID(),
-                                                    _clickupTaskId: task.clickupTaskId,
-                                                    "Valor": task.preco || "",
-                                                    "Nome do Veiculo": task.taskName
-                                                }]);
+                                                    _clickupTaskId: task.clickupTaskId
+                                                };
+
+                                                targetCols.forEach((col: any) => {
+                                                    const colNameLower = col.name.toLowerCase();
+                                                    if (colNameLower.includes("nome") || colNameLower.includes("veiculo") || colNameLower.includes("título") || colNameLower.includes("titulo")) {
+                                                        row[col.id] = task.taskName;
+                                                    } else if (colNameLower.includes("valor") || colNameLower.includes("preco") || colNameLower.includes("preço")) {
+                                                        row[col.id] = task.preco || "";
+                                                    }
+                                                });
+
+                                                setTableData(prev => [...prev, row]);
                                             }
                                         }} 
                                         lockedClientId={tableData.length > 0 ? selectedClientId : null} 
@@ -776,7 +810,7 @@ export default function DashboardPage() {
                                         </label>
                                         <select
                                             className="w-full bg-slate-900 border border-indigo-500/40 rounded-md h-10 px-3 text-sm text-indigo-100 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                            value={selectedLayoutId || activeClient.layouts?.[0]?.id || ""}
+                                            value={selectedLayoutId || defaultLayout?.id || ""}
                                             onChange={(e) => {
                                                 setSelectedLayoutId(e.target.value);
                                                 setTableData([]);
