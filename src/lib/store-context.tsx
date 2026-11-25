@@ -395,7 +395,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             lojaConectadaToken: result.data.loja_conectada_token,
             autocertoUsername: result.data.autocerto_username,
             autocertoPassword: result.data.autocerto_password,
-            revendaMaisUrl: result.data.revenda_mais_url
+            revendaMaisUrl: result.data.revenda_mais_url,
+            nomeGrupoWhatsapp: result.data.nome_grupo_whatsapp || "",
+            numeroGrupoWhatsapp: result.data.numero_grupo_whatsapp || "",
+            layouts: result.data.layouts || []
         };
 
         setClients((prev) => [...prev, newClient]);
@@ -412,6 +415,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (result.data) {
             mappedUpdates.divisao_developrs = result.data.divisao_developrs;
             mappedUpdates.horario_developers = result.data.horario_developers;
+            if (result.data.nome_grupo_whatsapp !== undefined) {
+                mappedUpdates.nomeGrupoWhatsapp = result.data.nome_grupo_whatsapp;
+            }
+            if (result.data.numero_grupo_whatsapp !== undefined) {
+                mappedUpdates.numeroGrupoWhatsapp = result.data.numero_grupo_whatsapp;
+            }
+            if (result.data.layouts !== undefined) {
+                mappedUpdates.layouts = result.data.layouts;
+            }
         }
 
         setClients((prev) =>

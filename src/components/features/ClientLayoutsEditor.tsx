@@ -91,6 +91,31 @@ export function ClientLayoutsEditor({ layouts, onChange, clientColumnsFallback =
 
     const activeLayout = layouts.find(l => l.id === selectedLayoutId) || layouts[0] || null;
 
+    // Sincronizar selectedLayoutId caso os layouts mudem (ex: ao abrir outro cliente)
+    useEffect(() => {
+        if (layouts.length > 0) {
+            if (!selectedLayoutId || !layouts.some(l => l.id === selectedLayoutId)) {
+                setSelectedLayoutId(layouts[0].id);
+            }
+        } else {
+            setSelectedLayoutId(null);
+        }
+    }, [layouts]);
+
+    // Garantir que a aba ativa (feed vs stories) seja coerente com o modelo ativo
+    useEffect(() => {
+        if (!activeLayout) return;
+        const checkboxCol = activeLayout.columns.find(c => c.type === "checkbox" || c.name.toLowerCase().includes("formato"));
+        const opts = checkboxCol?.options || ["Feed", "Stories"];
+        const hasFeed = opts.some(o => o.toLowerCase().includes("feed"));
+        const hasStories = opts.some(o => o.toLowerCase().includes("storie"));
+        if (!hasFeed && hasStories && activeDesignTab === "feed") {
+            setActiveDesignTab("stories");
+        } else if (!hasStories && hasFeed && activeDesignTab === "stories") {
+            setActiveDesignTab("feed");
+        }
+    }, [activeLayout?.id, activeLayout?.columns]);
+
     // Carregar lista de templates do RenderForm
     const handleReloadTemplates = async (force = true) => {
         setIsLoadingTemplates(true);
