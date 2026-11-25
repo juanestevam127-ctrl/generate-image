@@ -110,9 +110,14 @@ export async function fetchImportQueueAction() {
                 }
             }
 
-            // Find matching VeiculoOperador
+            // Find matching VeiculoOperador (criado em Veículos ou Estoque API)
             const veiculoDb = (veiculos as any[])?.find((v: any) => v.clickupTaskId === t.id);
             
+            // Só exibe na fila se o veículo tiver sido cadastrado no sistema (Veículos ou Estoque API)
+            if (!veiculoDb) {
+                continue;
+            }
+
             // Normalize client name for grouping
             const clientName = clickupClientName;
 
@@ -131,8 +136,8 @@ export async function fetchImportQueueAction() {
                 clientId: realClienteId || veiculoDb?.clienteId || null, // Prefer mapped ID, fallback to DB
                 preco: preco,
                 url: t.url,
-                // Attach VeiculoOperador data if exists
-                veiculoDb: veiculoDb || null
+                // Attach VeiculoOperador data
+                veiculoDb: veiculoDb
             });
         }
 

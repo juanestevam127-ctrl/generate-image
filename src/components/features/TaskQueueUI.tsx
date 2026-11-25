@@ -113,15 +113,9 @@ export function TaskQueueUI({
                                                 💰 R$ {task.preco}
                                             </div>
                                         )}
-                                        {task.veiculoDb ? (
-                                            <div className="text-[10px] text-blue-400 mt-1 flex items-center">
-                                                <CheckCircle className="w-3 h-3 mr-1" /> Imagens disponíveis no banco
-                                            </div>
-                                        ) : (
-                                            <div className="text-[10px] text-gray-500 mt-1">
-                                                ⚠️ Sem imagens no banco (criação manual)
-                                            </div>
-                                        )}
+                                        <div className="text-[10px] text-emerald-400 mt-1 flex items-center">
+                                            <CheckCircle className="w-3 h-3 mr-1" /> Imagens disponíveis no banco
+                                        </div>
 
                                         <div className="mt-3">
                                             <Button 
