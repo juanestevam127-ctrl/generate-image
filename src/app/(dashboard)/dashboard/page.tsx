@@ -295,9 +295,11 @@ export default function DashboardPage() {
 
         try {
             const { supabase } = await import("@/lib/supabase");
+            const userName = user?.name || user?.email || "Designer";
+
             for (const row of tableData) {
                 if (row._vehicleId) {
-                    const { data: existing } = await supabase.from('VeiculoOperador').select('dados').eq('id', row._vehicleId).single();
+                    const { data: existing } = await supabase.from('VeiculoOperador').select('dados, historico, design_state').eq('id', row._vehicleId).single();
                     if (existing) {
                         const updatedDados = { ...existing.dados };
                         activeColumns.forEach((c: any) => {
@@ -305,7 +307,22 @@ export default function DashboardPage() {
                                 updatedDados[c.name] = row[c.id];
                             }
                         });
-                        await supabase.from('VeiculoOperador').update({ dados: updatedDados, design_state: row }).eq('id', row._vehicleId);
+
+                        const prevHist = Array.isArray(existing.historico) ? existing.historico : [];
+                        const isRefazer = !!existing.design_state;
+                        const newEntry = {
+                            data: new Date().toISOString(),
+                            usuario: userName,
+                            acao: isRefazer ? "REFEITO_IMAGEM" : "GERADO_IMAGEM",
+                            titulo: isRefazer ? "Artes Refeitas (Gerador)" : "Artes Geradas (1ª versão)",
+                            detalhes: `Modelo: ${activeLayout?.nome || "Padrão"}`
+                        };
+
+                        await supabase.from('VeiculoOperador').update({ 
+                            dados: updatedDados, 
+                            design_state: row,
+                            historico: [...prevHist, newEntry]
+                        }).eq('id', row._vehicleId);
                     }
                 } else if (row._clickupTaskId) {
                     // Create new record for imported task so we can track it later
@@ -316,11 +333,21 @@ export default function DashboardPage() {
                         }
                     });
                     
+                    const historicoInicial = [{
+                        data: new Date().toISOString(),
+                        usuario: userName,
+                        acao: "GERADO_IMAGEM",
+                        titulo: "Artes Geradas (1ª versão)",
+                        detalhes: `Importado diretamente da demanda ClickUp (${row._clickupTaskId}) e gerado no modelo ${activeLayout?.nome || "Padrão"}.`
+                    }];
+
                     await supabase.from('VeiculoOperador').insert({
                         clienteId: activeClient.id,
                         clickupTaskId: row._clickupTaskId,
                         dados: newDados,
-                        importado: false
+                        design_state: row,
+                        importado: false,
+                        historico: historicoInicial
                     });
                 }
             }

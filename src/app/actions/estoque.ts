@@ -1129,13 +1129,22 @@ export async function importEstoqueVehiclesAction(params: {
 
             const taskId = clickupRes.data?.taskId;
 
+            const historicoInicial = [{
+                data: new Date().toISOString(),
+                usuario: "Estoque API",
+                acao: "CRIADO_ESTOQUE_API",
+                titulo: "Veículo Importado via Estoque API",
+                detalhes: `Importado do estoque externo e enviado para ClickUp (${taskId || ""}) com ${pics.length} fotos.`
+            }];
+
             // Salva no banco de dados Supabase na tabela VeiculoOperador
             const { data: inserted, error: sbError } = await supabase.from("VeiculoOperador").insert([{
                 clienteId: client.id,
                 dados: dados,
                 fotos: pics,
                 clickupTaskId: taskId,
-                importado: false
+                importado: false,
+                historico: historicoInicial
             }]).select().single();
 
             if (sbError) throw sbError;
@@ -1268,6 +1277,14 @@ export async function linkEstoqueVehicleToClickupAction(params: {
             if (colKm && vehicle.km) dados[colKm.name] = `${vehicle.km.toLocaleString("pt-BR")} km`;
             if (colPlaca && vehicle.plate && vehicle.plate !== "N/A") dados[colPlaca.name] = vehicle.plate;
 
+            const historicoInicial = [{
+                data: new Date().toISOString(),
+                usuario: "Estoque API",
+                acao: "CRIADO_ESTOQUE_API",
+                titulo: "Veículo Vinculado via Estoque API",
+                detalhes: `Veículo do estoque externo vinculado à tarefa ClickUp (${cleanTaskId}) com ${pics.length} fotos.`
+            }];
+
             const { error: insErr } = await supabase
                 .from("VeiculoOperador")
                 .insert([{
@@ -1275,7 +1292,8 @@ export async function linkEstoqueVehicleToClickupAction(params: {
                     dados: dados,
                     fotos: pics,
                     clickupTaskId: cleanTaskId,
-                    importado: false
+                    importado: false,
+                    historico: historicoInicial
                 }]);
 
             if (insErr) throw insErr;

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X, Loader2, Save, Car, LayoutList, Plus, Search, Filter, Trash2 } from "lucide-react";
+import { Upload, X, Loader2, Save, Car, LayoutList, Plus, Search, Filter, Trash2, Clock, History, AlertCircle } from "lucide-react";
 import { getPresignedUrlAction } from "@/app/actions/upload";
 import { getGosTasksAction, getClickupListStatusesAction, updateClickupTaskStatusAction, updateClickupTaskDataAction } from "@/app/actions/clickup";
 import { getVeiculoByTaskIdAction, updateVeiculoDadosAction } from "@/app/actions/veiculo";
@@ -70,6 +70,29 @@ export default function VeiculosPage() {
     const [editingVeiculo, setEditingVeiculo] = useState<any>(null);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
 
+    // History Modal State
+    const [historyModalTask, setHistoryModalTask] = useState<any>(null);
+    const [historyVeiculo, setHistoryVeiculo] = useState<any>(null);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+    const handleHistoryClick = async (task: any) => {
+        setHistoryModalTask(task);
+        setIsLoadingHistory(true);
+        setHistoryVeiculo(null);
+        try {
+            const res = await getVeiculoByTaskIdAction(task.id);
+            if (res.success && res.data) {
+                setHistoryVeiculo(res.data);
+            } else {
+                setHistoryVeiculo(null);
+            }
+        } catch (e) {
+            console.error("Erro ao carregar histórico:", e);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
     const handleEditClick = async (task: any) => {
         setEditingTask(task);
         const res = await getVeiculoByTaskIdAction(task.id);
@@ -86,7 +109,8 @@ export default function VeiculosPage() {
         setIsSavingEdit(true);
         try {
             // Update DB
-            const sbRes = await updateVeiculoDadosAction(editingVeiculo.id, editingVeiculo.dados);
+            const userName = user?.name || user?.email || "Usuário";
+            const sbRes = await updateVeiculoDadosAction(editingVeiculo.id, editingVeiculo.dados, userName);
             if (!sbRes.success) throw new Error("Erro no DB: " + sbRes.error);
 
             // Fetch dynamic fields for ClickUp update (name, color, year, price, obs)
@@ -302,8 +326,21 @@ export default function VeiculosPage() {
 
                 if (!clickupRes.success) throw new Error("Erro ClickUp: " + clickupRes.error);
 
+                const historicoInicial = [{
+                    data: new Date().toISOString(),
+                    usuario: user?.name || user?.email || "Operador",
+                    acao: "CRIADO_MANUAL",
+                    titulo: "Veículo Criado em Veículos",
+                    detalhes: `Cadastrado manualmente e enviado para ClickUp (${clickupRes.data?.taskId || ""}) com ${uploadedUrls.length} fotos.`
+                }];
+
                 const { error: sbError } = await supabase.from("VeiculoOperador").insert([{
-                    clienteId: activeClient.id, dados: dados, fotos: uploadedUrls, clickupTaskId: clickupRes.data?.taskId, importado: false
+                    clienteId: activeClient.id, 
+                    dados: dados, 
+                    fotos: uploadedUrls, 
+                    clickupTaskId: clickupRes.data?.taskId, 
+                    importado: false,
+                    historico: historicoInicial
                 }]);
 
                 if (sbError) throw sbError;
@@ -445,13 +482,24 @@ export default function VeiculosPage() {
                                                     <p className="text-xs text-indigo-300 font-semibold">{cClient ? cClient.name : "Cliente Não Vinculado"}</p>
                                                 </div>
                                                   <div className="flex items-center gap-1">
+                                                        <button onClick={() => handleHistoryClick(task)} className="p-1.5 text-amber-400 hover:bg-amber-500/20 rounded transition-colors" title="Ver Histórico / Logs">
+                                                            <Clock className="w-4 h-4" />
+                                                        </button>
                                                         <button onClick={() => handleEditClick(task)} className="p-1.5 text-indigo-400 hover:bg-indigo-500/20 rounded transition-colors" title="Editar Veículo">
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                                         </button>
                                                         <button onClick={async () => {
                                                             const res = await getVeiculoByTaskIdAction(task.id);
                                                             if (res.success && res.data) {
-                                                                window.location.href = `/dashboard?refazerId=${res.data.id}`;
+                                                                if (!res.data.design_state) {
+                                                                    const proceed = confirm("Este veículo ainda não possui arte gerada anteriormente no sistema (não há imagens prontas para refazer).\n\nDeseja abrir o Gerador para importar pela primeira vez?");
+                                                                    if (proceed) {
+                                                                        const targetClientId = res.data.clienteId || "";
+                                                                        window.location.href = `/dashboard?selectedClient=${targetClientId}`;
+                                                                    }
+                                                                } else {
+                                                                    window.location.href = `/dashboard?refazerId=${res.data.id}`;
+                                                                }
                                                             } else {
                                                                 alert("Veículo não encontrado no banco de dados.");
                                                             }
@@ -711,6 +759,103 @@ export default function VeiculosPage() {
                                 <p>Carregando dados do veículo...</p>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {historyModalTask && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl">
+                        <div className="flex justify-between items-start pb-4 border-b border-white/10 mb-4">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <History className="w-5 h-5 text-amber-400" />
+                                    <h2 className="text-lg font-bold text-white">Histórico do Veículo</h2>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1 line-clamp-1">{historyModalTask.name}</p>
+                            </div>
+                            <button onClick={() => setHistoryModalTask(null)} className="text-gray-400 hover:text-white p-1">
+                                <X className="w-5 h-5"/>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+                            {isLoadingHistory ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-amber-400">
+                                    <Loader2 className="w-8 h-8 animate-spin mb-3" />
+                                    <p className="text-sm text-gray-400">Consultando histórico do veículo...</p>
+                                </div>
+                            ) : !historyVeiculo ? (
+                                <div className="text-center py-12 text-gray-400 space-y-2">
+                                    <AlertCircle className="w-8 h-8 mx-auto text-gray-500" />
+                                    <p className="text-sm">Veículo não encontrado no banco de dados local.</p>
+                                </div>
+                            ) : (!historyVeiculo.historico || !Array.isArray(historyVeiculo.historico) || historyVeiculo.historico.length === 0) ? (
+                                <div className="text-center py-12 text-gray-400 space-y-2">
+                                    <History className="w-8 h-8 mx-auto text-gray-600" />
+                                    <p className="text-sm text-gray-300 font-medium">Nenhum evento registrado ainda.</p>
+                                    <p className="text-xs text-gray-500">
+                                        Criado em: {historyVeiculo.createdAt ? new Date(historyVeiculo.createdAt).toLocaleString('pt-BR') : 'Data não informada'}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        Status de Artes: {historyVeiculo.design_state ? "Possui artes geradas" : "Nenhuma arte gerada ainda"}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-white/10">
+                                    {historyVeiculo.historico.slice().reverse().map((item: any, idx: number) => {
+                                        const badgeConfig = (() => {
+                                            switch (item.acao) {
+                                                case "CRIADO_MANUAL":
+                                                    return { bg: "bg-blue-500/20 text-blue-300 border-blue-500/30", dot: "bg-blue-500", label: "Criação Manual" };
+                                                case "CRIADO_ESTOQUE":
+                                                    return { bg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", dot: "bg-emerald-500", label: "Estoque API" };
+                                                case "GERADO_IMAGEM":
+                                                    return { bg: "bg-purple-500/20 text-purple-300 border-purple-500/30", dot: "bg-purple-500", label: "Artes Geradas" };
+                                                case "REFEITO_IMAGEM":
+                                                    return { bg: "bg-amber-500/20 text-amber-300 border-amber-500/30", dot: "bg-amber-500", label: "Arte Refeita" };
+                                                case "EDITADO_DADOS":
+                                                    return { bg: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30", dot: "bg-cyan-500", label: "Dados Editados" };
+                                                default:
+                                                    return { bg: "bg-zinc-700 text-zinc-300 border-zinc-600", dot: "bg-zinc-400", label: item.acao || "Ação" };
+                                            }
+                                        })();
+
+                                        const dateStr = item.data ? new Date(item.data).toLocaleString('pt-BR') : 'Agora';
+
+                                        return (
+                                            <div key={idx} className="relative group">
+                                                <div className={`absolute -left-[19px] top-1.5 w-3 h-3 rounded-full border-2 border-zinc-900 ${badgeConfig.dot}`} />
+                                                <div className="bg-zinc-800/60 border border-white/5 rounded-lg p-3 hover:border-white/10 transition-colors space-y-1.5">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${badgeConfig.bg}`}>
+                                                            {badgeConfig.label}
+                                                        </span>
+                                                        <span className="text-[11px] text-gray-400 font-mono">
+                                                            {dateStr}
+                                                        </span>
+                                                    </div>
+                                                    <h4 className="text-sm font-semibold text-white">{item.titulo}</h4>
+                                                    {item.detalhes && (
+                                                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{item.detalhes}</p>
+                                                    )}
+                                                    <div className="pt-1 flex items-center text-[11px] text-gray-400">
+                                                        <span className="text-gray-500 mr-1">Por:</span>
+                                                        <span className="text-indigo-300 font-medium">{item.usuario || "Sistema"}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="pt-4 border-t border-white/10 flex justify-end">
+                            <Button variant="ghost" onClick={() => setHistoryModalTask(null)} className="text-gray-300 hover:text-white">
+                                Fechar
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
