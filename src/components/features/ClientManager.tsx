@@ -36,10 +36,11 @@ export function ClientManager() {
     const [layouts, setLayouts] = useState<ClientLayout[]>([]);
     const [nextGroupAndSchedule, setNextGroupAndSchedule] = useState<{ divisao_developrs: number; horario_developers: string } | null>(null);
     const [guideStories, setGuideStories] = useState("");
+    const [guideStoriesSegSab, setGuideStoriesSegSab] = useState("");
     const [guideFeed, setGuideFeed] = useState("");
     const [clienteAtivo, setClienteAtivo] = useState(true);
     const [storiesQuartaSextaDomingo, setStoriesQuartaSextaDomingo] = useState(true);
-    const [isUploading, setIsUploading] = useState<{ stories: boolean; feed: boolean }>({ stories: false, feed: false });
+    const [isUploading, setIsUploading] = useState<{ stories: boolean; storiesSegSab: boolean; feed: boolean }>({ stories: false, storiesSegSab: false, feed: false });
     const [idClickup, setIdClickup] = useState("");
     const [clickupTarefaId, setClickupTarefaId] = useState("");
     const [webhookStoriesSegQuarSex, setWebhookStoriesSegQuarSex] = useState("");
@@ -134,6 +135,7 @@ export function ClientManager() {
         setInstagramId("");
         setToken("");
         setGuideStories("");
+        setGuideStoriesSegSab("");
         setGuideFeed("");
         setClienteAtivo(true);
         setStoriesQuartaSextaDomingo(true);
@@ -174,6 +176,7 @@ export function ClientManager() {
         setInstagramId(client.instagramId || "");
         setToken(client.token || "");
         setGuideStories(client.guideStories || "");
+        setGuideStoriesSegSab(client.guideStoriesSegSab || "");
         setGuideFeed(client.guideFeed || "");
         setClienteAtivo(client.clienteAtivo ?? true);
         setStoriesQuartaSextaDomingo(client.storiesQuartaSextaDomingo ?? (client.clienteAtivo !== false));
@@ -195,7 +198,7 @@ export function ClientManager() {
         setNumeroGrupoWhatsapp(client.numeroGrupoWhatsapp || "");
         setColumns([...client.columns]);
         setLayouts(client.layouts ? [...client.layouts] : []);
-        setIsUploading({ stories: false, feed: false });
+        setIsUploading({ stories: false, storiesSegSab: false, feed: false });
         setIsModalOpen(true);
     };
 
@@ -215,6 +218,7 @@ export function ClientManager() {
             instagramId,
             token,
             guideStories,
+            guideStoriesSegSab,
             guideFeed,
             clienteAtivo,
             storiesQuartaSextaDomingo,
@@ -254,7 +258,7 @@ export function ClientManager() {
         }
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'stories' | 'feed') => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'stories' | 'storiesSegSab' | 'feed') => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -263,6 +267,7 @@ export function ClientManager() {
             const url = await uploadFile(file, 'imagens-sem-exclusao');
             if (url) {
                 if (type === 'stories') setGuideStories(url);
+                else if (type === 'storiesSegSab') setGuideStoriesSegSab(url);
                 else setGuideFeed(url);
             }
         } catch (error) {
@@ -640,6 +645,31 @@ export function ClientManager() {
                                 {guideStories && (
                                     <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideStories, '_blank')}>
                                         <img src={guideStories} alt="Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Stories (Segunda e Sábado)</label>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 relative h-10 border-dashed border-indigo-500/30 hover:border-indigo-500/60"
+                                    disabled={isUploading.storiesSegSab}
+                                    onClick={() => document.getElementById('upload-guide-stories-seg-sab')?.click()}
+                                >
+                                    {isUploading.storiesSegSab ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" /> {guideStoriesSegSab ? 'Alterar Imagem' : 'Subir Imagem'}</>}
+                                </Button>
+                                <input
+                                    type="file"
+                                    id="upload-guide-stories-seg-sab"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileUpload(e, 'storiesSegSab')}
+                                />
+                                {guideStoriesSegSab && (
+                                    <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideStoriesSegSab, '_blank')}>
+                                        <img src={guideStoriesSegSab} alt="Preview" className="w-full h-full object-cover" />
                                     </div>
                                 )}
                             </div>

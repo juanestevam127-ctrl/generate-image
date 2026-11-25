@@ -86,6 +86,7 @@ export interface Client {
     divisao_developrs?: number;
     horario_developers?: string;
     guideStories?: string;
+    guideStoriesSegSab?: string;
     guideFeed?: string;
     clienteAtivo?: boolean;
     idClickup?: string;
@@ -208,6 +209,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     divisao_developrs: c.divisao_developrs,
                     horario_developers: c.horario_developers,
                     guideStories: c.guide_stories,
+                    guideStoriesSegSab: c.guide_stories_seg_sab,
                     guideFeed: c.guide_feed,
                     clienteAtivo: c.cliente_ativo ?? true,
                     idClickup: c.id_clickup,
@@ -268,6 +270,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     jsonFeed: c.json_feed,
                     jsonStories: c.json_stories,
                     guideStories: c.guide_stories,
+                    guideStoriesSegSab: c.guide_stories_seg_sab,
                     guideFeed: c.guide_feed,
                     clienteAtivo: c.cliente_ativo ?? true
                 }));
@@ -379,6 +382,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             divisao_developrs: result.data.divisao_developrs,
             horario_developers: result.data.horario_developers,
             guideStories: result.data.guide_stories,
+            guideStoriesSegSab: result.data.guide_stories_seg_sab,
             guideFeed: result.data.guide_feed,
             clienteAtivo: result.data.cliente_ativo ?? true,
             idClickup: result.data.id_clickup,

@@ -405,9 +405,9 @@ export default function SoldDashboardPage() {
                                     </div>
                                 </div>
 
-                                {activeClient && (activeClient.guideStories || activeClient.guideFeed) && (
+                                {activeClient && (activeClient.guideStories || activeClient.guideStoriesSegSab || activeClient.guideFeed) && (
                                     <div className="flex-1 pb-1 flex flex-col gap-1">
-                                        <div className="flex gap-2 mt-1">
+                                        <div className="flex flex-wrap gap-2 mt-1">
                                             {activeClient.guideStories && (
                                                 <Button
                                                     variant="outline"
@@ -416,6 +416,16 @@ export default function SoldDashboardPage() {
                                                     onClick={() => setPreviewImage({ url: activeClient.guideStories!, title: `Guia Stories - ${activeClient.name}` })}
                                                 >
                                                     <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
+                                                </Button>
+                                            )}
+                                            {activeClient.guideStoriesSegSab && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-purple-500/10 border-purple-500/20 text-purple-300 hover:bg-purple-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideStoriesSegSab!, title: `Guia Stories (Seg e Sáb) - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Guia Seg/Sáb
                                                 </Button>
                                             )}
                                             {activeClient.guideFeed && (
