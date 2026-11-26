@@ -298,6 +298,22 @@ export default function DashboardPage() {
             const userName = user?.name || user?.email || "Designer";
 
             for (const row of tableData) {
+                // Coleta detalhada dos campos preenchidos nessa linha para o histórico
+                const camposLinha: { campo: string; valor: string }[] = [];
+                activeColumns.forEach((c: any) => {
+                    const rawVal = row[c.id];
+                    if (rawVal !== undefined && rawVal !== null && rawVal !== "") {
+                        if (c.type === "image") {
+                            camposLinha.push({ campo: c.name, valor: "(Imagem enviada)" });
+                        } else {
+                            camposLinha.push({ campo: c.name, valor: String(rawVal) });
+                        }
+                    }
+                });
+
+                const resumoCampos = camposLinha.map(c => `• ${c.campo}: ${c.valor}`).join("\n");
+                const totalLinhasTabela = tableData.length;
+
                 if (row._vehicleId) {
                     const { data: existing } = await supabase.from('VeiculoOperador').select('dados, historico, design_state').eq('id', row._vehicleId).single();
                     if (existing) {
@@ -310,12 +326,20 @@ export default function DashboardPage() {
 
                         const prevHist = Array.isArray(existing.historico) ? existing.historico : [];
                         const isRefazer = !!existing.design_state;
+                        const layoutNome = activeLayout?.nome || "Padrão";
                         const newEntry = {
                             data: new Date().toISOString(),
                             usuario: userName,
                             acao: isRefazer ? "REFEITO_IMAGEM" : "GERADO_IMAGEM",
-                            titulo: isRefazer ? "Artes Refeitas (Gerador)" : "Artes Geradas (1ª versão)",
-                            detalhes: `Modelo: ${activeLayout?.nome || "Padrão"}`
+                            titulo: isRefazer 
+                                ? `Artes Refeitas (${layoutNome})` 
+                                : `Artes Geradas (1ª versão - ${layoutNome})`,
+                            detalhes: `Modelo: ${layoutNome} | Total Linhas na Tabela: ${totalLinhasTabela}\n\nCampos preenchidos:\n${resumoCampos}`,
+                            metadata: {
+                                modelo: layoutNome,
+                                totalLinhas: totalLinhasTabela,
+                                campos: camposLinha
+                            }
                         };
 
                         await supabase.from('VeiculoOperador').update({ 
@@ -333,12 +357,18 @@ export default function DashboardPage() {
                         }
                     });
                     
+                    const layoutNome = activeLayout?.nome || "Padrão";
                     const historicoInicial = [{
                         data: new Date().toISOString(),
                         usuario: userName,
                         acao: "GERADO_IMAGEM",
-                        titulo: "Artes Geradas (1ª versão)",
-                        detalhes: `Importado diretamente da demanda ClickUp (${row._clickupTaskId}) e gerado no modelo ${activeLayout?.nome || "Padrão"}.`
+                        titulo: `Artes Geradas (1ª versão - ${layoutNome})`,
+                        detalhes: `Importado diretamente do ClickUp (${row._clickupTaskId}) | Modelo: ${layoutNome}\n\nCampos preenchidos:\n${resumoCampos}`,
+                        metadata: {
+                            modelo: layoutNome,
+                            totalLinhas: totalLinhasTabela,
+                            campos: camposLinha
+                        }
                     }];
 
                     await supabase.from('VeiculoOperador').insert({

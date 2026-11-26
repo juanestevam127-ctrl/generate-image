@@ -836,9 +836,43 @@ export default function VeiculosPage() {
                                                         </span>
                                                     </div>
                                                     <h4 className="text-sm font-semibold text-white">{item.titulo}</h4>
-                                                    {item.detalhes && (
+
+                                                    {/* Visualização rica de Diferenças (Diff) */}
+                                                    {item.metadata?.alteracoes && Array.isArray(item.metadata.alteracoes) && item.metadata.alteracoes.length > 0 ? (
+                                                        <div className="mt-2 space-y-1.5 bg-black/40 p-2.5 rounded border border-white/5 text-xs">
+                                                            <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 mb-1 flex items-center gap-1">
+                                                                <span>Campos modificados:</span>
+                                                            </div>
+                                                            {item.metadata.alteracoes.map((alt: any, aIdx: number) => (
+                                                                <div key={aIdx} className="grid grid-cols-1 sm:grid-cols-3 gap-1 py-1 border-b border-white/5 last:border-0 font-mono text-[11px]">
+                                                                    <span className="text-gray-400 font-sans font-medium">{alt.campo}:</span>
+                                                                    <span className="text-red-400/80 line-through truncate" title={alt.anterior}>{alt.anterior}</span>
+                                                                    <span className="text-emerald-400 font-bold truncate" title={alt.novo}>➔ {alt.novo}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : item.metadata?.campos && Array.isArray(item.metadata.campos) && item.metadata.campos.length > 0 ? (
+                                                        /* Visualização rica de Campos preenchidos na geração/refazer */
+                                                        <div className="mt-2 space-y-1 bg-black/40 p-2.5 rounded border border-white/5 text-xs">
+                                                            <div className="text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1 flex items-center justify-between">
+                                                                <span>Dados preenchidos no gerador:</span>
+                                                                {item.metadata.totalLinhas && (
+                                                                    <span className="text-gray-400 font-normal">Tabela: {item.metadata.totalLinhas} linha(s)</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-[11px] pt-1">
+                                                                {item.metadata.campos.map((c: any, cIdx: number) => (
+                                                                    <div key={cIdx} className="flex items-baseline justify-between gap-1 py-0.5 border-b border-white/5">
+                                                                        <span className="text-gray-400 truncate">{c.campo}:</span>
+                                                                        <span className="text-white font-medium truncate max-w-[150px]" title={c.valor}>{c.valor}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ) : item.detalhes ? (
                                                         <p className="text-xs text-gray-300 whitespace-pre-wrap">{item.detalhes}</p>
-                                                    )}
+                                                    ) : null}
+
                                                     <div className="pt-1 flex items-center text-[11px] text-gray-400">
                                                         <span className="text-gray-500 mr-1">Por:</span>
                                                         <span className="text-indigo-300 font-medium">{item.usuario || "Sistema"}</span>
