@@ -1008,7 +1008,7 @@ export async function importEstoqueVehiclesAction(params: {
 
         const { data: client, error: cErr } = await supabase
             .from("clientes")
-            .select("id, name, columns, clickup_tarefa_id")
+            .select("id, name, columns, layouts, clickup_tarefa_id")
             .eq("id", clienteId)
             .single();
 
@@ -1034,62 +1034,96 @@ export async function importEstoqueVehiclesAction(params: {
 
             // Build dados based on client columns or intelligent mapping
             const dados: Record<string, string> = {};
-            const clientColumns: any[] = client.columns || [];
+            
+            // Coleta todas as colunas disponíveis nos layouts e colunas globais do cliente
+            const allAvailableColumns: any[] = [];
+            if (client.layouts && Array.isArray(client.layouts)) {
+                client.layouts.forEach((l: any) => {
+                    if (l.columns && Array.isArray(l.columns)) {
+                        l.columns.forEach((c: any) => {
+                            if (!allAvailableColumns.some(existing => existing.name.toLowerCase() === c.name.toLowerCase())) {
+                                allAvailableColumns.push(c);
+                            }
+                        });
+                    }
+                });
+            }
+            if (client.columns && Array.isArray(client.columns)) {
+                client.columns.forEach((c: any) => {
+                    if (!allAvailableColumns.some(existing => existing.name.toLowerCase() === c.name.toLowerCase())) {
+                        allAvailableColumns.push(c);
+                    }
+                });
+            }
 
             // Helper to find column match
             const findCol = (keywords: string[]) => {
-                return clientColumns.find((c: any) =>
+                return allAvailableColumns.find((c: any) =>
                     keywords.some(kw => c.name.toLowerCase() === kw.toLowerCase() || c.name.toLowerCase().startsWith(kw.toLowerCase()))
                 );
             };
 
-            const colNome = findCol(["nome", "veiculo", "veículo", "carro", "titulo", "modelo"]);
+            const colNome = findCol(["nome do veiculo", "nome do veículo", "nome", "veiculo", "veículo", "carro", "titulo", "modelo"]);
             const colMarca = findCol(["marca", "fabricante"]);
             const colCor = findCol(["cor"]);
             const colAno = findCol(["ano"]);
-            const colPreco = findCol(["pre", "valor"]);
-            const colKm = findCol(["km", "quilo"]);
+            const colPreco = findCol(["valor", "pre", "preco", "preço"]);
+            const colKm = findCol(["quilometragem", "km", "quilo"]);
             const colCambio = findCol(["cambio", "câmbio"]);
             const colCombustivel = findCol(["combustivel", "combustível"]);
             const colPlaca = findCol(["placa"]);
 
             // Preenche dados padrão das colunas
-            clientColumns.forEach((col: any) => {
+            allAvailableColumns.forEach((col: any) => {
                 if (col.type === "text" || col.type === "checkbox") {
-                    if (col.name.toLowerCase() !== "formato") {
-                        dados[col.name] = item.textFields?.[col.id] || "";
+                    if (col.name.toLowerCase() !== "formato" && item.textFields?.[col.id]) {
+                        dados[col.name] = item.textFields[col.id];
                     }
                 }
             });
 
-            // Marca
-            if (colMarca && !dados[colMarca.name] && v.markName && v.markName !== "N/A") {
-                dados[colMarca.name] = v.markName;
-            }
-
             // Nome do veículo
             const rawNome = (v.markName && v.markName !== "N/A" ? `${v.markName} ` : "") + (v.modelName || v.versionName || "Veículo");
             const nomeFinal = (colNome && dados[colNome.name]) ? dados[colNome.name] : rawNome.trim();
-            if (colNome && !dados[colNome.name]) dados[colNome.name] = nomeFinal;
+            dados["Nome do Veiculo"] = nomeFinal;
+            dados["Título"] = nomeFinal;
+            if (colNome) dados[colNome.name] = nomeFinal;
+
+            // Marca
+            if (v.markName && v.markName !== "N/A") {
+                dados["Marca"] = v.markName;
+                if (colMarca) dados[colMarca.name] = v.markName;
+            }
 
             // Cor
             const corFinal = (colCor && dados[colCor.name]) ? dados[colCor.name] : (v.color && v.color !== "N/A" ? v.color : "");
-            if (colCor && !dados[colCor.name]) dados[colCor.name] = corFinal;
+            if (corFinal) {
+                dados["Cor"] = corFinal;
+                if (colCor) dados[colCor.name] = corFinal;
+            }
 
             // Ano
             const anoFinal = (colAno && dados[colAno.name]) ? dados[colAno.name] : (v.year ? String(v.year) : "");
-            if (colAno && !dados[colAno.name]) dados[colAno.name] = anoFinal;
+            if (anoFinal) {
+                dados["Ano"] = anoFinal;
+                if (colAno) dados[colAno.name] = anoFinal;
+            }
 
             // Preço
             const precoFormatado = v.saleValue
                 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v.saleValue)
                 : "";
             const precoFinal = (colPreco && dados[colPreco.name]) ? dados[colPreco.name] : (item.textFields?.["_extraValor"] || precoFormatado);
-            if (colPreco && !dados[colPreco.name]) dados[colPreco.name] = precoFinal;
+            if (precoFinal) {
+                dados["Valor"] = precoFinal;
+                if (colPreco) dados[colPreco.name] = precoFinal;
+            }
 
             // KM
-            if (colKm && !dados[colKm.name] && v.km) {
-                dados[colKm.name] = `${v.km.toLocaleString("pt-BR")} km`;
+            if (v.km) {
+                const kmStr = `${v.km.toLocaleString("pt-BR")} km`;
+                dados["Quilometragem"] = kmStr;
+                if (colKm) dados[colKm.name] = kmStr;
             }
 
             // Câmbio
