@@ -634,6 +634,7 @@ export function ClientManager() {
                                 placeholder="EAAB..."
                             />
                         </div>
+                        {/* LINHA 1: GUIAS (Guia Stories e Guia Feed) */}
                         <div className="space-y-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Guia Stories</label>
                             <div className="flex items-center gap-2">
@@ -659,6 +660,33 @@ export function ClientManager() {
                                 )}
                             </div>
                         </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Feed</label>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 relative h-10 border-dashed border-indigo-500/30 hover:border-indigo-500/60"
+                                    disabled={isUploading.feed}
+                                    onClick={() => document.getElementById('upload-guide-feed')?.click()}
+                                >
+                                    {isUploading.feed ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" /> {guideFeed ? 'Alterar Imagem' : 'Subir Imagem'}</>}
+                                </Button>
+                                <input
+                                    type="file"
+                                    id="upload-guide-feed"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileUpload(e, 'feed')}
+                                />
+                                {guideFeed && (
+                                    <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideFeed, '_blank')}>
+                                        <img src={guideFeed} alt="Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* LINHA 2: STORIES (Stories Segunda e Stories Sábado) */}
                         <div className="space-y-2">
                             <label className="text-xs uppercase text-muted-foreground font-bold">Stories Segunda</label>
                             <div className="flex items-center gap-2">
@@ -705,31 +733,6 @@ export function ClientManager() {
                                 {guideStoriesSabado && (
                                     <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideStoriesSabado, '_blank')}>
                                         <img src={guideStoriesSabado} alt="Preview" className="w-full h-full object-cover" />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Feed</label>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    className="flex-1 relative h-10 border-dashed border-indigo-500/30 hover:border-indigo-500/60"
-                                    disabled={isUploading.feed}
-                                    onClick={() => document.getElementById('upload-guide-feed')?.click()}
-                                >
-                                    {isUploading.feed ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" /> {guideFeed ? 'Alterar Imagem' : 'Subir Imagem'}</>}
-                                </Button>
-                                <input
-                                    type="file"
-                                    id="upload-guide-feed"
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={(e) => handleFileUpload(e, 'feed')}
-                                />
-                                {guideFeed && (
-                                    <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideFeed, '_blank')}>
-                                        <img src={guideFeed} alt="Preview" className="w-full h-full object-cover" />
                                     </div>
                                 )}
                             </div>
