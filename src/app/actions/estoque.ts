@@ -354,7 +354,7 @@ export async function fetchAutoCertoInventoryAction(clientId: string) {
             let rawList = jsonObj.estoque?.veiculo || [];
             if (!Array.isArray(rawList)) rawList = [rawList];
 
-            const vehicles = rawList.map((v: any) => {
+            const xmlVehicles = rawList.map((v: any) => {
                 let fotoList = v.fotos?.foto || [];
                 if (!Array.isArray(fotoList)) fotoList = [fotoList];
 
@@ -388,7 +388,50 @@ export async function fetchAutoCertoInventoryAction(clientId: string) {
                 };
             });
 
-            return { success: true, data: vehicles };
+            // Verificar se existem veículos já cadastrados no VeiculoOperador desse cliente
+            // para garantir que apareçam vinculados mesmo que o ID no XML seja diferente ou pertença à loja anterior
+            const { data: dbOps } = await supabase
+                .from("VeiculoOperador")
+                .select("id, dados, clickupTaskId, fotos")
+                .eq("clienteId", clientId);
+
+            const existingDbVehicles = dbOps || [];
+            if (existingDbVehicles.length > 0) {
+                const xmlKeys = new Set(xmlVehicles.map((x: any) => String(x.vehicleExternalKey)));
+
+                // Para cada veículo existente no banco que não está no XML por ID direto:
+                existingDbVehicles.forEach((op: any) => {
+                    const d = op.dados || {};
+                    const opKey = String(d._externalKey || op.id || "");
+                    if (!opKey || xmlKeys.has(opKey)) return;
+
+                    // Constrói o registro compatível do veículo já importado para figurar na listagem de estoque
+                    const pictures = (op.fotos || []).map((fUrl: string, idx: number) => ({
+                        Link: fUrl,
+                        Principal: idx === 0
+                    }));
+
+                    xmlVehicles.unshift({
+                        vehicleExternalKey: opKey,
+                        markName: d.Marca || "N/A",
+                        modelName: d["Nome do Veiculo"] || d["Título"] || "N/A",
+                        versionName: d.Versao || d.versao || "",
+                        year: String(d.Ano || d.ano || ""),
+                        km: parseInt(String(d.Quilometragem || d.km || "0")) || 0,
+                        saleValue: typeof d.Valor === "number" ? d.Valor : (parseFloat(String(d.Valor || "0").replace(/[^0-9.,]/g, "").replace(",", ".")) || 0),
+                        color: d.Cor || "N/A",
+                        transmissionName: d.Cambio || "N/A",
+                        fuelName: d.Combustivel || "N/A",
+                        plate: d.Placa || "",
+                        subCategoryName: d.Tipo || "Carro",
+                        description: d.Observacoes || "",
+                        itemJs: JSON.stringify([]),
+                        pictureJs: JSON.stringify(pictures),
+                    });
+                });
+            }
+
+            return { success: true, data: xmlVehicles };
         }
 
         // Caso contrário, usa autenticação por API REST (OAuth2)

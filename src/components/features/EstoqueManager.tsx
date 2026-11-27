@@ -175,15 +175,42 @@ export function EstoqueManager() {
                 }
             }
 
+            function cleanStr(s: any): string {
+                return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+            }
+
             currentVehicles.forEach((v) => {
                 const vKey = String(v.vehicleExternalKey || "");
                 if (!vKey) return;
 
-                // Só casa se foi um veículo importado explicitamente por esta tela (com _externalKey gravado)
-                const match = existingOps.find((op: any) => {
+                // 1. Casa direto pela chave externa (_externalKey)
+                let match = existingOps.find((op: any) => {
                     const d = op.dados || {};
                     return d._externalKey && String(d._externalKey) === vKey;
                 });
+
+                // 2. Se não casou por chave (ex: XML com IDs novos), tenta casar por Marca + Modelo + Ano/Cor
+                if (!match) {
+                    const vMarca = cleanStr(v.markName);
+                    const vModel = cleanStr(v.modelName);
+                    const vAno = cleanStr(String(v.year || '').split('/')[0]);
+                    const vCor = cleanStr(v.color);
+
+                    match = existingOps.find((op: any) => {
+                        const d = op.dados || {};
+                        const dbMarca = cleanStr(d.Marca);
+                        const dbModel = cleanStr(d['Nome do Veiculo'] || d['Título']);
+                        const dbAno = cleanStr(String(d.Ano || '').split('/')[0]);
+                        const dbCor = cleanStr(d.Cor);
+
+                        const marcaMatch = vMarca && dbMarca && (vMarca.includes(dbMarca) || dbMarca.includes(vMarca));
+                        const modelMatch = vModel && dbModel && (vModel.includes(dbModel) || dbModel.includes(vModel));
+                        const anoMatch = !vAno || !dbAno || vAno === dbAno;
+                        const corMatch = !vCor || !dbCor || vCor === dbCor;
+
+                        return marcaMatch && modelMatch && anoMatch && corMatch;
+                    });
+                }
 
                 if (match && match.clickupTaskId) {
                     const st = statusesMap[match.clickupTaskId] || { status: "Vinculado", statusColor: "#6366f1" };
