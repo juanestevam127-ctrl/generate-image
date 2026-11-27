@@ -105,6 +105,7 @@ export interface Client {
     lojaConectadaToken?: string;
     autocertoUsername?: string;
     autocertoPassword?: string;
+    autocertoXmlUrl?: string;
     revendaMaisUrl?: string;
     nomeGrupoWhatsapp?: string;
     numeroGrupoWhatsapp?: string;
@@ -229,6 +230,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     lojaConectadaToken: c.loja_conectada_token,
                     autocertoUsername: c.autocerto_username,
                     autocertoPassword: c.autocerto_password,
+                    autocertoXmlUrl: c.autocerto_xml_url,
                     revendaMaisUrl: c.revenda_mais_url,
                     nomeGrupoWhatsapp: c.nome_grupo_whatsapp || "",
                     numeroGrupoWhatsapp: c.numero_grupo_whatsapp || "",
@@ -404,6 +406,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             lojaConectadaToken: result.data.loja_conectada_token,
             autocertoUsername: result.data.autocerto_username,
             autocertoPassword: result.data.autocerto_password,
+            autocertoXmlUrl: result.data.autocerto_xml_url,
             revendaMaisUrl: result.data.revenda_mais_url,
             nomeGrupoWhatsapp: result.data.nome_grupo_whatsapp || "",
             numeroGrupoWhatsapp: result.data.numero_grupo_whatsapp || "",

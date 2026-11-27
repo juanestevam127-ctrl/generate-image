@@ -82,6 +82,7 @@ export async function addClientAction(data: any) {
         loja_conectada_token: data.lojaConectadaToken,
         autocerto_username: data.autocertoUsername,
         autocerto_password: data.autocertoPassword,
+        autocerto_xml_url: data.autocertoXmlUrl,
         revenda_mais_url: data.revendaMaisUrl,
         nome_grupo_whatsapp: data.nomeGrupoWhatsapp || "",
         numero_grupo_whatsapp: data.numeroGrupoWhatsapp || "",
@@ -136,6 +137,7 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.lojaConectadaToken !== undefined) dbUpdates.loja_conectada_token = updates.lojaConectadaToken;
     if (updates.autocertoUsername !== undefined) dbUpdates.autocerto_username = updates.autocertoUsername;
     if (updates.autocertoPassword !== undefined) dbUpdates.autocerto_password = updates.autocertoPassword;
+    if (updates.autocertoXmlUrl !== undefined) dbUpdates.autocerto_xml_url = updates.autocertoXmlUrl;
     if (updates.revendaMaisUrl !== undefined) dbUpdates.revenda_mais_url = updates.revendaMaisUrl;
     if (updates.nomeGrupoWhatsapp !== undefined) dbUpdates.nome_grupo_whatsapp = updates.nomeGrupoWhatsapp;
     if (updates.numeroGrupoWhatsapp !== undefined) dbUpdates.numero_grupo_whatsapp = updates.numeroGrupoWhatsapp;

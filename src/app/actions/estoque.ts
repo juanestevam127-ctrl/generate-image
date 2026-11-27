@@ -325,7 +325,7 @@ export async function fetchAutoCertoInventoryAction(clientId: string) {
     try {
         const { data: client, error } = await supabase
             .from("clientes")
-            .select("integracao_tipo, autocerto_username, autocerto_password")
+            .select("integracao_tipo, autocerto_username, autocerto_password, autocerto_xml_url")
             .eq("id", clientId)
             .single();
 
@@ -333,8 +333,67 @@ export async function fetchAutoCertoInventoryAction(clientId: string) {
         if (client.integracao_tipo !== "AUTOCERTO") {
             return { success: false, error: "Cliente não possui integração AutoCerto configurada." };
         }
+
+        // Se tiver URL XML configurada, faz a leitura direta via XML
+        if (client.autocerto_xml_url && client.autocerto_xml_url.trim()) {
+            const xmlRes = await fetch(client.autocerto_xml_url.trim(), {
+                method: "GET",
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                }
+            });
+
+            if (!xmlRes.ok) {
+                return { success: false, error: `Falha ao buscar XML AutoCerto: HTTP ${xmlRes.status}` };
+            }
+
+            const xmlText = await xmlRes.text();
+            const parser = new XMLParser({ ignoreAttributes: false });
+            const jsonObj = parser.parse(xmlText);
+
+            let rawList = jsonObj.estoque?.veiculo || [];
+            if (!Array.isArray(rawList)) rawList = [rawList];
+
+            const vehicles = rawList.map((v: any) => {
+                let fotoList = v.fotos?.foto || [];
+                if (!Array.isArray(fotoList)) fotoList = [fotoList];
+
+                const pictures = fotoList.filter((f: any) => f && f.url).map((f: any, idx: number) => ({
+                    Link: f.url,
+                    Principal: Number(f.ordem) === 1 || idx === 0
+                }));
+
+                let opList = v.opcionais?.opcional || [];
+                if (!Array.isArray(opList)) opList = [opList];
+                const optionals = opList.filter(Boolean);
+
+                const priceNum = typeof v.precodecimal === "number" ? v.precodecimal : (parseFloat(String(v.precodecimal || "0").replace(",", ".")) || 0);
+
+                return {
+                    vehicleExternalKey: String(v.idveiculo),
+                    markName: v.marca || "N/A",
+                    modelName: v.modelo || "N/A",
+                    versionName: v.versao || "N/A",
+                    year: String(v.anomodelo || ""),
+                    km: parseInt(String(v.quilometragem || "0")) || 0,
+                    saleValue: priceNum,
+                    color: v.cor || "N/A",
+                    transmissionName: v.cambio || "N/A",
+                    fuelName: v.combustivel || "N/A",
+                    plate: v.placa || "",
+                    subCategoryName: v.tipoveiculo || "N/A",
+                    description: v.observacoes || "",
+                    itemJs: JSON.stringify(optionals),
+                    pictureJs: JSON.stringify(pictures),
+                };
+            });
+
+            return { success: true, data: vehicles };
+        }
+
+        // Caso contrário, usa autenticação por API REST (OAuth2)
         if (!client.autocerto_username || !client.autocerto_password) {
-            return { success: false, error: "Credenciais AutoCerto incompletas." };
+            return { success: false, error: "Credenciais AutoCerto incompletas. Informe Usuário e Senha ou a URL do XML." };
         }
 
         const authBody = new URLSearchParams();

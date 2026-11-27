@@ -56,6 +56,7 @@ export function ClientManager() {
     const [lojaConectadaToken, setLojaConectadaToken] = useState("");
     const [autocertoUsername, setAutocertoUsername] = useState("");
     const [autocertoPassword, setAutocertoPassword] = useState("");
+    const [autocertoXmlUrl, setAutocertoXmlUrl] = useState("");
     const [revendaMaisUrl, setRevendaMaisUrl] = useState("");
     const [nomeGrupoWhatsapp, setNomeGrupoWhatsapp] = useState("");
     const [numeroGrupoWhatsapp, setNumeroGrupoWhatsapp] = useState("");
@@ -155,6 +156,7 @@ export function ClientManager() {
         setLojaConectadaToken("");
         setAutocertoUsername("");
         setAutocertoPassword("");
+        setAutocertoXmlUrl("");
         setRevendaMaisUrl("");
         setNomeGrupoWhatsapp("");
         setNumeroGrupoWhatsapp("");
@@ -199,6 +201,7 @@ export function ClientManager() {
         setLojaConectadaToken(client.lojaConectadaToken || "");
         setAutocertoUsername(client.autocertoUsername || "");
         setAutocertoPassword(client.autocertoPassword || "");
+        setAutocertoXmlUrl(client.autocertoXmlUrl || "");
         setRevendaMaisUrl(client.revendaMaisUrl || "");
         setNomeGrupoWhatsapp(client.nomeGrupoWhatsapp || "");
         setNumeroGrupoWhatsapp(client.numeroGrupoWhatsapp || "");
@@ -243,6 +246,7 @@ export function ClientManager() {
             lojaConectadaToken,
             autocertoUsername,
             autocertoPassword,
+            autocertoXmlUrl,
             revendaMaisUrl,
             nomeGrupoWhatsapp,
             numeroGrupoWhatsapp,
@@ -809,19 +813,30 @@ export function ClientManager() {
                             {integracaoTipo === "AUTOCERTO" && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-500/5 p-4 rounded-md border border-indigo-500/10 mt-4">
                                     <div className="md:col-span-2">
-                                        <h4 className="font-semibold text-sm text-indigo-300 mb-2">Credenciais AutoCerto</h4>
+                                        <h4 className="font-semibold text-sm text-indigo-300 mb-1">Configuração AutoCerto</h4>
+                                        <p className="text-xs text-muted-foreground">Você pode conectar via <strong>URL do XML</strong> ou via <strong>API (Usuário e Senha)</strong>.</p>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1">URL do XML (Recomendado)</label>
+                                        <Input
+                                            value={autocertoXmlUrl}
+                                            onChange={(e) => setAutocertoXmlUrl(e.target.value)}
+                                            placeholder="https://sistema.autocerto.com/xml/Anuncios?idcliente=...&cnpj=...&chave=..."
+                                            className="bg-slate-900 border-slate-700 text-white font-mono text-xs"
+                                        />
+                                        <p className="text-[11px] text-muted-foreground mt-1">Se preenchido, o estoque será lido diretamente do XML da AutoCerto.</p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Usuário</label>
+                                        <label className="block text-sm font-medium mb-1">Usuário da API (Opcional)</label>
                                         <Input
                                             value={autocertoUsername}
                                             onChange={(e) => setAutocertoUsername(e.target.value)}
-                                            placeholder="Usuário"
+                                            placeholder="Ex: apidmixdois@autocerto.com"
                                             className="bg-slate-900 border-slate-700 text-white"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Senha</label>
+                                        <label className="block text-sm font-medium mb-1">Senha da API (Opcional)</label>
                                         <Input
                                             type="password"
                                             value={autocertoPassword}
