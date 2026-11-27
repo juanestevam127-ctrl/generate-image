@@ -411,6 +411,24 @@ export async function fetchAutoCertoInventoryAction(clientId: string) {
                         Principal: idx === 0
                     }));
 
+                    // Helper para parsear preço com segurança suportando padrão brasileiro e internacional
+                    let safeSaleValue = 0;
+                    if (typeof d.Valor === "number") {
+                        safeSaleValue = d.Valor;
+                    } else if (d.Valor) {
+                        const raw = String(d.Valor).trim();
+                        if (raw.includes(",")) {
+                            const parts = raw.split(",");
+                            if (parts[1] && parts[1].length === 3) {
+                                safeSaleValue = parseFloat(raw.replace(/,/g, "")) || 0;
+                            } else {
+                                safeSaleValue = parseFloat(raw.replace(/\./g, "").replace(",", ".")) || 0;
+                            }
+                        } else {
+                            safeSaleValue = parseFloat(raw.replace(/[^0-9.]/g, "")) || 0;
+                        }
+                    }
+
                     xmlVehicles.unshift({
                         vehicleExternalKey: opKey,
                         markName: d.Marca || "N/A",
@@ -418,7 +436,7 @@ export async function fetchAutoCertoInventoryAction(clientId: string) {
                         versionName: d.Versao || d.versao || "",
                         year: String(d.Ano || d.ano || ""),
                         km: parseInt(String(d.Quilometragem || d.km || "0")) || 0,
-                        saleValue: typeof d.Valor === "number" ? d.Valor : (parseFloat(String(d.Valor || "0").replace(/[^0-9.,]/g, "").replace(",", ".")) || 0),
+                        saleValue: safeSaleValue,
                         color: d.Cor || "N/A",
                         transmissionName: d.Cambio || "N/A",
                         fuelName: d.Combustivel || "N/A",
