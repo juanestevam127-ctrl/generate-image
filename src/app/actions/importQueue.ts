@@ -7,13 +7,27 @@ const GOS_LIST_ID = "901306161617";
 export async function fetchImportQueueAction() {
     noStore();
     try {
-        // 1. Fetch pending VeiculoOperador
-        const { data: veiculos, error: vError } = await supabase
-            .from("VeiculoOperador")
-            .select("*")
-            .eq("importado", false);
+        // 1. Fetch pending VeiculoOperador (paginado para não limitar a 100)
+        let veiculos: any[] = [];
+        let vOffset = 0;
+        let vHasMore = true;
 
-        if (vError) throw vError;
+        while (vHasMore) {
+            const { data: vPage, error: vError } = await supabase
+                .from("VeiculoOperador")
+                .select("*")
+                .eq("importado", false)
+                .range(vOffset, vOffset + 99);
+
+            if (vError) throw vError;
+            const list = vPage || [];
+            veiculos = veiculos.concat(list);
+            if (list.length < 100) {
+                vHasMore = false;
+            } else {
+                vOffset += 100;
+            }
+        }
 
         // 1.5 Fetch all clients to map clickup ID to supabase UUID
         const { data: clientsDb, error: cError } = await supabase
