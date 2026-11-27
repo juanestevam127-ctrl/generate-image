@@ -26,8 +26,8 @@ export function resolveFieldTemplate(
         return row[templateStr] !== undefined ? row[templateStr] : templateStr;
     }
 
-    // 3. Interpolação com tags {{ nome_coluna | filtro }}
-    let result = templateStr.replace(/\{\{\s*([^}]+)\s*\}\}/g, (_, expression) => {
+    // Helper interno para obter e formatar o valor de uma coluna/variável
+    const getResolvedValue = (expression: string) => {
         const parts = expression.split("|").map((p: string) => p.trim());
         const varName = parts[0];
         const filter = parts[1]?.toLowerCase();
@@ -67,8 +67,6 @@ export function resolveFieldTemplate(
             val = val.replace(/r\$\s*/gi, "").trim();
             if (val) val = `R$ ${val}`;
         } else if (filter === "lista" || filter?.startsWith("lista:")) {
-            // Filtro de lista para opcionais (ex: "Teto solar, Bancos de couro" -> "✅ Teto solar\n✅ Bancos de couro")
-            // Suporta qualquer emoji ou marcador: {{Opcionais|lista:🔹}} ou {{Opcionais|lista:•}} ou {{Opcionais|lista:⚡}}
             const bullet = parts[1]?.includes(":") ? parts[1].split(":")[1].trim() : "✅";
             const items = val
                 .split(/[\n,;•|]+/)
@@ -87,6 +85,17 @@ export function resolveFieldTemplate(
         }
 
         return val;
+    };
+
+    // 3. Suporte a {{{Campo}}}: quando o usuário quer deliberadamente que o resultado saia entre chaves simples, ex: {fiesta}
+    let result = templateStr.replace(/\{\{\{\s*([^}]+?)\s*\}\}\}/g, (_, expression) => {
+        const val = getResolvedValue(expression);
+        return val ? `{${val}}` : "";
+    });
+
+    // 4. Interpolação padrão com tags duplas {{ nome_coluna | filtro }}
+    result = result.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, expression) => {
+        return getResolvedValue(expression);
     });
 
     // 4. Limpeza inteligente de separadores vazios (ex: "• Completo • • Automático" ou "• • 2020")
