@@ -64,7 +64,8 @@ export async function addClientAction(data: any) {
         divisao_developrs: nextDivisao,
         horario_developers: nextHorario,
         guide_stories: data.guideStories,
-        guide_stories_seg_sab: data.guideStoriesSegSab,
+        guide_stories_segunda: data.guideStoriesSegunda,
+        guide_stories_sabado: data.guideStoriesSabado,
         guide_feed: data.guideFeed,
         cliente_ativo: data.clienteAtivo,
         id_clickup: data.idClickup,
@@ -117,6 +118,8 @@ export async function updateClientAction(id: string, updates: any) {
     if (updates.jsonStories !== undefined) dbUpdates.json_stories = updates.jsonStories;
     if (updates.guideStories !== undefined) dbUpdates.guide_stories = updates.guideStories;
     if (updates.guideStoriesSegSab !== undefined) dbUpdates.guide_stories_seg_sab = updates.guideStoriesSegSab;
+    if (updates.guideStoriesSegunda !== undefined) dbUpdates.guide_stories_segunda = updates.guideStoriesSegunda;
+    if (updates.guideStoriesSabado !== undefined) dbUpdates.guide_stories_sabado = updates.guideStoriesSabado;
     if (updates.guideFeed !== undefined) dbUpdates.guide_feed = updates.guideFeed;
     if (updates.clienteAtivo !== undefined) dbUpdates.cliente_ativo = updates.clienteAtivo;
     if (updates.idClickup !== undefined) dbUpdates.id_clickup = updates.idClickup;

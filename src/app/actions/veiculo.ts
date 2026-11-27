@@ -172,3 +172,20 @@ export async function getVeiculosOperadorByClienteAction(clienteId: string) {
         return { success: false, error: e.message };
     }
 }
+
+export async function getVeiculoHistoryAction(veiculoId?: string, clickupTaskId?: string) {
+    try {
+        if (!veiculoId && !clickupTaskId) return { success: false, error: "Identificador não fornecido" };
+        let query = supabase.from("VeiculoOperador").select("*");
+        if (veiculoId) {
+            query = query.eq("id", veiculoId);
+        } else if (clickupTaskId) {
+            query = query.eq("clickupTaskId", clickupTaskId);
+        }
+        const { data, error } = await query.single();
+        if (error) throw error;
+        return { success: true, data };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}

@@ -37,10 +37,12 @@ export function ClientManager() {
     const [nextGroupAndSchedule, setNextGroupAndSchedule] = useState<{ divisao_developrs: number; horario_developers: string } | null>(null);
     const [guideStories, setGuideStories] = useState("");
     const [guideStoriesSegSab, setGuideStoriesSegSab] = useState("");
+    const [guideStoriesSegunda, setGuideStoriesSegunda] = useState("");
+    const [guideStoriesSabado, setGuideStoriesSabado] = useState("");
     const [guideFeed, setGuideFeed] = useState("");
     const [clienteAtivo, setClienteAtivo] = useState(true);
     const [storiesQuartaSextaDomingo, setStoriesQuartaSextaDomingo] = useState(true);
-    const [isUploading, setIsUploading] = useState<{ stories: boolean; storiesSegSab: boolean; feed: boolean }>({ stories: false, storiesSegSab: false, feed: false });
+    const [isUploading, setIsUploading] = useState<{ stories: boolean; storiesSegSab: boolean; storiesSegunda: boolean; storiesSabado: boolean; feed: boolean }>({ stories: false, storiesSegSab: false, storiesSegunda: false, storiesSabado: false, feed: false });
     const [idClickup, setIdClickup] = useState("");
     const [clickupTarefaId, setClickupTarefaId] = useState("");
     const [webhookStoriesSegQuarSex, setWebhookStoriesSegQuarSex] = useState("");
@@ -136,6 +138,8 @@ export function ClientManager() {
         setToken("");
         setGuideStories("");
         setGuideStoriesSegSab("");
+        setGuideStoriesSegunda("");
+        setGuideStoriesSabado("");
         setGuideFeed("");
         setClienteAtivo(true);
         setStoriesQuartaSextaDomingo(true);
@@ -177,6 +181,8 @@ export function ClientManager() {
         setToken(client.token || "");
         setGuideStories(client.guideStories || "");
         setGuideStoriesSegSab(client.guideStoriesSegSab || "");
+        setGuideStoriesSegunda(client.guideStoriesSegunda || "");
+        setGuideStoriesSabado(client.guideStoriesSabado || "");
         setGuideFeed(client.guideFeed || "");
         setClienteAtivo(client.clienteAtivo ?? true);
         setStoriesQuartaSextaDomingo(client.storiesQuartaSextaDomingo ?? (client.clienteAtivo !== false));
@@ -198,7 +204,7 @@ export function ClientManager() {
         setNumeroGrupoWhatsapp(client.numeroGrupoWhatsapp || "");
         setColumns([...client.columns]);
         setLayouts(client.layouts ? [...client.layouts] : []);
-        setIsUploading({ stories: false, storiesSegSab: false, feed: false });
+        setIsUploading({ stories: false, storiesSegSab: false, storiesSegunda: false, storiesSabado: false, feed: false });
         setIsModalOpen(true);
     };
 
@@ -219,6 +225,8 @@ export function ClientManager() {
             token,
             guideStories,
             guideStoriesSegSab,
+            guideStoriesSegunda,
+            guideStoriesSabado,
             guideFeed,
             clienteAtivo,
             storiesQuartaSextaDomingo,
@@ -258,7 +266,7 @@ export function ClientManager() {
         }
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'stories' | 'storiesSegSab' | 'feed') => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'stories' | 'storiesSegSab' | 'storiesSegunda' | 'storiesSabado' | 'feed') => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -268,6 +276,8 @@ export function ClientManager() {
             if (url) {
                 if (type === 'stories') setGuideStories(url);
                 else if (type === 'storiesSegSab') setGuideStoriesSegSab(url);
+                else if (type === 'storiesSegunda') setGuideStoriesSegunda(url);
+                else if (type === 'storiesSabado') setGuideStoriesSabado(url);
                 else setGuideFeed(url);
             }
         } catch (error) {
@@ -650,26 +660,51 @@ export function ClientManager() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs uppercase text-muted-foreground font-bold">Guia Stories (Segunda e Sábado)</label>
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Stories Segunda</label>
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
                                     className="flex-1 relative h-10 border-dashed border-indigo-500/30 hover:border-indigo-500/60"
-                                    disabled={isUploading.storiesSegSab}
-                                    onClick={() => document.getElementById('upload-guide-stories-seg-sab')?.click()}
+                                    disabled={isUploading.storiesSegunda}
+                                    onClick={() => document.getElementById('upload-guide-stories-segunda')?.click()}
                                 >
-                                    {isUploading.storiesSegSab ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" /> {guideStoriesSegSab ? 'Alterar Imagem' : 'Subir Imagem'}</>}
+                                    {isUploading.storiesSegunda ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" /> {guideStoriesSegunda ? 'Alterar Imagem' : 'Subir Imagem'}</>}
                                 </Button>
                                 <input
                                     type="file"
-                                    id="upload-guide-stories-seg-sab"
+                                    id="upload-guide-stories-segunda"
                                     className="hidden"
                                     accept="image/*"
-                                    onChange={(e) => handleFileUpload(e, 'storiesSegSab')}
+                                    onChange={(e) => handleFileUpload(e, 'storiesSegunda')}
                                 />
-                                {guideStoriesSegSab && (
-                                    <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideStoriesSegSab, '_blank')}>
-                                        <img src={guideStoriesSegSab} alt="Preview" className="w-full h-full object-cover" />
+                                {guideStoriesSegunda && (
+                                    <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideStoriesSegunda, '_blank')}>
+                                        <img src={guideStoriesSegunda} alt="Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs uppercase text-muted-foreground font-bold">Stories Sábado</label>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 relative h-10 border-dashed border-indigo-500/30 hover:border-indigo-500/60"
+                                    disabled={isUploading.storiesSabado}
+                                    onClick={() => document.getElementById('upload-guide-stories-sabado')?.click()}
+                                >
+                                    {isUploading.storiesSabado ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Upload className="w-4 h-4 mr-2" /> {guideStoriesSabado ? 'Alterar Imagem' : 'Subir Imagem'}</>}
+                                </Button>
+                                <input
+                                    type="file"
+                                    id="upload-guide-stories-sabado"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileUpload(e, 'storiesSabado')}
+                                />
+                                {guideStoriesSabado && (
+                                    <div className="w-10 h-10 rounded border border-indigo-500/20 overflow-hidden cursor-pointer" onClick={() => window.open(guideStoriesSabado, '_blank')}>
+                                        <img src={guideStoriesSabado} alt="Preview" className="w-full h-full object-cover" />
                                     </div>
                                 )}
                             </div>

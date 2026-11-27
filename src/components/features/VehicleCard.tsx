@@ -2,9 +2,17 @@ import { getProxiedUrl } from "@/lib/imageProxy";
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, ImageIcon, ChevronLeft, ChevronRight, Plus, DownloadCloud, Loader2 } from "lucide-react";
+import { Download, ImageIcon, ChevronLeft, ChevronRight, Plus, DownloadCloud, Loader2, Clock } from "lucide-react";
 
-export function VehicleCard({ vehicle, onAdd }: { vehicle: any, onAdd: (v: any) => void }) {
+export function VehicleCard({ 
+    vehicle, 
+    onAdd,
+    onViewHistory 
+}: { 
+    vehicle: any; 
+    onAdd: (v: any) => void;
+    onViewHistory?: (v: any) => void;
+}) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -113,8 +121,23 @@ export function VehicleCard({ vehicle, onAdd }: { vehicle: any, onAdd: (v: any) 
                     </div>
                 )}
 
-                <div className="absolute top-2 right-2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">
-                    NOVO VEÍCULO
+                <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+                    {onViewHistory && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onViewHistory(vehicle);
+                            }}
+                            className="bg-black/60 hover:bg-black/90 text-amber-400 p-1.5 rounded shadow-lg backdrop-blur-sm transition border border-white/10"
+                            title="Ver Histórico / Logs do Veículo"
+                        >
+                            <Clock size={13} />
+                        </button>
+                    )}
+                    <span className="bg-indigo-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">
+                        NOVO VEÍCULO
+                    </span>
                 </div>
             </div>
             

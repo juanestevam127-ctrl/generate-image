@@ -405,7 +405,7 @@ export default function SoldDashboardPage() {
                                     </div>
                                 </div>
 
-                                {activeClient && (activeClient.guideStories || activeClient.guideStoriesSegSab || activeClient.guideFeed) && (
+                                {activeClient && (activeClient.guideStories || activeClient.guideStoriesSegSab || activeClient.guideStoriesSegunda || activeClient.guideStoriesSabado || activeClient.guideFeed) && (
                                     <div className="flex-1 pb-1 flex flex-col gap-1">
                                         <div className="flex flex-wrap gap-2 mt-1">
                                             {activeClient.guideStories && (
@@ -418,7 +418,27 @@ export default function SoldDashboardPage() {
                                                     <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
                                                 </Button>
                                             )}
-                                            {activeClient.guideStoriesSegSab && (
+                                            {activeClient.guideStoriesSegunda && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-sky-500/10 border-sky-500/20 text-sky-300 hover:bg-sky-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideStoriesSegunda!, title: `Stories Segunda - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Stories Segunda
+                                                </Button>
+                                            )}
+                                            {activeClient.guideStoriesSabado && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideStoriesSabado!, title: `Stories Sábado - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Stories Sábado
+                                                </Button>
+                                            )}
+                                            {activeClient.guideStoriesSegSab && !activeClient.guideStoriesSegunda && !activeClient.guideStoriesSabado && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"

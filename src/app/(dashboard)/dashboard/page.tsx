@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useStore } from "@/lib/store-context";
 import { ClientManager } from "@/components/features/ClientManager";
 import { VehicleCard } from "@/components/features/VehicleCard";
+import { VehicleHistoryModal } from "@/components/features/VehicleHistoryModal";
+import { getVeiculoHistoryAction } from "@/app/actions/veiculo";
 import { DynamicTable } from "@/components/features/DynamicTable";
 import { ImageEditor } from "@/components/features/ImageEditor";
 import { Button } from "@/components/ui/button";
@@ -37,12 +39,43 @@ export default function DashboardPage() {
     const [isImporting, setIsImporting] = useState(false);
     const [availableVehicles, setAvailableVehicles] = useState<any[]>([]);
 
+    // History Modal State
+    const [historyModalVehicle, setHistoryModalVehicle] = useState<any | null>(null);
+    const [historyVeiculoData, setHistoryVeiculoData] = useState<any | null>(null);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
     // Image Editor State
     const [editorState, setEditorState] = useState<{
         isOpen: boolean;
         imageUrl: string | null;
         Target: { row: number; col: string; index: number } | null;
     }>({ isOpen: false, imageUrl: null, Target: null });
+
+    const handleOpenHistory = async (vehicle: any) => {
+        setHistoryModalVehicle(vehicle);
+        setIsLoadingHistory(true);
+        setHistoryVeiculoData(null);
+
+        try {
+            // Se já tem historico dentro do vehicle, usar como base
+            if (vehicle.historico && Array.isArray(vehicle.historico) && vehicle.historico.length > 0) {
+                setHistoryVeiculoData(vehicle);
+            }
+
+            // Buscar histórico atualizado do banco
+            const res = await getVeiculoHistoryAction(vehicle.id, vehicle.clickupTaskId);
+            if (res.success && res.data) {
+                setHistoryVeiculoData(res.data);
+            } else if (!vehicle.historico) {
+                setHistoryVeiculoData(vehicle);
+            }
+        } catch (e) {
+            console.error("Erro ao carregar histórico do veículo:", e);
+            setHistoryVeiculoData(vehicle);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
 
     if (!user) return null;
 
@@ -886,7 +919,7 @@ export default function DashboardPage() {
                                     </div>
                                 )}
 
-                                {activeClient && (activeClient.guideStories || activeClient.guideStoriesSegSab || activeClient.guideFeed) && (
+                                {activeClient && (activeClient.guideStories || activeClient.guideStoriesSegSab || activeClient.guideStoriesSegunda || activeClient.guideStoriesSabado || activeClient.guideFeed) && (
                                     <div className="flex-1 pb-1 flex flex-col gap-1">
                                         <div className="flex flex-wrap gap-2 mt-1">
                                             {activeClient.guideStories && (
@@ -899,7 +932,27 @@ export default function DashboardPage() {
                                                     <ImageIcon className="w-3 h-3 mr-1" /> Guia Stories
                                                 </Button>
                                             )}
-                                            {activeClient.guideStoriesSegSab && (
+                                            {activeClient.guideStoriesSegunda && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-sky-500/10 border-sky-500/20 text-sky-300 hover:bg-sky-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideStoriesSegunda!, title: `Stories Segunda - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Stories Segunda
+                                                </Button>
+                                            )}
+                                            {activeClient.guideStoriesSabado && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+                                                    onClick={() => setPreviewImage({ url: activeClient.guideStoriesSabado!, title: `Stories Sábado - ${activeClient.name}` })}
+                                                >
+                                                    <ImageIcon className="w-3 h-3 mr-1" /> Stories Sábado
+                                                </Button>
+                                            )}
+                                            {activeClient.guideStoriesSegSab && !activeClient.guideStoriesSegunda && !activeClient.guideStoriesSabado && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
@@ -973,6 +1026,7 @@ export default function DashboardPage() {
                                                     key={v.id} 
                                                     vehicle={v} 
                                                     onAdd={addVehicleToTable} 
+                                                    onViewHistory={handleOpenHistory}
                                                 />
                                             );
                                         })}
@@ -1028,6 +1082,22 @@ export default function DashboardPage() {
                     </div>
                 )}
             </div>
+
+            <VehicleHistoryModal
+                isOpen={!!historyModalVehicle}
+                onClose={() => {
+                    setHistoryModalVehicle(null);
+                    setHistoryVeiculoData(null);
+                }}
+                title={(() => {
+                    if (!historyModalVehicle) return "Veículo";
+                    const dados = historyModalVehicle.dados || {};
+                    let key = Object.keys(dados).find(k => ['nome', 'carro', 'titulo', 'modelo'].some(kw => k.toLowerCase().includes(kw)));
+                    return (key ? dados[key] : (historyModalVehicle.name || Object.values(dados)[0])) || "Veículo";
+                })()}
+                isLoading={isLoadingHistory}
+                veiculo={historyVeiculoData || historyModalVehicle}
+            />
 
             <ImageEditor
                 isOpen={editorState.isOpen}
